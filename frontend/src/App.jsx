@@ -27,7 +27,7 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Bot size={28} />
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>Copylight Agent</h1>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>Copywrite Agent</h1>
         </div>
         <Settings style={{ cursor: 'pointer' }} />
       </header>
@@ -43,7 +43,7 @@ function App() {
       }}>
         {/* Mock Messages */}
         <div style={{ alignSelf: 'flex-start', backgroundColor: 'white', padding: '1rem', borderRadius: '12px', maxWidth: '70%', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-          <p style={{ margin: 0, color: LG_DARK_GRAY }}>안녕하세요, 정현님! Copylight Agent입니다. LG 레드 톤으로 깔끔하게 준비해봤습니다. 🚀</p>
+          <p style={{ margin: 0, color: LG_DARK_GRAY }}>안녕하세요, 정현님! Copywrite Agent입니다. LG 레드 톤으로 깔끔하게 준비해봤습니다. 🚀</p>
         </div>
         <div style={{ alignSelf: 'flex-end', backgroundColor: LG_RED, color: 'white', padding: '1rem', borderRadius: '12px', maxWidth: '70%', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
           <p style={{ margin: 0 }}>오, 색감이 아주 마음에 드네! 프로젝트 기본 구조부터 잡아보자.</p>

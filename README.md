@@ -1,4 +1,4 @@
-# Copylight Agent 🚀
+# Copywrite Agent 🚀
 
 AI Agent 및 서비스 개발을 위한 정현님과 지비오의 협업 프로젝트입니다.
 
