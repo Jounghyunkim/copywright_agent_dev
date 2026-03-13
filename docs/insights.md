@@ -4,8 +4,12 @@
 
 ## 2026-03-13: 프로젝트 시작 및 초기 구조 설정
 - **목적:** AI Agent 및 서비스 개발에 몰입하기 위한 구조적 기반 마련.
+- **프로젝트 명칭:** `copywright_agent` (수정됨)
+- **최종 산출물 정의 (Copywright):**
+    - **본질:** '고객의 행동을 유도하는 전략적 메시지 설계'
+    - **핵심 가치 (LG전자 context):** 기술적 우위(Feature)를 고객의 삶의 가치(Benefit)로 번역하는 과정.
+    - **표준 프로세스:** 브리핑 → 시장 조사 → 컨셉 도출 → 초안 작성 → 검토 및 수정 → 테스트 및 채택.
 - **주요 결정:**
-    - 프로젝트 명칭: `Copylight_Agent`
     - 아키텍처: Frontend (React + Vite) / Backend (FastAPI) 분리 구조.
     - 백엔드 기술 스택 확정: FastAPI (REST API), LangGraph, Azure OpenAI, RAG, Multi-Agent 시스템.
     - UI 테마: LG전자 레드(`#A50034`) 기반의 프리미엄 톤 앤 매너 설정.
