@@ -7,6 +7,7 @@
 - **주요 결정:**
     - 프로젝트 명칭: `Copylight_Agent`
     - 아키텍처: Frontend (React + Vite) / Backend (FastAPI) 분리 구조.
+    - 백엔드 기술 스택 확정: FastAPI (REST API), LangGraph, Azure OpenAI, RAG, Multi-Agent 시스템.
     - UI 테마: LG전자 레드(`#A50034`) 기반의 프리미엄 톤 앤 매너 설정.
 - **인사이트:**
     - 에이전트 개발 시 자율성, 도구 사용 로직, 서비스 완성도의 밸런스가 중요함.
