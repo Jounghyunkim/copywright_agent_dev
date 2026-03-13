@@ -13,6 +13,11 @@
     - 아키텍처: Frontend (React + Vite) / Backend (FastAPI) 분리 구조.
     - 백엔드 기술 스택 확정: FastAPI (REST API), LangGraph, Azure OpenAI, RAG, Multi-Agent 시스템.
     - UI 테마: LG전자 레드(`#A50034`) 기반의 프리미엄 톤 앤 매너 설정.
+
+## ⚙️ 시스템 설계 철학 (Design Philosophy)
+1. **해외 법인 맞춤형 (Localization-Centric):** 단순 번역을 넘어 국가별 소비자 감성, 문화적 뉘앙스, 언어적 스타일을 반영한 최적화된 카피 생성.
+2. **Multi-Agent Debate:** 생성-비판-조율 역할을 수행하는 다중 에이전트 간의 토론을 통해 품질을 고도화하는 구조.
+3. **HITL Decision (Human-in-the-Loop):** AI의 자동화 워크플로우 중간에 마케터의 참여와 컨펌 단계를 배치하여 '사람과 AI의 협업'을 실현.
 - **인사이트:**
     - 에이전트 개발 시 자율성, 도구 사용 로직, 서비스 완성도의 밸런스가 중요함.
     - 보안과 개인정보 보호(Gmail 접근 등)를 고려한 설계 필요.
