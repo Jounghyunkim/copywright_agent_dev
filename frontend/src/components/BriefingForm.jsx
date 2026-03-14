@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Globe, Users, Info, ChevronRight, Check, Zap, Hash, BarChartHorizontal, 
-  Smile, Award, Target, MessageCircle, AlertTriangle, Star, ShieldCheck, Speaker, ThumbsUp
+  Smile, Award, Target, MessageCircle, AlertTriangle, Star, ShieldCheck, Speaker, ThumbsUp, Search
 } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
