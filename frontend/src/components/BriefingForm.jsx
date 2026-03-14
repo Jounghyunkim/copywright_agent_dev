@@ -185,10 +185,12 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
         </div>
       </BriefSection>
 
-      <button style={{...styles.primaryBtn(isDisabled), opacity: isDisabled ? 0.7 : 1}} onClick={onStartAnalysis} disabled={isDisabled}>
-        {isAnalyzing ? 'Analyzing...' : 'Start Analysis'} <ArrowRight size={18} />
-      </button>
-    </aside>
+      {!isDisabled && (
+        <button style={styles.primaryBtn(isAnalyzing)} onClick={onStartAnalysis} disabled={isAnalyzing}>
+          {isAnalyzing ? 'Analyzing...' : 'Start Analysis'} <ArrowRight size={18} />
+        </button>
+      )}
+    </div>
   );
 };
 
