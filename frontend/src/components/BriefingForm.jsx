@@ -36,7 +36,7 @@ const BriefSection = ({ title, icon, children, defaultOpen = false }) => {
   );
 };
 
-const BriefingForm = ({ onStartAnalysis, isAnalyzing }) => {
+const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
   const [activeTone, setActiveTone] = useState('Warm');
 
   const styles = {
@@ -125,7 +125,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing }) => {
   };
 
   return (
-    <aside style={styles.sidebar}>
+    <aside style={{...styles.sidebar, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto'}}>
       <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: COLORS.TEXT_MAIN, marginBottom: '1.5rem' }}>Life's Good Campaign Brief</h2>
 
       <BriefSection title="Project Overview" icon={<BarChartHorizontal size={16} />} defaultOpen={true}>

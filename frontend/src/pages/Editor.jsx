@@ -9,6 +9,7 @@ const Editor = () => {
   const [step, setStep] = useState(1); // For the stepper
   const [editorView, setEditorView] = useState('briefing'); // 'briefing', 'analysis_result'
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisApproved, setAnalysisApproved] = useState(false);
 
   const handleStartAnalysis = () => {
     setIsAnalyzing(true);
@@ -18,6 +19,21 @@ const Editor = () => {
       setEditorView('analysis_result');
       setIsAnalyzing(false);
     }, 1500); // 1.5 second delay to simulate work
+  };
+
+  const handleModifyBrief = () => {
+    setEditorView('briefing');
+    setStep(1);
+    setAnalysisApproved(false); // Reset approval state
+  };
+
+  const handleApproveAnalysis = () => {
+    setAnalysisApproved(true);
+    // Simulate moving to the next step
+    setTimeout(() => {
+        setStep(3);
+        // Here you would show a new view for the 'Generation' results
+    }, 1000);
   };
 
   const styles = {
@@ -90,14 +106,22 @@ const Editor = () => {
               아래 리포트를 검토하시고 다음 단계를 승인해주세요.
             </p>
           </div>
-          <AnalysisReport onApprove={() => setStep(3)} onModify={() => setEditorView('briefing')} />
+          <AnalysisReport 
+            onApprove={handleApproveAnalysis} 
+            onModify={handleModifyBrief} 
+            isApproved={analysisApproved}
+          />
         </div>
       </div>
   );
 
   return (
     <div style={styles.main}>
-      <BriefingForm onStartAnalysis={handleStartAnalysis} isAnalyzing={isAnalyzing} />
+      <BriefingForm 
+        onStartAnalysis={handleStartAnalysis} 
+        isAnalyzing={isAnalyzing} 
+        isDisabled={editorView === 'analysis_result'}
+      />
       <div style={styles.contentArea}>
         <WorkflowStepper currentStep={step} />
         <div style={styles.chatContainer}>

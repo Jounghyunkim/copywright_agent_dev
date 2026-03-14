@@ -2,7 +2,7 @@ import React from 'react';
 import { User, Tag, Shield, BarChart2, SmilePlus, Search } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
-const AnalysisReport = ({ onApprove, onModify }) => {
+const AnalysisReport = ({ onApprove, onModify, isApproved }) => {
     // This is the mock data from the previous step
     const analysisResult = {
         persona: {
@@ -132,13 +132,15 @@ const AnalysisReport = ({ onApprove, onModify }) => {
                       ))}
                    </div>
                 </div>
-                <div style={{ ...styles.card, gridColumn: '1 / 4', textAlign: 'center' }}>
-                    <h4 style={{ ...styles.cardTitle, justifyContent: 'center' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
-                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                        <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.SUCCESS }} onClick={onApprove}>Approve & Generate Copy</button>
-                        <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.TEXT_SUB }} onClick={onModify}>Modify Brief</button>
+                {!isApproved && (
+                    <div style={{ ...styles.card, gridColumn: '1 / 4', textAlign: 'center' }}>
+                        <h4 style={{ ...styles.cardTitle, justifyContent: 'center' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.SUCCESS }} onClick={onApprove}>Approve & Generate Copy</button>
+                            <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.TEXT_SUB }} onClick={onModify}>Modify Brief</button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
