@@ -25,6 +25,12 @@
 3. **Brand Critic Agent (브랜드 검증):** LG 브랜드 가이드라인(BCG) 기반 적합성 평가 및 수정 피드백 제공.
 4. **Decision Support (최종 선정):** 기획 의도 및 적합성 리포트(테이블 형태) 제공으로 마케터의 최종 의사결정 지원.
 
+## 🏗️ 프론트엔드 아키텍처 (리팩토링)
+- **컴포넌트 기반 구조:** 기존의 단일 `App.jsx` 파일을 재사용 가능한 기능 단위의 컴포넌트들로 분리하여 코드의 유지보수성과 확장성을 대폭 향상.
+  - `pages/`: `Dashboard.jsx`, `Editor.jsx`와 같이 독립적인 화면 단위를 관리.
+  - `components/`: `Header.jsx`, `BriefingForm.jsx` 등 여러 페이지에서 재사용될 수 있는 작은 UI 조각들을 관리.
+  - `styles/`: `theme.js` 파일을 통해 색상, 폰트 등 디자인 시스템을 중앙에서 관리.
+
 ## 🖼️ 프론트엔드 인터페이스 설계 (Mockup)
 - **Briefing Panel (좌측):** 제품명, 국가(USA/GER/IND/KOR), 타겟 연령대, 톤앤매너(Emotional/Rational/Technical), 주요 특징 입력을 위한 폼 구성.
 - **Workflow Tracker (상단):** Briefing -> Analysis -> Generation -> Review로 이어지는 에이전트 진행 상태 시각화.
