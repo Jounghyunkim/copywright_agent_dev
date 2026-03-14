@@ -25,9 +25,10 @@
 3. **Brand Critic Agent (브랜드 검증):** LG 브랜드 가이드라인(BCG) 기반 적합성 평가 및 수정 피드백 제공.
 4. **Decision Support (최종 선정):** 기획 의도 및 적합성 리포트(테이블 형태) 제공으로 마케터의 최종 의사결정 지원.
 
-## 🛠️ 기술 구현 전략 (Technical Implementation Strategy)
-1. **Knowledge Base (RAG 기반):** LG 글로벌 광고 레거시, 브랜드 사전 등을 통합하여 LG만의 시각과 맥락을 학습. 멀티링구얼 LLM을 통한 지역별 언어 최적화.
-2. **Multi-Agent 토론 구조:** 자가 비판(Self-Correction) 과정을 통해 생성 품질을 스스로 높이는 멀티 페르소나 기반 의사결정 구조.
+## 🖼️ 프론트엔드 인터페이스 설계 (Mockup)
+- **Briefing Panel (좌측):** 제품명, 국가(USA/GER/IND/KOR), 타겟 연령대, 톤앤매너(Emotional/Rational/Technical), 주요 특징 입력을 위한 폼 구성.
+- **Workflow Tracker (상단):** Briefing -> Analysis -> Generation -> Review로 이어지는 에이전트 진행 상태 시각화.
+- **Main Dashboard (중앙):** 에이전트와의 실시간 대화 및 분석 결과 리포트 출력 영역.
 - **인사이트:**
     - 에이전트 개발 시 자율성, 도구 사용 로직, 서비스 완성도의 밸런스가 중요함.
     - 보안과 개인정보 보호(Gmail 접근 등)를 고려한 설계 필요.
