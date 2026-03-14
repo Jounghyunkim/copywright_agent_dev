@@ -149,7 +149,7 @@ const AnalysisReport = ({ onApprove, onModify, isApproved, analysisResult }) => 
                         <p style={{margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to the Copy Generation step, or modify the brief to re-analyze.</p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                             <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.WHITE, color: COLORS.LG_RED, border: `1px solid ${COLORS.LG_RED}` }} onClick={onModify}>Modify Brief</button>
-                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED }} onClick={onApprove}>Approve & Generate Copy</button>
+                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED, color: COLORS.WHITE }} onClick={onApprove}>Approve & Generate Copy</button>
                         </div>
                     </div>
                 )}
