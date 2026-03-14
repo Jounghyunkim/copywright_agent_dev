@@ -56,19 +56,18 @@ const AnalysisReport = ({ onApprove, onModify, isApproved, analysisResult }) => 
             margin: '0 5px 5px 0'
         },
         primaryBtn: {
-          backgroundColor: COLORS.LG_RED,
-          color: COLORS.WHITE,
-          padding: '10px 20px',
-          fontSize: '0.9rem',
+          padding: '16px',
           borderRadius: '12px',
           border: 'none',
           fontWeight: 700,
+          fontSize: '1rem',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '10px',
-          boxShadow: '0 8px 20px rgba(165, 0, 52, 0.15)',
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)',
+          transition: 'transform 0.2s ease',
        },
     };
 
