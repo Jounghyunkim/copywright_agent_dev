@@ -36,7 +36,7 @@ const BriefSection = ({ title, icon, children, defaultOpen = false }) => {
   );
 };
 
-const BriefingForm = ({ onStartAnalysis }) => {
+const BriefingForm = ({ onStartAnalysis, isAnalyzing }) => {
   const [activeTone, setActiveTone] = useState('Warm');
 
   const styles = {
