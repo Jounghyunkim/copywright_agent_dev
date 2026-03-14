@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Globe, Users, Info, ChevronRight, Check, Zap, Hash, BarChartHorizontal, 
-  Smile, Award, Target, MessageCircle, AlertTriangle, Star, ShieldCheck, Speaker, ThumbsUp, Search
+  Smile, Award, Target, MessageCircle, AlertTriangle, Star, ShieldCheck, Speaker, ThumbsUp, ArrowRight
 } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
@@ -106,36 +106,36 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
       fontWeight: 500,
       cursor: 'pointer',
     }),
-    primaryBtn: {
-      backgroundColor: COLORS.LG_RED,
+    primaryBtn: (disabled) => ({
+      backgroundColor: disabled ? COLORS.TEXT_SUB : COLORS.LG_RED,
       color: COLORS.WHITE,
       padding: '16px',
       borderRadius: '12px',
       border: 'none',
       fontWeight: 700,
       fontSize: '1rem',
-      cursor: 'pointer',
+      cursor: disabled ? 'not-allowed' : 'pointer',
       marginTop: '1rem',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: '10px',
       boxShadow: '0 8px 20px rgba(165, 0, 52, 0.15)',
-    },
+    }),
   };
 
   return (
-    <aside style={{...styles.sidebar, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto'}}>
+    <aside style={styles.sidebar}>
       <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: COLORS.TEXT_MAIN, marginBottom: '1.5rem' }}>Life's Good Campaign Brief</h2>
 
       <BriefSection title="Project Overview" icon={<BarChartHorizontal size={16} />} defaultOpen={true}>
-        <div style={styles.inputGroup}>
+        <div style={{ ...styles.inputGroup, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto' }}>
           <label style={styles.label}>Project Name</label>
-          <input style={styles.input} defaultValue="Life’s Good Social Campaign" />
+          <input style={styles.input} defaultValue="Life’s Good Social Campaign" disabled={isDisabled} />
         </div>
-        <div style={styles.inputGroup}>
+        <div style={{ ...styles.inputGroup, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto' }}>
           <label style={styles.label}>Campaign Period</label>
-          <input style={styles.input} defaultValue="2026.03 – 2026.05" />
+          <input style={styles.input} defaultValue="2026.03 – 2026.05" disabled={isDisabled} />
         </div>
       </BriefSection>
 
@@ -146,10 +146,10 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
       </BriefSection>
 
       <BriefSection title="Campaign Objective" icon={<Target size={16} />}>
-        <div style={{ ...styles.checkboxGroup, marginTop: '1rem' }}>
-          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Strengthen brand's emotional story</label>
-          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Encourage organic social sharing</label>
-          <label style={styles.checkboxLabel}><input type="checkbox" /> Drive product feature awareness</label>
+        <div style={{ ...styles.checkboxGroup, marginTop: '1rem', opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto' }}>
+          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked disabled={isDisabled}/> Strengthen brand's emotional story</label>
+          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked disabled={isDisabled}/> Encourage organic social sharing</label>
+          <label style={styles.checkboxLabel}><input type="checkbox" disabled={isDisabled} /> Drive product feature awareness</label>
         </div>
       </BriefSection>
       
@@ -167,26 +167,26 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
               LG enables a better life by practicing optimism. Our technology makes everyday moments more meaningful.
             </div>
           </div>
-          <div style={styles.inputGroup}>
+          <div style={{ ...styles.inputGroup, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto' }}>
             <label style={styles.label}>Tone & Voice</label>
             <div style={styles.toneGrid}>
               {['Warm', 'Human', 'Optimistic', 'Meaningful', 'Confident'].map(t => (
-                <button key={t} onClick={() => setActiveTone(t)} style={styles.toneTag(activeTone === t)}>{t}</button>
+                <button key={t} disabled={isDisabled} onClick={() => setActiveTone(t)} style={styles.toneTag(activeTone === t)}>{t}</button>
               ))}
             </div>
           </div>
       </BriefSection>
 
       <BriefSection title="Mandatory Rules" icon={<ShieldCheck size={16} />}>
-         <div style={{ ...styles.checkboxGroup, marginTop: '1rem' }}>
-          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Include "Life's Good" brand line</label>
-          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Optimize for Social Media (Insta, TikTok)</label>
-          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Ensure global cultural neutrality</label>
+         <div style={{ ...styles.checkboxGroup, marginTop: '1rem', opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto' }}>
+          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked disabled={isDisabled}/> Include "Life's Good" brand line</label>
+          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked disabled={isDisabled}/> Optimize for Social Media (Insta, TikTok)</label>
+          <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked disabled={isDisabled}/> Ensure global cultural neutrality</label>
         </div>
       </BriefSection>
 
-      <button style={styles.primaryBtn} onClick={onStartAnalysis}>
-        Start Analysis <Search size={18} />
+      <button style={{...styles.primaryBtn(isDisabled), opacity: isDisabled ? 0.7 : 1}} onClick={onStartAnalysis} disabled={isDisabled}>
+        {isAnalyzing ? 'Analyzing...' : 'Start Analysis'} <ArrowRight size={18} />
       </button>
     </aside>
   );

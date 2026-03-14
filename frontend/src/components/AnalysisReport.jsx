@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Tag, Shield, BarChart2, SmilePlus, Search } from 'lucide-react';
+import { User, Tag, Shield, BarChart2, SmilePlus, Search, ArrowLeft, ArrowRight } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
 const AnalysisReport = ({ onApprove, onModify, isApproved }) => {
@@ -135,9 +135,19 @@ const AnalysisReport = ({ onApprove, onModify, isApproved }) => {
                 {!isApproved && (
                     <div style={{ ...styles.card, gridColumn: '1 / 4', textAlign: 'center' }}>
                         <h4 style={{ ...styles.cardTitle, justifyContent: 'center' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.SUCCESS }} onClick={onApprove}>Approve & Generate Copy</button>
-                            <button style={{ ...styles.primaryBtn, padding: '10px 20px', fontSize: '0.9rem', backgroundColor: COLORS.TEXT_SUB }} onClick={onModify}>Modify Brief</button>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+                            <button 
+                              style={styles.primaryBtn} 
+                              onClick={onModify}
+                            >
+                              <ArrowLeft size={18} /> Modify Brief
+                            </button>
+                            <button 
+                              style={styles.primaryBtn} 
+                              onClick={onApprove}
+                            >
+                              Approve & Generate Copy <ArrowRight size={18} />
+                            </button>
                         </div>
                     </div>
                 )}

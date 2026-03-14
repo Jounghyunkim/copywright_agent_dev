@@ -75,7 +75,7 @@ const Editor = () => {
   const InitialView = () => (
     <>
       <div style={styles.botMessage}>
-        <div style={{...}}> {/* Bot Icon */}</div>
+        <div style={{}}> {/* Bot Icon */}</div>
         <div>
           <div style={styles.messageBubble}>
             <p style={{ margin: 0, fontWeight: 500 }}>안녕하세요, 정현님! 👋</p>
@@ -97,7 +97,7 @@ const Editor = () => {
 
   const ResultView = () => (
      <div style={styles.botMessage}>
-        <div style={{...}}> {/* Bot Icon */}</div>
+        <div style={{}}> {/* Bot Icon */}</div>
         <div>
           <div style={styles.messageBubble}>
             <p style={{ margin: 0, fontWeight: 500 }}>브리핑을 접수했습니다, 정현님! 🚀</p>
