@@ -3,7 +3,7 @@ import BriefingForm from '../components/BriefingForm';
 import WorkflowStepper from '../components/WorkflowStepper';
 import SidebarToggle from '../components/SidebarToggle';
 import { InitialView, ResultView } from '../components/EditorViews';
-import { mockAnalysisResult } from '../data/mockData'; // Assuming mock data is moved
+import { mockAnalysisResult } from '../data/mockData';
 
 const Editor = () => {
   const [step, setStep] = useState(1);
