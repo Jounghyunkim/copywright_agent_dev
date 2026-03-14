@@ -146,7 +146,7 @@ const BriefingForm = ({ onStartAnalysis }) => {
       </BriefSection>
 
       <BriefSection title="Campaign Objective" icon={<Target size={16} />}>
-        <div style={styles.checkboxGroup} style={{marginTop: '1rem'}}>
+        <div style={{ ...styles.checkboxGroup, marginTop: '1rem' }}>
           <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Strengthen brand's emotional story</label>
           <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Encourage organic social sharing</label>
           <label style={styles.checkboxLabel}><input type="checkbox" /> Drive product feature awareness</label>
@@ -178,7 +178,7 @@ const BriefingForm = ({ onStartAnalysis }) => {
       </BriefSection>
 
       <BriefSection title="Mandatory Rules" icon={<ShieldCheck size={16} />}>
-         <div style={styles.checkboxGroup} style={{marginTop: '1rem'}}>
+         <div style={{ ...styles.checkboxGroup, marginTop: '1rem' }}>
           <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Include "Life's Good" brand line</label>
           <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Optimize for Social Media (Insta, TikTok)</label>
           <label style={styles.checkboxLabel}><input type="checkbox" defaultChecked/> Ensure global cultural neutrality</label>
