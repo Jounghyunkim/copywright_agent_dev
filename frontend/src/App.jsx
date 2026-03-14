@@ -111,7 +111,7 @@ function App() {
     },
     toneGrid: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
+      gridTemplateColumns: '1fr 1fr',
       gap: '8px'
     },
     toneBtn: (active) => ({
@@ -229,6 +229,7 @@ function App() {
             <div style={styles.inputGroup}>
               <label style={styles.label}><Globe size={13} /> Country</label>
               <select style={styles.select}>
+                <option>Global (All)</option>
                 <option>USA</option>
                 <option>Germany</option>
                 <option>India</option>
@@ -238,6 +239,7 @@ function App() {
             <div style={styles.inputGroup}>
               <label style={styles.label}><Users size={13} /> Target</label>
               <select style={styles.select}>
+                <option>All Ages</option>
                 <option>Millennials</option>
                 <option>Gen Z</option>
                 <option>Gen X</option>
@@ -248,7 +250,7 @@ function App() {
           <div style={styles.inputGroup}>
             <label style={styles.label}>Tone & Manner</label>
             <div style={styles.toneGrid}>
-              {['Emotional', 'Rational', 'Technical'].map(t => (
+              {['Emotional', 'Rational', 'Technical', 'All Styles'].map(t => (
                 <button 
                   key={t} 
                   onClick={() => setActiveTone(t)}
