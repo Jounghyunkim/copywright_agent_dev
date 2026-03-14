@@ -186,7 +186,7 @@ const BriefingForm = ({ onStartAnalysis }) => {
       </BriefSection>
 
       <button style={styles.primaryBtn} onClick={onStartAnalysis}>
-        Generate Copy <Zap size={18} />
+        Start Analysis <Search size={18} />
       </button>
     </aside>
   );
