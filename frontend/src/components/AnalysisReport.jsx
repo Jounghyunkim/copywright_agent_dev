@@ -144,16 +144,12 @@ const AnalysisReport = ({ onApprove, onModify, isApproved, analysisResult }) => 
                 
                 {/* HITL Action */}
                 {!isApproved && (
-                    <div style={{...styles.card, gridColumn: 'span 12', backgroundColor: '#FFFBEA', border: '1px solid #FFD6A5'}}>
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <div>
-                                <h4 style={{ ...styles.cardTitle, color: '#D97706' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
-                                <p style={{margin: 0, fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to the Copy Generation step, or modify the brief.</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                                <button style={{ ...styles.primaryBtn, backgroundColor: COLORS.TEXT_SUB }} onClick={onModify}>Modify Brief</button>
-                                <button style={{ ...styles.primaryBtn, backgroundColor: COLORS.SUCCESS }} onClick={onApprove}>Approve & Generate Copy</button>
-                            </div>
+                    <div style={{...styles.card, gridColumn: 'span 12', backgroundColor: '#FFFBEA', border: '1px solid #FFD6A5', textAlign: 'center'}}>
+                        <h4 style={{ ...styles.cardTitle, justifyContent: 'center' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
+                        <p style={{margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to the Copy Generation step, or modify the brief to re-analyze.</p>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.WHITE, color: COLORS.LG_RED, border: `1px solid ${COLORS.LG_RED}` }} onClick={onModify}>Modify Brief</button>
+                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED }} onClick={onApprove}>Approve & Generate Copy</button>
                         </div>
                     </div>
                 )}
