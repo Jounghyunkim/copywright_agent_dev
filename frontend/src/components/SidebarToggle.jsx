@@ -7,21 +7,21 @@ const SidebarToggle = ({ isCollapsed, onClick, show }) => {
 
   const style = {
     position: 'absolute',
-    left: isCollapsed ? '0px' : '420px',
-    top: '50%',
+    left: isCollapsed ? '35px' : '435px',
+    top: '40px', // Minor adjustment to 40px for perfect centering with 40px height button
     transform: 'translate(-50%, -50%)',
-    zIndex: 10,
-    height: '60px',
-    width: '24px',
+    zIndex: 100,
+    height: '40px',
+    width: '40px',
     backgroundColor: COLORS.WHITE,
     border: `1px solid ${COLORS.BORDER}`,
-    borderRadius: '0 8px 8px 0',
+    borderRadius: '10px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '4px 0 10px rgba(0,0,0,0.05)',
-    transition: 'left 0.3s ease-in-out, transform 0.3s ease-in-out',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   };
 
   return (

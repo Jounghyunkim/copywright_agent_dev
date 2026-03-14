@@ -130,7 +130,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, isCollapsed })
   return (
     <aside style={styles.sidebar}>
      <div style={styles.innerContainer}>
-      <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: COLORS.TEXT_MAIN, marginBottom: '0.5rem', paddingRight: '1.5rem' }}>Life's Good Campaign Brief</h2>
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: COLORS.TEXT_MAIN, marginBottom: '0.5rem', paddingRight: '3.5rem' }}>Life's Good Campaign Brief</h2>
       
       <div style={{...styles.formContent, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto'}}>
         <BriefSection title="Project Overview" icon={<BarChartHorizontal size={16} />} defaultOpen={true} isDisabled={isDisabled}>
