@@ -190,7 +190,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled }) => {
           {isAnalyzing ? 'Analyzing...' : 'Start Analysis'} <ArrowRight size={18} />
         </button>
       )}
-    </div>
+    </aside>
   );
 };
 
