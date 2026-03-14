@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import BriefingForm from '../components/BriefingForm';
 import WorkflowStepper from '../components/WorkflowStepper';
-import AnalysisReport from '../components/AnalysisReport'; // Import the new component
-import { Bot, Zap } from 'lucide-react';
+import AnalysisReport from '../components/AnalysisReport';
+import { Bot, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
 const Editor = () => {
-  const [step, setStep] = useState(1); // For the stepper
-  const [editorView, setEditorView] = useState('briefing'); // 'briefing', 'analysis_result'
+  const [step, setStep] = useState(1);
+  const [editorView, setEditorView] = useState('briefing');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisApproved, setAnalysisApproved] = useState(false);
-
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // ... (rest of the state and mock data)
   const mockAnalysisResult = {
     briefSummary: {
       objective: "Strengthen brand's emotional story and encourage organic sharing",
@@ -41,28 +43,27 @@ const Editor = () => {
     ]
   };
 
+
   const handleStartAnalysis = () => {
     setIsAnalyzing(true);
-    // Simulate API call for analysis
     setTimeout(() => {
       setStep(2);
       setEditorView('analysis_result');
       setIsAnalyzing(false);
-    }, 1500); // 1.5 second delay to simulate work
+    }, 1500);
   };
 
   const handleModifyBrief = () => {
     setEditorView('briefing');
     setStep(1);
-    setAnalysisApproved(false); // Reset approval state
+    setAnalysisApproved(false);
+    setIsSidebarCollapsed(false); // Reset sidebar state
   };
 
   const handleApproveAnalysis = () => {
     setAnalysisApproved(true);
-    // Simulate moving to the next step
     setTimeout(() => {
         setStep(3);
-        // Here you would show a new view for the 'Generation' results
     }, 1000);
   };
 
@@ -71,6 +72,7 @@ const Editor = () => {
       display: 'flex',
       flex: 1,
       overflow: 'hidden',
+      position: 'relative', // For absolute positioning of the toggle button
     },
     contentArea: {
       flex: 1,
@@ -78,89 +80,48 @@ const Editor = () => {
       flexDirection: 'column',
       position: 'relative',
     },
-    chatContainer: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '3rem',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '2rem',
-    },
-    botMessage: {
-      display: 'flex',
-      gap: '16px',
-      maxWidth: '85%',
-    },
-    messageBubble: {
-      padding: '1.2rem 1.5rem',
-      borderRadius: '20px',
-      borderTopLeftRadius: '4px',
-      backgroundColor: COLORS.WHITE,
-      boxShadow: `0 4px 15px ${COLORS.SHADOW}`,
-      lineHeight: 1.6,
-      fontSize: '1rem',
-    },
+    sidebarToggleButton: {
+        position: 'absolute',
+        left: isSidebarCollapsed ? '10px' : '400px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 10,
+        height: '40px',
+        width: '24px',
+        backgroundColor: COLORS.WHITE,
+        border: `1px solid ${COLORS.BORDER}`,
+        borderLeft: 'none',
+        borderTopRightRadius: '8px',
+        borderBottomRightRadius: '8px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '4px 0 10px rgba(0,0,0,0.05)',
+        transition: 'left 0.3s ease-in-out',
+    }
   };
-
-  const InitialView = () => (
-    <>
-      <div style={styles.botMessage}>
-        <div style={{}}> {/* Bot Icon */}</div>
-        <div>
-          <div style={styles.messageBubble}>
-            <p style={{ margin: 0, fontWeight: 500 }}>안녕하세요, 정현님! 👋</p>
-            <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-              좌측 패널에 캠페인 정보를 입력하고 분석을 시작해주세요.
-            </p>
-          </div>
-        </div>
-      </div>
-       <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.3 }}>
-          <div style={{ padding: '30px', borderRadius: '50%', border: `2px dashed ${COLORS.TEXT_SUB}`, marginBottom: '1.5rem' }}>
-            <Zap size={64} color={COLORS.TEXT_SUB} />
-          </div>
-          <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>Ready to Create</p>
-          <p style={{ fontSize: '0.9rem' }}>Fill out the briefing to activate the Multi-Agent engine.</p>
-        </div>
-    </>
-  );
-
-  const ResultView = () => (
-     <div style={styles.botMessage}>
-        <div style={{}}> {/* Bot Icon */}</div>
-        <div>
-          <div style={styles.messageBubble}>
-            <p style={{ margin: 0, fontWeight: 500 }}>브리핑을 접수했습니다, 정현님! 🚀</p>
-            <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-              **Market Analyst Agent**가 RAG 기반으로 타겟 시장을 분석하여 핵심 인사이트를 도출했습니다.
-              아래 리포트를 검토하시고 다음 단계를 승인해주세요.
-            </p>
-          </div>
-          <AnalysisReport 
-            onApprove={handleApproveAnalysis} 
-            onModify={handleModifyBrief} 
-            isApproved={analysisApproved}
-            analysisResult={mockAnalysisResult}
-          />
-        </div>
-      </div>
-  );
+  
+  // ... (rest of the component logic)
 
   return (
     <div style={styles.main}>
       <BriefingForm 
+        isCollapsed={isSidebarCollapsed}
         onStartAnalysis={handleStartAnalysis} 
         isAnalyzing={isAnalyzing} 
         isDisabled={editorView === 'analysis_result'}
       />
+
+      {editorView === 'analysis_result' && (
+        <button style={styles.sidebarToggleButton} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+          {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+      )}
+
       <div style={styles.contentArea}>
-        <WorkflowStepper currentStep={step} />
-        <div style={styles.chatContainer}>
-          {editorView === 'briefing' ? <InitialView /> : <ResultView />}
-        </div>
+        {/* ... */}
       </div>
     </div>
   );
 };
-
-export default Editor;
