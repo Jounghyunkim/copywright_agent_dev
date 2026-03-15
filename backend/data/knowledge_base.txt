@@ -1,0 +1,22 @@
+### LG Ad Copy - Knowledge Base (Sample Data) ###
+
+[Product: LG OLED TV | Country: USA | Tone: Emotional]
+Copy: The game is on the line. The crowd holds its breath. With the self-lit pixels of LG OLED, you don't just see the final play. You feel it. Every blade of grass, every drop of sweat. It's not just TV. It's the front row seat to life's most thrilling moments. Life's Good.
+
+[Product: LG Gram Laptop | Country: Germany | Tone: Rational]
+Copy: Uncompromising performance. Sub-kilogram weight. The LG Gram is engineered for the modern professional who demands both power and portability. Its robust magnesium-alloy chassis and full-day battery ensure your productivity is never interrupted. Precision engineering for a seamless workflow.
+
+[Product: LG InstaView Refrigerator | Country: USA | Tone: Human]
+Copy: Midnight snack cravings? Just knock twice. The LG InstaView lets you see inside without opening the door, keeping your kids' favorite yogurt perfectly chilled and your energy bills down. It's the small things that make family life a little easier. Life's Good.
+
+[Product: LG CordZero Vacuum | Country: Korea | Tone: Technical]
+Copy: 강력한 흡입력은 기본. All-in-One Tower가 먼지 비움부터 충전, 보관까지 한번에 해결합니다. 이제 청소의 모든 과정을 스마트하게 관리하세요. LG CordZero가 선사하는 완벽한 편리함.
+
+[Product: LG PuriCare AeroTower | Country: India | Tone: Emotional]
+Copy: In a world full of noise, find your sanctuary. The LG PuriCare AeroTower delivers a gentle, purified breeze, creating a calm oasis in your home. It's more than clean air; it's peace of mind for you and your loved ones. Breathe in the good.
+
+[Product: LG Objet Collection | Country: Global | Tone: Aspirational]
+Copy: Your home is a canvas. Your appliances should be art. The LG Objet Collection blends state-of-the-art technology with a timeless, minimalist design. Customize your space to reflect your unique taste. Technology that inspires. Design that endures.
+
+[Product: LG Soundbar | Country: USA | Tone: Technical]
+Copy: Feel the sound. With Dolby Atmos and Meridian Audio Technology, the LG Soundbar creates a three-dimensional soundscape that puts you in the center of the action. Hear every detail, from the quietest whisper to the loudest explosion. Cinema-quality sound, right in your living room.
