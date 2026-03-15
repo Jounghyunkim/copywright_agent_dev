@@ -7,5 +7,5 @@ langchain
 langchain-openai
 langchain-community
 openai
-azure-search-documents
-azure-identity
+faiss-cpu
+tiktoken

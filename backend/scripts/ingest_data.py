@@ -1,32 +1,31 @@
 # backend/scripts/ingest_data.py
 import os
+import argparse
 from dotenv import load_dotenv
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores.azure_search import AzureSearch
+from langchain_community.vectorstores import FAISS
 
 def main():
     """
     This script loads the knowledge base, splits it into chunks,
-    creates embeddings, and indexes them in Azure AI Search.
+    creates embeddings using Azure OpenAI, and saves them to a local FAISS index.
     """
+    parser = argparse.ArgumentParser(description="Ingest data into a local FAISS index.")
+    parser.add_argument("--index-path", type=str, default="../data/faiss_index", help="Path to save the FAISS index.")
+    args = parser.parse_args()
+
     # 1. Load Environment Variables
     load_dotenv(dotenv_path='../.env')
 
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
     AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002") # Assuming a default, can be set in .env
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
     
-    AZURE_SEARCH_ENDPOINT = os.getenv("AZURE_COGNITIVE_SEARCH_ENDPOINT")
-    AZURE_SEARCH_KEY = os.getenv("AZURE_COGNITIVE_SEARCH_KEY")
-    AZURE_SEARCH_INDEX_NAME = os.getenv("AZURE_COGNITIVE_SEARCH_INDEX_NAME")
-
     print("Loaded environment variables.")
-    # Basic validation
-    if not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_SEARCH_ENDPOINT, AZURE_SEARCH_KEY, AZURE_SEARCH_INDEX_NAME]):
-        print("Error: One or more critical environment variables are missing.")
-        print("Please ensure your .env file is correctly set up.")
+    if not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT]):
+        print("Error: Azure OpenAI credentials are missing in the .env file.")
         return
 
     # 2. Load and Split the Knowledge Base
@@ -43,36 +42,30 @@ def main():
     print(f"Split knowledge base into {len(documents)} document chunks.")
 
     # 3. Initialize Embeddings Model
-    embeddings = AzureOpenAIEmbeddings(
-        azure_deployment=AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
-        api_key=AZURE_OPENAI_API_KEY,
-        azure_endpoint=AZURE_OPENAI_ENDPOINT,
-        api_version=AZURE_OPENAI_API_VERSION,
-    )
-    print("Azure OpenAI Embeddings model initialized.")
-
-    # 4. Create and Populate Azure AI Search Index
-    print(f"Creating/updating index '{AZURE_SEARCH_INDEX_NAME}' in '{AZURE_SEARCH_ENDPOINT}'...")
-    
     try:
-        vector_store = AzureSearch(
-            azure_search_endpoint=AZURE_SEARCH_ENDPOINT,
-            azure_search_key=AZURE_SEARCH_KEY,
-            index_name=AZURE_SEARCH_INDEX_NAME,
-            embedding_function=embeddings.embed_query,
+        embeddings = AzureOpenAIEmbeddings(
+            azure_deployment=AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+            api_key=AZURE_OPENAI_API_KEY,
+            azure_endpoint=AZURE_OPENAI_ENDPOINT,
+            api_version=AZURE_OPENAI_API_VERSION,
         )
-        vector_store.add_documents(documents=documents)
-        print("Successfully indexed documents to Azure AI Search.")
-        print("\n--- Ingestion Complete ---")
-        print("You can now run the main application to perform RAG queries.")
-
+        print("Azure OpenAI Embeddings model initialized.")
     except Exception as e:
-        print("\n--- An Error Occurred ---")
-        print(f"Failed to index documents. Error: {e}")
-        print("Please check the following:")
-        print("1. Your Azure credentials in the .env file are correct.")
-        print("2. The Private Endpoint (PEP) is correctly configured in your environment.")
-        print("3. The required packages (`langchain`, `azure-search-documents`, etc.) are installed.")
+        print(f"Error initializing embeddings model: {e}")
+        return
+
+    # 4. Create FAISS index from documents and save locally
+    print(f"Creating FAISS index from {len(documents)} documents...")
+    try:
+        vector_store = FAISS.from_documents(documents, embeddings)
+        vector_store.save_local(args.index_path)
+        print(f"Successfully created and saved FAISS index to '{args.index_path}'")
+        print("\n--- Ingestion Complete ---")
+        print("You can now run the main application to perform RAG queries from the local index.")
+    except Exception as e:
+        print(f"\n--- An Error Occurred During Indexing ---")
+        print(f"Failed to create FAISS index. Error: {e}")
+        print("Please check your Azure OpenAI credentials and network (PEP) connection.")
 
 if __name__ == "__main__":
     main()
