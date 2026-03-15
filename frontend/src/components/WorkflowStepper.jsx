@@ -12,39 +12,44 @@ const WorkflowStepper = ({ currentStep }) => {
 
   const styles = {
     stepperContainer: {
-      padding: '1.5rem 3rem',
+      padding: '0 3rem',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: COLORS.WHITE,
       borderBottom: `1px solid ${COLORS.BORDER}`,
+      height: '80px',
     },
-    stepWrapper: {
+    stepWrapper: (isActive) => ({
       display: 'flex',
       alignItems: 'center',
-    },
+      padding: '0 1rem',
+      height: '100%',
+      borderBottom: isActive ? `3px solid ${COLORS.LG_RED}` : '3px solid transparent',
+      transition: 'all 0.3s ease',
+    }),
     stepIcon: (isCompleted, isActive) => ({
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       borderRadius: '50%',
-      backgroundColor: isCompleted ? COLORS.SUCCESS : isActive ? COLORS.LG_RED : COLORS.BORDER,
+      backgroundColor: isCompleted ? COLORS.SUCCESS : isActive ? COLORS.LG_RED : '#F0F0F0',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      color: COLORS.WHITE,
+      color: isCompleted || isActive ? COLORS.WHITE : COLORS.TEXT_SUB,
       transition: 'all 0.3s ease',
+      flexShrink: 0,
     }),
     stepLabel: (isCompleted, isActive) => ({
-      marginLeft: '12px',
-      fontSize: '1rem',
+      marginLeft: '1rem',
+      fontSize: '1.1rem',
       fontWeight: isActive ? 700 : 500,
-      color: isCompleted ? COLORS.SUCCESS : isActive ? COLORS.LG_RED : COLORS.TEXT_SUB,
-      transition: 'all 0.3s ease',
+      color: isActive ? COLORS.LG_RED : isCompleted ? COLORS.SUCCESS : COLORS.TEXT_SUB,
     }),
     connector: (isCompleted) => ({
       flex: 1,
       height: '2px',
-      minWidth: '80px',
+      minWidth: '60px',
       backgroundColor: isCompleted ? COLORS.SUCCESS : COLORS.BORDER,
       margin: '0 1rem',
       transition: 'background-color 0.3s ease',
@@ -60,9 +65,9 @@ const WorkflowStepper = ({ currentStep }) => {
 
         return (
           <React.Fragment key={step.id}>
-            <div style={styles.stepWrapper}>
+            <div style={styles.stepWrapper(isActive)}>
               <div style={styles.stepIcon(isCompleted, isActive)}>
-                {isCompleted ? <Check size={20} /> : <step.icon size={18} />}
+                {isCompleted ? <Check size={22} /> : <step.icon size={20} />}
               </div>
               <span style={styles.stepLabel(isCompleted, isActive)}>{step.label}</span>
             </div>
