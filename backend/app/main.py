@@ -9,6 +9,7 @@ app = FastAPI(title="Copywrite Agent API")
 origins = [
     "http://localhost",
     "http://localhost:5173",
+    "http://localhost:5001", # Added new frontend port
 ]
 app.add_middleware(
     CORSMiddleware,
