@@ -1,172 +1,49 @@
+// src/components/BriefingForm.jsx
 import React, { useState } from 'react';
-import { 
-  Globe, Users, Info, ChevronRight, BarChartHorizontal, 
-  Target, MessageCircle, ShieldCheck, ArrowRight
-} from 'lucide-react';
-import { COLORS } from '../styles/theme';
-
-const BriefSection = ({ title, icon, children, defaultOpen = false, isDisabled }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  return (
-    <div style={{ border: `1px solid ${COLORS.BORDER}`, borderRadius: '12px', backgroundColor: isOpen ? COLORS.WHITE : 'transparent' }}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        disabled={isDisabled}
-        style={{ 
-          width: '100%', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          padding: '1rem', 
-          border: 'none', 
-          background: 'none', 
-          cursor: isDisabled ? 'default' : 'pointer',
-          fontWeight: 600,
-          color: COLORS.TEXT_MAIN
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {icon}
-          <span>{title}</span>
-        </div>
-        <ChevronRight size={18} style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
-      </button>
-      {isOpen && <div style={{ padding: '0 1rem 1rem 1rem', borderTop: `1px solid ${COLORS.BORDER}` }}>{children}</div>}
-    </div>
-  );
-};
+// ... other imports
 
 const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, isCollapsed }) => {
-  const [activeTone, setActiveTone] = useState('Warm');
+  const [formData, setFormData] = useState({
+    projectName: 'Life’s Good Social Campaign',
+    campaignPeriod: '2026.03 – 2026.05',
+    targetCountry: 'USA',
+    targetAudience: 'Millennials',
+    toneAndManner: 'Emotional',
+    keyBenefits: '',
+  });
+  const [activeTone, setActiveTone] = useState('Emotional');
 
-  const styles = {
-    sidebar: {
-      width: isCollapsed ? '0px' : '420px',
-      backgroundColor: COLORS.SIDEBAR_BG,
-      borderRight: `1px solid ${COLORS.BORDER}`,
-      padding: isCollapsed ? '1.5rem 0' : '1.5rem',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      transition: 'width 0.3s ease-in-out, padding 0.3s ease-in-out',
-      flexShrink: 0,
-    },
-    innerContainer: {
-        minWidth: '380px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        height: '100%'
-    },
-    formContent: {
-        flex: 1,
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        paddingRight: '10px'
-    },
-    inputGroup: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-      marginTop: '1rem'
-    },
-    label: {
-      fontSize: '0.8rem',
-      fontWeight: 600,
-      color: COLORS.TEXT_SUB,
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px',
-    },
-    input: {
-      padding: '10px 14px',
-      borderRadius: '8px',
-      border: `1px solid ${COLORS.BORDER}`,
-      fontSize: '0.9rem',
-      backgroundColor: '#FBFBFD',
-    },
-    infoBox: {
-      backgroundColor: '#F7F7F7',
-      padding: '12px',
-      borderRadius: '8px',
-      fontSize: '0.85rem',
-      color: COLORS.TEXT_SUB,
-      lineHeight: 1.6,
-      border: `1px solid ${COLORS.BORDER}`
-    },
-    toneGrid: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '8px',
-    },
-    toneTag: (active) => ({
-      padding: '6px 12px',
-      fontSize: '0.8rem',
-      borderRadius: '15px',
-      border: `1px solid ${active ? COLORS.LG_RED : COLORS.BORDER}`,
-      backgroundColor: active ? '#FFF0F3' : COLORS.WHITE,
-      color: active ? COLORS.LG_RED : COLORS.TEXT_MAIN,
-      fontWeight: 500,
-      cursor: 'pointer',
-    }),
-    primaryBtn: (disabled) => ({
-      backgroundColor: disabled ? COLORS.TEXT_SUB : COLORS.LG_RED,
-      color: COLORS.WHITE,
-      padding: '16px',
-      borderRadius: '12px',
-      border: 'none',
-      fontWeight: 700,
-      fontSize: '1rem',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px',
-      boxShadow: '0 8px 20px rgba(165, 0, 52, 0.15)',
-    }),
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleToneClick = (tone) => {
+      setActiveTone(tone);
+      setFormData(prev => ({ ...prev, toneAndManner: tone }));
+  }
+
+  // ... styles object
+
   return (
-    <aside style={styles.sidebar}>
-     <div style={styles.innerContainer}>
-      <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: COLORS.TEXT_MAIN, marginBottom: '0.5rem', paddingRight: '3.5rem' }}>Life's Good Campaign Brief</h2>
-      
-      <div style={{...styles.formContent, opacity: isDisabled ? 0.7 : 1, pointerEvents: isDisabled ? 'none' : 'auto'}}>
-        <BriefSection title="Project Overview" icon={<BarChartHorizontal size={16} />} defaultOpen={true} isDisabled={isDisabled}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Project Name</label>
-            <input style={styles.input} defaultValue="Life’s Good Social Campaign" disabled={isDisabled} />
-          </div>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Campaign Period</label>
-            <input style={styles.input} defaultValue="2026.03 – 2026.05" disabled={isDisabled} />
-          </div>
-        </BriefSection>
+    <aside style={/* sidebar style */}>
+      <div style={/* inner container style */}>
+        {/* ... form content ... */}
+        {/* Example of a modified input */}
+        <input 
+            name="projectName"
+            style={styles.input} 
+            value={formData.projectName}
+            onChange={handleChange}
+            disabled={isDisabled} 
+        />
+        {/* ... all other inputs need to be updated similarly ... */}
 
-        {/* ... Other sections with isDisabled passed ... */}
-        <BriefSection title="Core Context" icon={<Info size={16} />} isDisabled={isDisabled}>
-            <div style={styles.infoBox}>This campaign focuses on...</div>
-        </BriefSection>
-        <BriefSection title="Campaign Objective" icon={<Target size={16} />} isDisabled={isDisabled}>
-            {/* ... */}
-        </BriefSection>
-        <BriefSection title="Target Audience" icon={<Users size={16} />} isDisabled={isDisabled}>
-            {/* ... */}
-        </BriefSection>
-        <BriefSection title="Key Message & Tone" icon={<MessageCircle size={16} />} isDisabled={isDisabled}>
-            {/* ... */}
-        </BriefSection>
-        <BriefSection title="Mandatory Rules" icon={<ShieldCheck size={16} />} isDisabled={isDisabled}>
-            {/* ... */}
-        </BriefSection>
-      </div>
-
-      {!isDisabled && (
-        <button style={styles.primaryBtn(isAnalyzing)} onClick={onStartAnalysis} disabled={isAnalyzing}>
-          {isAnalyzing ? 'Analyzing...' : <>Start Analysis <ArrowRight size={18} /></>}
-        </button>
-      )}
+        {!isDisabled && (
+            <button style={styles.primaryBtn(isAnalyzing)} onClick={() => onStartAnalysis(formData)} disabled={isAnalyzing}>
+              {isAnalyzing ? 'Analyzing...' : <>Start Analysis <ArrowRight size={18} /></>}
+            </button>
+        )}
       </div>
     </aside>
   );
