@@ -3,7 +3,7 @@ import os
 import argparse
 from dotenv import load_dotenv
 from langchain_openai import AzureOpenAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 
 def main():
