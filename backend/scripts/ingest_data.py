@@ -19,13 +19,13 @@ def main():
     load_dotenv(dotenv_path='../.env')
 
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-    AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+    EMBEDDING_ENDPOINT = os.getenv("EMBEDDING_ENDPOINT")
     AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
+    EMBEDDING_DEPLOYMENT = os.getenv("EMBEDDING_DEPLOYMENT")
     
     print("Loaded environment variables.")
-    if not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT]):
-        print("Error: Azure OpenAI credentials are missing in the .env file.")
+    if not all([AZURE_OPENAI_API_KEY, EMBEDDING_ENDPOINT, EMBEDDING_DEPLOYMENT]):
+        print("Error: Azure OpenAI credentials for embedding are missing in the .env file.")
         return
 
     # 2. Load and Split the Knowledge Base
@@ -44,9 +44,9 @@ def main():
     # 3. Initialize Embeddings Model
     try:
         embeddings = AzureOpenAIEmbeddings(
-            azure_deployment=AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+            azure_deployment=EMBEDDING_DEPLOYMENT,
             api_key=AZURE_OPENAI_API_KEY,
-            azure_endpoint=AZURE_OPENAI_ENDPOINT,
+            azure_endpoint=EMBEDDING_ENDPOINT,
             api_version=AZURE_OPENAI_API_VERSION,
         )
         print("Azure OpenAI Embeddings model initialized.")
