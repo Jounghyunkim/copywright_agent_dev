@@ -1,16 +1,51 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class CampaignBrief(BaseModel):
+    # PROJECT & DATE
     projectName: str
-    campaignPeriod: str
-    targetCountry: str
-    targetAudience: str
-    toneAndManner: str
-    keyBenefits: str
+    date: str
+
+    # 1. PROJECT CONTEXT
+    projectContext: str
+
+    # 2. OBJECTIVE
+    objectiveCommercial: str
+    objectiveBehavior: str
+    objectiveAttitudinal: str
+
+    # 3. AUDIENCE
+    audience: str
+
+    # 4. KEY MESSAGE
+    keyMessage: str
+
+    # 5. PROOF POINTS
+    proofPoints: str
+
+    # 6. MANDATORIES
+    mandatories: Optional[str] = ""
+
+    # 7. BUDGET
+    budget: Optional[str] = ""
+
+    # 8. MARKET NEEDS
+    marketNeeds: str
+
+    # 9. TIMING
+    timing: str
 
 class AnalysisResponse(BaseModel):
-    # This will eventually hold the full analysis report structure
     status: str
     message: str
     data: Optional[dict] = None
+
+class ChatMessage(BaseModel):
+    role: str  # 'user' or 'assistant'
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    reply: str

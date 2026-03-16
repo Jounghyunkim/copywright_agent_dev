@@ -15,6 +15,9 @@ venv/
 env/
 *.log
 
+# FAISS index (regenerated via ingest_data.py)
+backend/data/faiss_index/
+
 # IDE & OS specific
 .vscode/
 .idea/
