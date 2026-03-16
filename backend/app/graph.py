@@ -7,19 +7,19 @@ from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 # --- Load Environment Variables ---
-load_dotenv(dotenv_path='../.env')
+load_dotenv(dotenv_path='.env')
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
-AZURE_OPENAI_MODEL = os.getenv("AZURE_OPENAI_MODEL")
+AZURE_OPENAI_MODEL = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 EMBEDDING_DEPLOYMENT = os.getenv("EMBEDDING_DEPLOYMENT")
 EMBEDDING_ENDPOINT = os.getenv("EMBEDDING_ENDPOINT")
 
-FAISS_INDEX_PATH = "../data/faiss_index"
+FAISS_INDEX_PATH = "data/faiss_index"
 
 # --- Pydantic Model for LLM Output ---
 class AnalysisReport(BaseModel):
@@ -93,8 +93,3 @@ workflow.set_entry_point("analyst")
 workflow.add_edge("analyst", END)
 app_graph = workflow.compile()
 print("LangGraph for Copywrite Agent compiled with RAG and LLM logic.")
-
-# Compile
-app_graph = workflow.compile()
-
-print("LangGraph for Copylight Agent initialized.")
