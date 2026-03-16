@@ -10,3 +10,4 @@ openai
 faiss-cpu
 tiktoken
 langchain-text-splitters
+tavily-python

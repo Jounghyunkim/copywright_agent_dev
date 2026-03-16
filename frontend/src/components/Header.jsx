@@ -2,7 +2,9 @@ import React from 'react';
 import { Bot, Search, Settings } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
-const Header = ({ setView }) => {
+const Header = ({ setView, backendConnected = true }) => {
+  const statusColor = backendConnected ? COLORS.SUCCESS : COLORS.LG_RED;
+
   const styles = {
     header: {
       backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -34,6 +36,14 @@ const Header = ({ setView }) => {
       justifyContent: 'center',
       boxShadow: '0 4px 12px rgba(165, 0, 52, 0.2)',
     },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      backgroundColor: statusColor,
+      boxShadow: `0 0 6px ${statusColor}`,
+      transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+    },
   };
 
   return (
@@ -46,7 +56,7 @@ const Header = ({ setView }) => {
           <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Copywrite Agent</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
             <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB }}>V 2.0 PREMIUM ENGINE</span>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: COLORS.SUCCESS }}></div>
+            <div style={styles.statusDot} title={backendConnected ? 'Backend connected' : 'Backend disconnected'} />
           </div>
         </div>
       </div>

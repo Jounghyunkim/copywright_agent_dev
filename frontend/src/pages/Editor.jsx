@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, Loader } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import WorkflowStepper from '../components/WorkflowStepper';
 import BriefingForm from '../components/BriefingForm';
 import { InitialView, ResultView } from '../components/EditorViews';
+
+const MIN_PANEL_WIDTH = 320;
 
 const Editor = () => {
   const [step, setStep] = useState(1);
@@ -13,12 +15,45 @@ const Editor = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [leftRatio, setLeftRatio] = useState(0.4);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef(null);
+  const mainAreaRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, analysisResult, isAnalyzing]);
 
+  // --- Drag resize logic ---
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const container = mainAreaRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const totalWidth = rect.width;
+      const ratio = Math.max(MIN_PANEL_WIDTH / totalWidth, Math.min(x / totalWidth, 1 - MIN_PANEL_WIDTH / totalWidth));
+      setLeftRatio(ratio);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // --- Handlers ---
   const handleStartAnalysis = async (formData) => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
@@ -98,6 +133,7 @@ const Editor = () => {
     }
   };
 
+  // --- Styles ---
   const styles = {
     editorContainer: {
       flex: 1,
@@ -109,6 +145,22 @@ const Editor = () => {
       flex: 1,
       display: 'flex',
       overflow: 'hidden',
+      position: 'relative',
+    },
+    leftPanel: {
+      width: `${leftRatio * 100}%`,
+      flexShrink: 0,
+      overflow: 'hidden',
+      borderRight: `1px solid ${COLORS.BORDER}`,
+    },
+    divider: {
+      width: '6px',
+      cursor: 'col-resize',
+      backgroundColor: isDragging ? COLORS.LG_RED : 'transparent',
+      flexShrink: 0,
+      position: 'relative',
+      zIndex: 10,
+      transition: isDragging ? 'none' : 'background-color 0.2s ease',
     },
     rightPanel: {
       flex: 1,
@@ -116,6 +168,7 @@ const Editor = () => {
       flexDirection: 'column',
       overflow: 'hidden',
       backgroundColor: COLORS.BG_GRAY,
+      minWidth: 0,
     },
     messagesArea: {
       flex: 1,
@@ -228,6 +281,15 @@ const Editor = () => {
       flexShrink: 0,
       transition: 'background-color 0.2s ease',
     }),
+    dragOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 9999,
+      cursor: 'col-resize',
+    },
   };
 
   const canSend = chatInput.trim().length > 0 && !isChatLoading;
@@ -235,16 +297,29 @@ const Editor = () => {
   return (
     <div style={styles.editorContainer}>
       <WorkflowStepper currentStep={step} />
-      <div style={styles.mainArea}>
-        <BriefingForm
-          onStartAnalysis={handleStartAnalysis}
-          isAnalyzing={isAnalyzing}
-          isDisabled={step > 1}
-          onGuideSelect={handleGuideSelect}
+      {isDragging && <div style={styles.dragOverlay} />}
+      <div style={styles.mainArea} ref={mainAreaRef}>
+        {/* Left panel - Brief form */}
+        <div style={styles.leftPanel}>
+          <BriefingForm
+            onStartAnalysis={handleStartAnalysis}
+            isAnalyzing={isAnalyzing}
+            isDisabled={step > 1}
+            onGuideSelect={handleGuideSelect}
+          />
+        </div>
+
+        {/* Draggable divider */}
+        <div
+          style={styles.divider}
+          onMouseDown={handleMouseDown}
+          onMouseEnter={(e) => { if (!isDragging) e.currentTarget.style.backgroundColor = COLORS.BORDER; }}
+          onMouseLeave={(e) => { if (!isDragging) e.currentTarget.style.backgroundColor = 'transparent'; }}
         />
+
+        {/* Right panel - Chat & Results */}
         <div style={styles.rightPanel}>
           <div style={styles.messagesArea}>
-            {/* Main content area */}
             {!analysisResult ? (
               <InitialView />
             ) : (
@@ -256,7 +331,6 @@ const Editor = () => {
               />
             )}
 
-            {/* Chat message history */}
             {chatMessages.length > 0 && (
               <div style={styles.chatDivider}>
                 <div style={styles.chatDividerLine} />
@@ -291,7 +365,6 @@ const Editor = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Chat input bar */}
           <div style={styles.chatInputArea}>
             <textarea
               value={chatInput}

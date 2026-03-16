@@ -40,6 +40,13 @@ class AnalysisResponse(BaseModel):
     message: str
     data: Optional[dict] = None
 
+class GenerateBriefRequest(BaseModel):
+    projectName: str
+
+class GenerateBriefResponse(BaseModel):
+    status: str
+    data: dict
+
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'assistant'
     content: str
