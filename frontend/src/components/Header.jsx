@@ -55,7 +55,7 @@ const Header = ({ setView, backendConnected = true }) => {
         <div>
           <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Copywrite Agent</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-            <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB }}>V 2.0 PREMIUM ENGINE</span>
+            <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB }}>Backend Health: </span>
             <div style={styles.statusDot} title={backendConnected ? 'Backend connected' : 'Backend disconnected'} />
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, Loader } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import WorkflowStepper from '../components/WorkflowStepper';
-import BriefingForm from '../components/BriefingForm';
+import BriefingForm, { PreviewBody } from '../components/BriefingForm';
 import { InitialView, ResultView } from '../components/EditorViews';
 
 const MIN_PANEL_WIDTH = 320;
@@ -17,6 +17,7 @@ const Editor = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [leftRatio, setLeftRatio] = useState(0.4);
   const [isDragging, setIsDragging] = useState(false);
+  const [submittedBrief, setSubmittedBrief] = useState(null);
   const messagesEndRef = useRef(null);
   const mainAreaRef = useRef(null);
 
@@ -55,6 +56,7 @@ const Editor = () => {
 
   // --- Handlers ---
   const handleStartAnalysis = async (formData) => {
+    setSubmittedBrief(formData);
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setIsApproved(false);
@@ -89,6 +91,7 @@ const Editor = () => {
 
   const handleModify = () => {
     setAnalysisResult(null);
+    setSubmittedBrief(null);
     setStep(1);
   };
 
@@ -299,14 +302,23 @@ const Editor = () => {
       <WorkflowStepper currentStep={step} />
       {isDragging && <div style={styles.dragOverlay} />}
       <div style={styles.mainArea} ref={mainAreaRef}>
-        {/* Left panel - Brief form */}
+        {/* Left panel - Brief form or Brief preview */}
         <div style={styles.leftPanel}>
-          <BriefingForm
-            onStartAnalysis={handleStartAnalysis}
-            isAnalyzing={isAnalyzing}
-            isDisabled={step > 1}
-            onGuideSelect={handleGuideSelect}
-          />
+          {step > 1 && submittedBrief ? (
+            <div style={{
+              width: '100%', height: '100%', backgroundColor: COLORS.WHITE,
+              overflowY: 'auto', padding: '1.5rem', boxSizing: 'border-box',
+            }}>
+              <PreviewBody formData={submittedBrief} />
+            </div>
+          ) : (
+            <BriefingForm
+              onStartAnalysis={handleStartAnalysis}
+              isAnalyzing={isAnalyzing}
+              isDisabled={step > 1}
+              onGuideSelect={handleGuideSelect}
+            />
+          )}
         </div>
 
         {/* Draggable divider */}

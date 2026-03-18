@@ -1,5 +1,5 @@
 def main():
-    print("Hello from copywright-agent-dev!")
+    print("Hello from copywriting-agent-dev!")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Loader, ChevronDown, ChevronRight, Search, Sparkles } from 'lucide-react';
+import { ArrowRight, Loader, ChevronDown, ChevronRight, Search, Sparkles, Eye, X, Copy, CheckCheck } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -28,7 +28,6 @@ export const SECTIONS = [
     title: 'Project',
     fields: [
       { name: 'projectName', label: 'Project Name', type: 'text', placeholder: 'e.g. LG OLED TV Global Launch', required: true },
-      { name: 'date', label: 'Date', type: 'date', required: true },
     ],
   },
   {
@@ -107,11 +106,68 @@ export const SECTIONS = [
   },
 ];
 
+// --- Preview Renderer (simple Markdown-like rendering without library) ---
+const PreviewBody = ({ formData }) => {
+  const d = formData;
+  const s = {
+    h1: { fontSize: '1.4rem', fontWeight: 800, color: '#1a1a1a', margin: '0 0 4px 0', letterSpacing: '-0.3px' },
+    h2: { fontSize: '1rem', fontWeight: 700, color: COLORS.LG_RED, margin: '24px 0 8px 0', paddingBottom: '6px', borderBottom: `2px solid ${COLORS.LG_RED}` },
+    h3: { fontSize: '0.88rem', fontWeight: 700, color: '#374151', margin: '14px 0 4px 0' },
+    meta: { fontSize: '0.82rem', color: COLORS.TEXT_SUB, margin: '0 0 2px 0' },
+    body: { fontSize: '0.88rem', color: '#374151', lineHeight: 1.7, margin: '4px 0 0 0', whiteSpace: 'pre-wrap' },
+    empty: { fontSize: '0.85rem', color: '#D1D5DB', fontStyle: 'italic', margin: '4px 0 0 0' },
+    divider: { borderTop: `1px solid ${COLORS.BORDER}`, margin: '20px 0' },
+    badge: { display: 'inline-block', padding: '2px 10px', borderRadius: '6px', backgroundColor: '#FFF0F3', color: COLORS.LG_RED, fontSize: '0.72rem', fontWeight: 700, marginLeft: '8px' },
+  };
+  const Val = ({ v }) => v ? <p style={s.body}>{v}</p> : <p style={s.empty}>미작성</p>;
+
+  return (
+    <div>
+      <p style={s.h1}>{d.projectName || 'Untitled Project'}<span style={s.badge}>BRIEF</span></p>
+      <p style={s.meta}>생성일: {d.date.replace(/-/g, '.')}</p>
+
+      <p style={s.h2}>1. Project Context</p>
+      <Val v={d.projectContext} />
+
+      <p style={s.h2}>2. Objective</p>
+      <p style={s.h3}>Commercial Objectives</p>
+      <Val v={d.objectiveCommercial} />
+      <p style={s.h3}>Behavior Objectives</p>
+      <Val v={d.objectiveBehavior} />
+      <p style={s.h3}>Attitudinal Objectives</p>
+      <Val v={d.objectiveAttitudinal} />
+
+      <p style={s.h2}>3. Audience</p>
+      <Val v={d.audience} />
+
+      <p style={s.h2}>4. Key Message</p>
+      <Val v={d.keyMessage} />
+
+      <p style={s.h2}>5. Proof Points</p>
+      <Val v={d.proofPoints} />
+
+      <p style={s.h2}>6. Mandatories</p>
+      <Val v={d.mandatories} />
+
+      <p style={s.h2}>7. Budget</p>
+      <Val v={d.budget} />
+
+      <p style={s.h2}>8. Market Needs</p>
+      <Val v={d.marketNeeds} />
+
+      <p style={s.h2}>9. Timing</p>
+      <Val v={d.timing} />
+    </div>
+  );
+};
+
 const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect }) => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -143,8 +199,9 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
 
   const handleAutoGenerate = async () => {
     const name = formData.projectName.trim();
-    if (!name) {
-      alert('Project Name을 먼저 입력해 주세요.');
+    const context = formData.projectContext.trim();
+    if (!name || !context) {
+      alert('Project Name과 Project Context를 먼저 입력해 주세요.');
       return;
     }
     setIsGenerating(true);
@@ -153,7 +210,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
       const response = await fetch(`${apiBase}/api/v1/campaigns/generate-brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName: name }),
+        body: JSON.stringify({ projectName: name, projectContext: context }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
@@ -162,9 +219,9 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
           ...prev,
           ...result.data,
           projectName: prev.projectName,
+          projectContext: prev.projectContext,
           date: prev.date,
         }));
-        // expand all sections to show generated content
         setCollapsedSections({});
         setSubmitted(false);
       }
@@ -174,6 +231,76 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const generateMarkdown = () => {
+    const d = formData;
+    return `# LG Project Input Brief
+
+### PROJECT: ${d.projectName}
+### 생성일: ${d.date.replace(/-/g, '.')}
+
+---
+
+## 1. Project Context
+${d.projectContext || '_(미작성)_'}
+
+---
+
+## 2. Objective
+
+### Commercial Objectives
+${d.objectiveCommercial || '_(미작성)_'}
+
+### Behavior Objectives
+${d.objectiveBehavior || '_(미작성)_'}
+
+### Attitudinal Objectives
+${d.objectiveAttitudinal || '_(미작성)_'}
+
+---
+
+## 3. Audience
+${d.audience || '_(미작성)_'}
+
+---
+
+## 4. Key Message
+${d.keyMessage || '_(미작성)_'}
+
+---
+
+## 5. Proof Points
+${d.proofPoints || '_(미작성)_'}
+
+---
+
+## 6. Mandatories
+${d.mandatories || '_(미작성)_'}
+
+---
+
+## 7. Budget
+${d.budget || '_(미작성)_'}
+
+---
+
+## 8. Market Needs
+${d.marketNeeds || '_(미작성)_'}
+
+---
+
+## 9. Timing
+${d.timing || '_(미작성)_'}
+`;
+  };
+
+  const handleCopyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(generateMarkdown());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard API not available */ }
   };
 
   const handleSubmit = () => {
@@ -309,21 +436,22 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
       padding: '4px 0 8px 0',
     },
     autoGenBtn: {
-      padding: '6px 12px',
-      borderRadius: '8px',
-      border: `1px solid ${COLORS.LG_RED}`,
-      backgroundColor: COLORS.WHITE,
+      width: '100%',
+      padding: '10px 16px',
+      marginTop: '6px',
+      borderRadius: '10px',
+      border: `1px dashed ${COLORS.LG_RED}`,
+      backgroundColor: '#FFF8FA',
       color: COLORS.LG_RED,
-      fontSize: '0.75rem',
+      fontSize: '0.8rem',
       fontWeight: 700,
       cursor: isGenerating || isDisabled ? 'not-allowed' : 'pointer',
-      display: 'inline-flex',
+      display: 'flex',
       alignItems: 'center',
-      gap: '4px',
-      whiteSpace: 'nowrap',
+      justifyContent: 'center',
+      gap: '6px',
       opacity: isGenerating || isDisabled ? 0.5 : 1,
       transition: 'all 0.2s ease',
-      flexShrink: 0,
     },
   };
 
@@ -340,8 +468,6 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
         : styles.input(empty),
     };
 
-    const isProjectName = field.name === 'projectName';
-
     return (
       <div key={field.name}>
         {field.label && (
@@ -350,22 +476,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
             {field.required && <span style={styles.requiredMark}>*</span>}
           </p>
         )}
-        {isProjectName ? (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input {...commonProps} type={field.type} style={{ ...commonProps.style, flex: 1 }} />
-            <button
-              style={styles.autoGenBtn}
-              onClick={handleAutoGenerate}
-              disabled={isGenerating || isDisabled}
-              title="Project Name을 기반으로 브리프 초안을 AI가 자동 생성합니다"
-            >
-              {isGenerating
-                ? <><Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> 생성중...</>
-                : <><Sparkles size={12} /> AI 자동생성</>
-              }
-            </button>
-          </div>
-        ) : field.type === 'textarea' ? (
+        {field.type === 'textarea' ? (
           <textarea {...commonProps} rows={field.rows || 3} />
         ) : (
           <input {...commonProps} type={field.type} />
@@ -377,7 +488,12 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
   return (
     <aside style={styles.sidebar}>
       <div style={styles.header}>
-        <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 800 }}>LG Campaign Brief</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 800 }}>LG Campaign Brief</h3>
+          <span style={{ fontSize: '0.72rem', color: COLORS.TEXT_SUB, whiteSpace: 'nowrap', paddingTop: '4px' }}>
+            생성일: {TODAY.replace(/-/g, '.')}
+          </span>
+        </div>
         <p style={{ margin: 0, fontSize: '0.78rem', color: COLORS.TEXT_SUB }}>
           LG 표준 브리프 양식에 따라 캠페인 정보를 입력하세요.
         </p>
@@ -417,24 +533,135 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
                 {section.fields.map(renderField)}
               </div>
             )}
+            {/* AI 자동생성 버튼: Project Context 섹션 바로 뒤 */}
+            {section.id === 'context' && !isDisabled && (
+              <button
+                style={styles.autoGenBtn}
+                onClick={handleAutoGenerate}
+                disabled={isGenerating || isDisabled}
+                title="Project Name과 Project Context를 기반으로 나머지 항목을 AI가 자동 생성합니다"
+              >
+                {isGenerating
+                  ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> 나머지 항목 생성중...</>
+                  : <><Sparkles size={13} /> AI 자동생성 — 나머지 항목 채우기</>
+                }
+              </button>
+            )}
           </div>
         );
       })}
 
       {!isDisabled && (
-        <button
-          style={styles.primaryBtn}
-          onClick={handleSubmit}
-          disabled={isAnalyzing}
+        <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+          <button
+            style={{
+              flex: '0 0 auto',
+              padding: '14px 18px',
+              borderRadius: '12px',
+              border: `1px solid ${COLORS.BORDER}`,
+              backgroundColor: COLORS.WHITE,
+              color: COLORS.TEXT_MAIN,
+              fontWeight: 700,
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => setShowPreview(true)}
+          >
+            <Eye size={16} /> Preview
+          </button>
+          <button
+            style={{ ...styles.primaryBtn, flex: 1, marginTop: 0 }}
+            onClick={handleSubmit}
+            disabled={isAnalyzing}
+          >
+            {isAnalyzing
+              ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Analyzing...</>
+              : <><ArrowRight size={18} /> Submit Brief &amp; Analyze</>
+            }
+          </button>
+        </div>
+      )}
+
+      {/* Brief Preview Modal */}
+      {showPreview && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '2rem',
+          }}
+          onClick={() => setShowPreview(false)}
         >
-          {isAnalyzing
-            ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Analyzing...</>
-            : <><ArrowRight size={18} /> Submit Brief &amp; Analyze</>
-          }
-        </button>
+          <div
+            style={{
+              backgroundColor: COLORS.WHITE, borderRadius: '20px',
+              width: '100%', maxWidth: '720px', maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.2)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 24px', borderBottom: `1px solid ${COLORS.BORDER}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '10px',
+                  backgroundColor: '#FFF0F3', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Eye size={16} color={COLORS.LG_RED} />
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: COLORS.TEXT_MAIN }}>Brief Preview</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: COLORS.TEXT_SUB }}>Markdown formatted view</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={handleCopyMarkdown}
+                  style={{
+                    padding: '6px 14px', borderRadius: '8px',
+                    border: `1px solid ${COLORS.BORDER}`, backgroundColor: COLORS.WHITE,
+                    fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    color: copied ? COLORS.SUCCESS : COLORS.TEXT_SUB,
+                    transition: 'color 0.2s ease',
+                  }}
+                >
+                  {copied ? <><CheckCheck size={13} /> Copied</> : <><Copy size={13} /> Copy MD</>}
+                </button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  style={{
+                    width: 32, height: 32, borderRadius: '8px',
+                    border: 'none', backgroundColor: '#F3F4F6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: COLORS.TEXT_SUB,
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body — Rendered Markdown */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+              <PreviewBody formData={formData} />
+            </div>
+          </div>
+        </div>
       )}
     </aside>
   );
 };
 
 export default BriefingForm;
+export { PreviewBody };

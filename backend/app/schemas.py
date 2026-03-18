@@ -42,6 +42,7 @@ class AnalysisResponse(BaseModel):
 
 class GenerateBriefRequest(BaseModel):
     projectName: str
+    projectContext: str
 
 class GenerateBriefResponse(BaseModel):
     status: str
