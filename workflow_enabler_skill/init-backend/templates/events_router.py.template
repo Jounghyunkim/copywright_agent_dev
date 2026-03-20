@@ -1,0 +1,56 @@
+# Template: SSE Event Streaming
+# Streams execution_events from DB to frontend via Server-Sent Events.
+
+import asyncio
+import json
+
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.infra.db.models import ExecutionEvent
+from app.infra.db.session import SessionLocal
+
+router = APIRouter(tags=["events"])
+
+
+async def sse_stream(last_event_id: int = 0):
+    cursor = last_event_id
+    while True:
+        try:
+            with SessionLocal() as db:
+                rows = list(
+                    db.scalars(
+                        select(ExecutionEvent)
+                        .where(ExecutionEvent.id > cursor)
+                        .order_by(ExecutionEvent.id.asc())
+                        .limit(50)
+                    ).all()
+                )
+        except SQLAlchemyError:
+            yield ": db-unavailable\n\n"
+            await asyncio.sleep(2)
+            continue
+
+        if rows:
+            for event in rows:
+                cursor = event.id
+                payload = {
+                    "id": event.id,
+                    "workflow_instance_id": str(event.workflow_instance_id),
+                    "event_type": event.event_type,
+                    "source": event.source,
+                    "payload": event.payload,
+                    "created_at": event.created_at.isoformat(),
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+        else:
+            yield ": keep-alive\n\n"
+
+        await asyncio.sleep(0.5)
+
+
+@router.get("/events/stream")
+async def stream_events(last_event_id: int = 0) -> StreamingResponse:
+    return StreamingResponse(sse_stream(last_event_id=last_event_id), media_type="text/event-stream")

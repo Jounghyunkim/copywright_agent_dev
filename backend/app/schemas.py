@@ -48,6 +48,31 @@ class GenerateBriefResponse(BaseModel):
     status: str
     data: dict
 
+class StrategicMessageRequest(BaseModel):
+    brief: dict
+    analysisReport: dict
+
+class StrategicMessageResponse(BaseModel):
+    status: str
+    data: Optional[dict] = None
+
+class GenerationConfig(BaseModel):
+    countries: List[str]
+    ageGroups: List[str]
+    personas: List[str]
+    skillsets: List[str]
+    copyCount: int = 3
+
+class GenerateCopyRequest(BaseModel):
+    brief: dict
+    analysisReport: dict
+    strategicMessage: dict
+    config: GenerationConfig
+
+class GenerateCopyResponse(BaseModel):
+    status: str
+    data: Optional[list] = None
+
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'assistant'
     content: str

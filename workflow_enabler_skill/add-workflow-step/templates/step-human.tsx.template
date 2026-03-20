@@ -1,0 +1,42 @@
+// Template: HUMAN Step Component
+// Copy and customize for your new human input step.
+
+// Add this block inside the step rendering area of new-workflow-page.tsx:
+
+{step === N && (
+  <Card style={{ display: 'grid', gap: 12 }}>
+    <h3 style={{ margin: 0 }}>{{STEP_TITLE}}</h3>
+    <p style={{ fontSize: 13, color: 'var(--neutral-600)', margin: 0 }}>
+      {{STEP_DESCRIPTION}}
+    </p>
+
+    {/* === Add your input fields here === */}
+    <div>
+      <FieldLabel>필드 이름</FieldLabel>
+      <TextInput
+        value={fields['field_key'] ?? ''}
+        onChange={e => setFields(p => ({ ...p, field_key: e.target.value }))}
+        placeholder="입력 안내"
+      />
+    </div>
+
+    <div>
+      <FieldLabel>텍스트 영역</FieldLabel>
+      <TextArea
+        value={fields['text_key'] ?? ''}
+        onChange={e => setFields(p => ({ ...p, text_key: e.target.value }))}
+        placeholder="상세 입력 안내"
+      />
+    </div>
+
+    <Button
+      onClick={() => {
+        // TODO: API call if needed, then advance step
+        setStep(N + 1)
+      }}
+      disabled={!fields['field_key']?.trim()}
+    >
+      다음
+    </Button>
+  </Card>
+)}

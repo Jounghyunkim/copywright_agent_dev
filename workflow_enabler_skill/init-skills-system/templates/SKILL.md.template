@@ -1,0 +1,73 @@
+---
+name: {{SKILL_NAME}}
+description: {{SKILL_DESCRIPTION}}
+domain: {{DOMAIN_NAME}}
+owner_team: {{TEAM_NAME}}
+risk_level: medium
+skill_type: capability
+version: 0.1.0
+human_review:
+  required_for: []
+  approve_roles: []
+tool_policy:
+  allowed: [docs.read, policy.read]
+  approval_required: [external.publish]
+outputs: []
+calls_skills: []
+---
+
+# {{SKILL_NAME}}
+
+## 사용 조건
+
+이 스킬은 다음 상황에서 사용한다: {{SKILL_DESCRIPTION}}
+
+일반적인 트리거:
+- 워크플로우가 이 스킬과 관련된 단계에 진입한 경우
+- 품질/위험 검사에서 이 스킬의 판단 결과가 필요한 경우
+
+## 입력
+
+필수 입력 필드:
+- (입력 필드를 정의하세요)
+
+## 출력
+
+주요 출력:
+- (출력 필드를 정의하세요)
+
+## 실행 단계
+
+1. 필수 입력을 검증한다.
+2. 관련 참조 자료/정책을 로딩한다.
+3. 핵심 로직을 실행하고 구조화된 출력을 생성한다.
+4. 위험 점수를 계산하고 위험 수준을 지정한다.
+5. 정책 조건이 충족되면 HITL 요구사항을 표시한다.
+
+## HITL 정책
+
+- red 위험: 검토 필수
+- amber 위험: 팀 리뷰 필요
+
+## 도구 정책
+
+- 기본 허용: 읽기 전용 도구
+- 승인 필요: 배포/쓰기 작업
+
+## 실패 모드
+
+- 누락/잘못된 입력 시 즉시 실패
+- 고위험 출력 시 사람 검토 요청
+
+## 좋은 예시
+
+- (좋은 예시를 작성하세요)
+
+## 나쁜 예시
+
+- (나쁜 예시를 작성하세요)
+
+## 테스트 케이스
+
+- positive_case: 유효한 입력이 성공 출력 생성
+- negative_case: 누락 입력이 실패 요약 생성

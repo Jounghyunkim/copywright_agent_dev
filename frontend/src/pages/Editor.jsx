@@ -1,29 +1,74 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, Loader } from 'lucide-react';
+import { Send, Bot, Loader, ChevronDown, ChevronRight, FileText, BarChart2, MessageSquareText, Globe } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import WorkflowStepper from '../components/WorkflowStepper';
 import BriefingForm, { PreviewBody } from '../components/BriefingForm';
-import { InitialView, ResultView } from '../components/EditorViews';
+import { InitialView, ResultView, StrategicMessageView, GenerationConfigView, ReviewView } from '../components/EditorViews';
+import CopyResults from '../components/CopyResults';
+import AnalysisReport from '../components/AnalysisReport';
+import StrategicMessage from '../components/StrategicMessage';
 
 const MIN_PANEL_WIDTH = 320;
+
+const CollapsibleSection = ({ icon, title, badge, collapsed, onToggle, children }) => (
+  <div style={{ backgroundColor: COLORS.WHITE, borderBottom: `1px solid ${COLORS.BORDER}` }}>
+    <div
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '1rem 1.5rem', cursor: 'pointer', userSelect: 'none',
+      }}
+    >
+      {collapsed ? <ChevronRight size={16} color={COLORS.TEXT_SUB} /> : <ChevronDown size={16} color={COLORS.TEXT_SUB} />}
+      {icon}
+      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: COLORS.TEXT_MAIN }}>{title}</span>
+      {badge && (
+        <span style={{
+          marginLeft: 'auto', fontSize: '0.72rem', fontWeight: 600,
+          padding: '2px 8px', borderRadius: '6px',
+          backgroundColor: '#E8F5E9', color: '#2E7D32',
+        }}>
+          {badge}
+        </span>
+      )}
+    </div>
+    {!collapsed && children}
+  </div>
+);
 
 const Editor = () => {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isApproved, setIsApproved] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
+  const [timeline, setTimeline] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [leftRatio, setLeftRatio] = useState(0.4);
   const [isDragging, setIsDragging] = useState(false);
   const [submittedBrief, setSubmittedBrief] = useState(null);
+  const [isBriefCollapsed, setIsBriefCollapsed] = useState(true);
+  const [isReportCollapsed, setIsReportCollapsed] = useState(false);
+  const [isStrategicCollapsed, setIsStrategicCollapsed] = useState(false);
+  const [strategicData, setStrategicData] = useState(null);
+  const [isStrategicLoading, setIsStrategicLoading] = useState(false);
+  const [isStrategicApproved, setIsStrategicApproved] = useState(false);
+  const [copyResults, setCopyResults] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isCopyResultsCollapsed, setIsCopyResultsCollapsed] = useState(false);
+  const [reviewSkills, setReviewSkills] = useState(['brand-lexicon-check', 'cultural-sensitivity-check']);
+  const [selectedCopies, setSelectedCopies] = useState(new Set());
+  const [analysisProgress, setAnalysisProgress] = useState([]);
   const messagesEndRef = useRef(null);
   const mainAreaRef = useRef(null);
 
+  const addToTimeline = useCallback((item) => {
+    setTimeline(prev => [...prev, item]);
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, analysisResult, isAnalyzing]);
+  }, [timeline, isAnalyzing, isStrategicLoading, isChatLoading]);
 
   // --- Drag resize logic ---
   const handleMouseDown = useCallback((e) => {
@@ -60,6 +105,8 @@ const Editor = () => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setIsApproved(false);
+    setAnalysisProgress([]);
+    addToTimeline({ type: 'analysis-progress' });
 
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
@@ -73,39 +120,199 @@ const Editor = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      setAnalysisResult(result.data);
-      setStep(2);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === 'progress') {
+              setAnalysisProgress(prev => [...prev, event.message]);
+            } else if (event.type === 'result') {
+              setAnalysisResult(event.data);
+              setAnalysisProgress(prev => [...prev, 'Analysis completed successfully.']);
+              addToTimeline({ type: 'analysis-result' });
+              setStep(2);
+            } else if (event.type === 'error') {
+              throw new Error(event.message);
+            }
+          } catch (parseErr) {
+            if (parseErr.message !== raw) console.warn('SSE parse error:', parseErr);
+          }
+        }
+      }
     } catch (error) {
       console.error('Analysis API call failed:', error);
+      setAnalysisProgress(prev => [...prev, `Error: ${error.message}`]);
       alert('Analysis failed. Please check the console for details and ensure the backend server is running.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     setIsApproved(true);
     setStep(3);
+    setIsBriefCollapsed(true);
+    addToTimeline({ type: 'strategic-message' });
+    setIsStrategicLoading(true);
+
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/campaigns/strategic-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: submittedBrief,
+          analysisReport: analysisResult,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setStrategicData(result.data);
+    } catch (error) {
+      console.error('Strategic message extraction failed:', error);
+      alert('Strategic message 추출에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    } finally {
+      setIsStrategicLoading(false);
+    }
+  };
+
+  const handleToggleBriefCollapse = () => {
+    setIsBriefCollapsed(prev => !prev);
+  };
+
+  const handleModifyStrategic = () => {
+    setStrategicData(null);
+    setIsStrategicApproved(false);
+    setIsApproved(false);
+    setTimeline(prev => {
+      const idx = prev.findIndex(item => item.type === 'strategic-message');
+      return idx >= 0 ? prev.slice(0, idx) : prev;
+    });
+    setStep(2);
+  };
+
+  const handleApproveStrategic = () => {
+    setIsStrategicApproved(true);
+    setIsReportCollapsed(true);
+    addToTimeline({ type: 'generation-config' });
+    setStep(4);
+  };
+
+  const handleSubmitGeneration = async (config) => {
+    setIsGenerating(true);
+    setCopyResults(null);
+
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/campaigns/generate-copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: submittedBrief,
+          analysisReport: analysisResult,
+          strategicMessage: strategicData,
+          config,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setCopyResults(result.data);
+    } catch (error) {
+      console.error('Copy generation failed:', error);
+      alert('카피 생성에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleReview = () => {
+    // Select all copies by default
+    const allKeys = new Set();
+    if (copyResults) {
+      copyResults.forEach(r => {
+        const copies = r.copies || [r];
+        copies.forEach((_, idx) => allKeys.add(`${r.countryCode}-${idx}`));
+      });
+    }
+    setSelectedCopies(allKeys);
+    addToTimeline({ type: 'review' });
+    setIsStrategicCollapsed(true);
+    setStep(5);
+  };
+
+  const handleToggleReviewSkill = (id) => {
+    setReviewSkills(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleCopy = (copyKey) => {
+    setSelectedCopies(prev => {
+      const next = new Set(prev);
+      if (next.has(copyKey)) next.delete(copyKey);
+      else next.add(copyKey);
+      return next;
+    });
+  };
+
+  const handleSubmitReview = () => {
+    console.log('Submit review with skills:', reviewSkills);
   };
 
   const handleModify = () => {
     setAnalysisResult(null);
     setSubmittedBrief(null);
+    setStrategicData(null);
+    setIsBriefCollapsed(true);
+    setIsStrategicApproved(false);
+    setIsApproved(false);
+    setAnalysisProgress([]);
+    setTimeline(prev => {
+      const idx = prev.findIndex(item => item.type === 'analysis-progress');
+      return idx >= 0 ? prev.slice(0, idx) : prev;
+    });
     setStep(1);
   };
 
   const handleGuideSelect = (guideInfo) => {
     const guideMessage = `[${guideInfo.title}] 작성 가이드\n\n${guideInfo.guide}`;
-    setChatMessages(prev => [...prev, { role: 'assistant', content: guideMessage }]);
+    addToTimeline({ type: 'chat-assistant', content: guideMessage });
   };
 
   const handleChatSend = async () => {
     const text = chatInput.trim();
     if (!text || isChatLoading) return;
 
-    const newMessages = [...chatMessages, { role: 'user', content: text }];
-    setChatMessages(newMessages);
+    // Build chat history from timeline before adding new message
+    const chatHistory = [
+      ...timeline
+        .filter(item => item.type === 'chat-user' || item.type === 'chat-assistant')
+        .map(item => ({ role: item.type === 'chat-user' ? 'user' : 'assistant', content: item.content })),
+      { role: 'user', content: text },
+    ];
+
+    addToTimeline({ type: 'chat-user', content: text });
     setChatInput('');
     setIsChatLoading(true);
 
@@ -114,16 +321,16 @@ const Editor = () => {
       const response = await fetch(`${apiBase}/api/v1/campaigns/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: chatHistory }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const result = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: result.reply }]);
+      addToTimeline({ type: 'chat-assistant', content: result.reply });
     } catch (error) {
       console.error('Chat API call failed:', error);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 응답 중 오류가 발생했습니다. 다시 시도해 주세요.' }]);
+      addToTimeline({ type: 'chat-assistant', content: '죄송합니다. 응답 중 오류가 발생했습니다. 다시 시도해 주세요.' });
     } finally {
       setIsChatLoading(false);
     }
@@ -180,23 +387,6 @@ const Editor = () => {
       display: 'flex',
       flexDirection: 'column',
       gap: '1.5rem',
-    },
-    chatDivider: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      margin: '0.5rem 0',
-    },
-    chatDividerLine: {
-      flex: 1,
-      height: '1px',
-      backgroundColor: COLORS.BORDER,
-    },
-    chatDividerLabel: {
-      fontSize: '0.75rem',
-      color: COLORS.TEXT_SUB,
-      fontWeight: 600,
-      whiteSpace: 'nowrap',
     },
     userBubble: {
       display: 'flex',
@@ -302,9 +492,76 @@ const Editor = () => {
       <WorkflowStepper currentStep={step} />
       {isDragging && <div style={styles.dragOverlay} />}
       <div style={styles.mainArea} ref={mainAreaRef}>
-        {/* Left panel - Brief form or Brief preview */}
+        {/* Left panel - Brief form / Brief preview / Previous results */}
         <div style={styles.leftPanel}>
-          {step > 1 && submittedBrief ? (
+          {step >= 3 && submittedBrief ? (
+            <div style={{
+              width: '100%', height: '100%', backgroundColor: COLORS.BG_GRAY,
+              overflowY: 'auto', boxSizing: 'border-box',
+            }}>
+              {/* Collapsible Brief */}
+              <CollapsibleSection
+                icon={<FileText size={16} color={COLORS.LG_RED} />}
+                title="Campaign Brief"
+                badge="Submitted"
+                collapsed={isBriefCollapsed}
+                onToggle={handleToggleBriefCollapse}
+              >
+                <div style={{ padding: '0 1.5rem 1.5rem' }}>
+                  <PreviewBody formData={submittedBrief} />
+                </div>
+              </CollapsibleSection>
+
+              {/* Market Analyst Report — collapsible at step 4+ */}
+              {step >= 4 ? (
+                <CollapsibleSection
+                  icon={<BarChart2 size={16} color={COLORS.LG_RED} />}
+                  title="Market Analyst Report"
+                  badge="Approved"
+                  collapsed={isReportCollapsed}
+                  onToggle={() => setIsReportCollapsed(prev => !prev)}
+                >
+                  <div style={{ padding: '0 1rem 1rem' }}>
+                    <AnalysisReport isApproved={true} analysisResult={analysisResult} />
+                  </div>
+                </CollapsibleSection>
+              ) : (
+                <div style={{ padding: '1rem' }}>
+                  <AnalysisReport isApproved={true} analysisResult={analysisResult} />
+                </div>
+              )}
+
+              {/* Strategic Message — shown at step 4+ */}
+              {step >= 4 && strategicData && (
+                <CollapsibleSection
+                  icon={<MessageSquareText size={16} color={COLORS.LG_RED} />}
+                  title="Strategic Message"
+                  badge="Confirmed"
+                  collapsed={isStrategicCollapsed}
+                  onToggle={() => setIsStrategicCollapsed(prev => !prev)}
+                >
+                  <div style={{ padding: '0 1rem 1rem' }}>
+                    <StrategicMessage strategicData={strategicData} isApproved={true} readOnly />
+                  </div>
+                </CollapsibleSection>
+              )}
+
+              {/* Generated Copy — shown at step 5 (Review) */}
+              {step >= 5 && copyResults && (
+                <CollapsibleSection
+                  icon={<Globe size={16} color={COLORS.LG_RED} />}
+                  title="Generated Copy"
+                  badge="Generated"
+                  collapsed={isCopyResultsCollapsed}
+                  onToggle={() => setIsCopyResultsCollapsed(prev => !prev)}
+                >
+                  <div style={{ padding: '0 1rem 1rem' }}>
+                    <CopyResults results={copyResults} readOnly />
+                  </div>
+                </CollapsibleSection>
+              )}
+            </div>
+          ) : step > 1 && submittedBrief ? (
             <div style={{
               width: '100%', height: '100%', backgroundColor: COLORS.WHITE,
               overflowY: 'auto', padding: '1.5rem', boxSizing: 'border-box',
@@ -332,38 +589,108 @@ const Editor = () => {
         {/* Right panel - Chat & Results */}
         <div style={styles.rightPanel}>
           <div style={styles.messagesArea}>
-            {!analysisResult ? (
-              <InitialView />
-            ) : (
-              <ResultView
-                onApprove={handleApprove}
-                onModify={handleModify}
-                isApproved={isApproved}
-                analysisResult={analysisResult}
-              />
-            )}
+            {/* Always show initial greeting */}
+            <InitialView />
 
-            {chatMessages.length > 0 && (
-              <div style={styles.chatDivider}>
-                <div style={styles.chatDividerLine} />
-                <span style={styles.chatDividerLabel}>브리프 작성 Q&amp;A</span>
-                <div style={styles.chatDividerLine} />
-              </div>
-            )}
+            {/* Render timeline items chronologically */}
+            {timeline.map((item, i) => {
+              switch (item.type) {
+                case 'chat-user':
+                  return (
+                    <div key={i} style={styles.userBubble}>
+                      <div style={styles.userBubbleContent}>{item.content}</div>
+                    </div>
+                  );
+                case 'chat-assistant':
+                  return (
+                    <div key={i} style={styles.aiBubbleRow}>
+                      <div style={styles.aiAvatar}><Bot size={18} /></div>
+                      <div style={styles.aiBubbleContent}>{item.content}</div>
+                    </div>
+                  );
+                case 'analysis-progress':
+                  return analysisProgress.length > 0 ? (
+                    <div key={i} style={styles.aiBubbleRow}>
+                      <div style={styles.aiAvatar}><Bot size={18} /></div>
+                      <div style={{
+                        ...styles.aiBubbleContent,
+                        fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
+                        fontSize: '0.82rem',
+                        lineHeight: 1.8,
+                        maxWidth: 'none',
+                      }}>
+                        {analysisProgress.map((line, j) => (
+                          <div key={j} style={{
+                            color: line.startsWith('---') ? COLORS.LG_RED
+                              : line.startsWith('Error') ? '#DC2626'
+                              : line.startsWith('Generated') || line.startsWith('Web search') || line.startsWith('RAG retrieved') ? '#2563EB'
+                              : line === 'Invoking synthesizer LLM...' || line === 'Analysis completed successfully.' ? '#059669'
+                              : COLORS.TEXT_MAIN,
+                            fontWeight: line.startsWith('---') ? 700 : 400,
+                          }}>
+                            {line}
+                          </div>
+                        ))}
+                        {isAnalyzing && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: COLORS.TEXT_SUB }}>
+                            <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                            <span style={{ fontSize: '0.78rem' }}>Processing...</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null;
+                case 'analysis-result':
+                  return (
+                    <ResultView
+                      key={i}
+                      onApprove={handleApprove}
+                      onModify={handleModify}
+                      isApproved={isApproved}
+                      analysisResult={analysisResult}
+                    />
+                  );
+                case 'strategic-message':
+                  return (
+                    <StrategicMessageView
+                      key={i}
+                      strategicData={strategicData}
+                      isStrategicLoading={isStrategicLoading}
+                      isStrategicApproved={isStrategicApproved}
+                      onModifyStrategic={handleModifyStrategic}
+                      onApproveStrategic={handleApproveStrategic}
+                      onUpdateStrategic={setStrategicData}
+                    />
+                  );
+                case 'generation-config':
+                  return (
+                    <GenerationConfigView
+                      key={i}
+                      onSubmitGeneration={handleSubmitGeneration}
+                      copyResults={step < 5 ? copyResults : null}
+                      isGenerating={isGenerating}
+                      onUpdateCopyResults={setCopyResults}
+                      onReview={copyResults && step < 5 ? handleReview : undefined}
+                    />
+                  );
+                case 'review':
+                  return (
+                    <ReviewView
+                      key={i}
+                      copyResults={copyResults}
+                      selectedCopies={selectedCopies}
+                      onToggleCopy={handleToggleCopy}
+                      enabledSkills={reviewSkills}
+                      onToggleSkill={handleToggleReviewSkill}
+                      onSubmitReview={handleSubmitReview}
+                    />
+                  );
+                default:
+                  return null;
+              }
+            })}
 
-            {chatMessages.map((msg, i) =>
-              msg.role === 'user' ? (
-                <div key={i} style={styles.userBubble}>
-                  <div style={styles.userBubbleContent}>{msg.content}</div>
-                </div>
-              ) : (
-                <div key={i} style={styles.aiBubbleRow}>
-                  <div style={styles.aiAvatar}><Bot size={18} /></div>
-                  <div style={styles.aiBubbleContent}>{msg.content}</div>
-                </div>
-              )
-            )}
-
+            {/* Loading indicators */}
             {isChatLoading && (
               <div style={styles.aiBubbleRow}>
                 <div style={styles.aiAvatar}><Bot size={18} /></div>
