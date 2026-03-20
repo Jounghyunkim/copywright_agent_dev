@@ -1,6 +1,6 @@
-# Frontend Architecture Overview — Copywrite Agent v2.0
+# Frontend Architecture Overview — Copywrite Agent v3.0
 
-> 최종 업데이트: 2026-03-18
+> 최종 업데이트: 2026-03-20
 
 ---
 
@@ -36,8 +36,11 @@ frontend/
 │   │   ├── Header.jsx          # 상단 헤더 + 백엔드 상태 램프
 │   │   ├── BriefingForm.jsx    # LG 표준 브리프 입력 폼 (좌측 패널)
 │   │   ├── WorkflowStepper.jsx # 5단계 워크플로우 진행 표시기
-│   │   ├── EditorViews.jsx     # 초기 화면 / 결과 화면 분기
+│   │   ├── EditorViews.jsx     # 뷰 분기 + ReviewView (v3.0: 결과카드/요약)
 │   │   ├── AnalysisReport.jsx  # 시장 분석 리포트 시각화 (10개 카드)
+│   │   ├── GenerationConfig.jsx # 카피 생성 설정 (국가/연령/페르소나/스킬셋)
+│   │   ├── StrategicMessage.jsx # 전략 메시지 표시/편집
+│   │   ├── CopyResults.jsx     # 생성된 카피 결과 표시
 │   │   └── SidebarToggle.jsx   # 사이드바 토글 (현재 미사용)
 │   └── data/
 │       ├── mockData.js         # 테스트용 목데이터
@@ -112,6 +115,10 @@ export const COLORS = {
 | `isChatLoading` | boolean | 채팅 API 호출 중 |
 | `leftRatio` | float(0-1) | 좌/우 패널 비율 (초기 0.4) |
 | `isDragging` | boolean | 패널 경계 드래그 중 |
+| `isReviewing` | boolean | Review SSE 진행 중 (v3.0) |
+| `reviewResults` | array | 스킬별 결과 누적 (v3.0) |
+| `reviewSummary` | object/null | 리뷰 요약 {total, passed, avgScore} (v3.0) |
+| `availableSkills` | array/null | API 스킬 목록 (빌트인+커스텀) (v3.0) |
 
 **레이아웃**:
 ```
@@ -189,6 +196,30 @@ export const COLORS = {
 
 - **InitialView**: AI 인사말 + "Ready to Create" 안내 (분석 전)
 - **ResultView**: AI 응답 버블 + AnalysisReport 컴포넌트 (분석 후)
+- **StrategicMessageView**: 전략 메시지 표시 + 승인/수정 HITL
+- **GenerationConfigView**: 카피 생성 설정 + 결과 표시
+- **ReviewView** (v3.0): 리뷰 설정 + API 스킬 목록 + 결과 표시
+
+### 4.9 ReviewView 상세 (v3.0 추가)
+
+**Target Copy 섹션**: 생성된 카피를 국가별로 그룹화, 체크박스로 리뷰 대상 선택
+
+**Use Skillsets 섹션**:
+- `GET /api/v1/skills` API에서 빌트인 + 커스텀 스킬 동적 로딩
+- 각 스킬에 `builtin`(파랑) / `custom`(주황) 타입 배지 표시
+- 토글 스위치로 개별 활성화/비활성화
+- 폴백: API 로딩 실패 시 `GenerationConfig.SKILLSETS` 하드코딩 목록 사용
+
+**Submit Review**: `POST /api/v1/campaigns/review` SSE 스트림 호출
+
+**ReviewResultCard** — 개별 스킬 실행 결과:
+- pass/fail 배경색 (초록/빨강), score 배지, 실행시간
+- findings: severity별 색상 아이콘 (high=빨강, medium=주황, low=파랑)
+- suggestions: 원본(취소선) → 제안(볼드 초록) 표시
+
+**ReviewSummaryCard** — 전체 리뷰 요약:
+- 다크 그라디언트 배경 (`#1a1a2e → #16213e`)
+- 3-column: Total Checks / Passed / Avg Score
 
 ---
 
@@ -228,9 +259,13 @@ proxy: {
 | 메서드 | 경로 | 호출 컴포넌트 | 설명 |
 |---|---|---|---|
 | GET | `/health` | App.jsx | 15초 주기 헬스체크, `status === 'healthy'` 검증 |
-| POST | `/api/v1/campaigns/analyze` | Editor.jsx | 브리프 제출 → 시장 분석 리포트 |
+| POST | `/api/v1/campaigns/analyze` | Editor.jsx | 브리프 제출 → 시장 분석 리포트 (SSE) |
+| POST | `/api/v1/campaigns/strategic-message` | Editor.jsx | 분석 결과 → 전략 메시지 추출 |
+| POST | `/api/v1/campaigns/generate-copy` | Editor.jsx | 국가/페르소나별 카피 생성 |
 | POST | `/api/v1/campaigns/generate-brief` | BriefingForm.jsx | 프로젝트명 → AI 브리프 초안 생성 |
 | POST | `/api/v1/campaigns/chat` | Editor.jsx | 대화 이력 전송 → AI 응답 |
+| **POST** | **`/api/v1/campaigns/review`** | **Editor.jsx** | **Review 실행 — SSE 스트림 (v3.0)** |
+| **GET** | **`/api/v1/skills`** | **Editor.jsx** | **스킬 목록 로딩 — 앱 초기화 시 (v3.0)** |
 
 ---
 
@@ -254,6 +289,16 @@ proxy: {
 1. 섹션 타이틀 옆 돋보기 클릭 → 채팅 영역에 가이드 AI 메시지 추가
 2. 사용자가 추가 질문 입력 → `/api/v1/campaigns/chat` 호출
 3. AI 응답이 채팅 버블로 표시
+
+### Flow 4: Skillset Review (v3.0)
+1. Step 4(Generation) → 카피 생성 완료 → "Review" 버튼 클릭
+2. Step 5 진입 → ReviewView 렌더링
+3. 좌측 패널: 생성된 카피 확인 (CollapsibleSection)
+4. 우측 Review Settings: 리뷰 대상 카피 체크 + 스킬셋 토글
+5. "Submit Review" 클릭 → `POST /api/v1/campaigns/review` SSE 호출
+6. 실시간으로 스킬별 결과 카드 누적 표시
+7. 전체 완료 시 요약 카드 (Total/Passed/AvgScore) 표시
+8. 결과는 PostgreSQL에 영구 저장 (세션별 이력 조회 가능)
 
 ---
 

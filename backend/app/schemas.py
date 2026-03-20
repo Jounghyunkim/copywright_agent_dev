@@ -82,3 +82,59 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+# --- Review ---
+
+class SelectedCopy(BaseModel):
+    key: str               # e.g. "US-0"
+    countryCode: str
+    copyData: dict         # {headline, subheadline, bodyCopy, cta, ...}
+
+class ReviewRequest(BaseModel):
+    brief: dict
+    analysisReport: dict
+    strategicMessage: dict
+    selectedCopies: List[SelectedCopy]
+    enabledSkills: List[str]
+
+class ReviewSessionResponse(BaseModel):
+    id: str
+    project_name: str
+    status: str
+    enabled_skills: list
+    created_at: str
+    completed_at: Optional[str] = None
+    results: Optional[list] = None
+
+class ReviewHistoryResponse(BaseModel):
+    sessions: list
+
+
+# --- Custom Skill CRUD ---
+
+class CustomSkillCreate(BaseModel):
+    id: str
+    label: str
+    description: str
+    category: str        # validation / generation / analysis
+    prompt_template: str
+    reference_docs: Optional[list] = None
+    output_schema: Optional[dict] = None
+
+class CustomSkillUpdate(BaseModel):
+    label: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    prompt_template: Optional[str] = None
+    reference_docs: Optional[list] = None
+    output_schema: Optional[dict] = None
+    is_active: Optional[bool] = None
+
+class SkillResponse(BaseModel):
+    id: str
+    label: str
+    description: str
+    category: str
+    type: str            # builtin / custom
+    editable: bool

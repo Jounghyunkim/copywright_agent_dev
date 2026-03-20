@@ -11,3 +11,5 @@ faiss-cpu
 tiktoken
 langchain-text-splitters
 tavily-python
+sqlalchemy[asyncio]
+asyncpg

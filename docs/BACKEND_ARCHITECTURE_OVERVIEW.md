@@ -1,6 +1,6 @@
-# Backend Architecture Overview — Copywrite Agent v2.0
+# Backend Architecture Overview — Copywrite Agent v3.0
 
-> 최종 업데이트: 2026-03-18
+> 최종 업데이트: 2026-03-20
 
 ---
 
@@ -13,6 +13,7 @@
 | LLM | Azure OpenAI (Chat: GPT-4, Embedding: text-embedding-ada-002) |
 | Vector Store | FAISS (로컬 인덱스) |
 | Web Search | Tavily API (실시간 시장 정보 수집) |
+| Database | PostgreSQL 16.13 + SQLAlchemy 2.0 (async, asyncpg 드라이버) |
 | LangChain | langchain, langchain-openai, langchain-community |
 | 서버 | Uvicorn (기본 포트 5000) |
 | 가상환경 | 프로젝트 루트 `.venv/` (Python 3.14.3, uv 패키지 관리) |
@@ -24,9 +25,24 @@
 ```
 backend/
 ├── app/
-│   ├── main.py              # FastAPI 앱, 라우터, 미들웨어
+│   ├── main.py              # FastAPI 앱, 라우터, 미들웨어, Review/Skill 엔드포인트
 │   ├── graph.py             # LangGraph 워크플로우 (멀티노드 파이프라인)
-│   └── schemas.py           # Pydantic 요청/응답 모델
+│   ├── schemas.py           # Pydantic 요청/응답 모델
+│   ├── database.py          # PostgreSQL + SQLAlchemy async 연결
+│   ├── models.py            # ORM 모델 (ReviewSession, ReviewResult, CustomSkill)
+│   └── skills/              # Skillset 검증/생성 시스템
+│       ├── __init__.py
+│       ├── runner.py        # 스킬 병렬 실행 + 빌트인/커스텀 라우팅
+│       ├── custom_runner.py # 커스텀 스킬 prompt_template 기반 실행
+│       ├── catalog.py       # 빌트인 메타데이터 + DB 커스텀 병합
+│       └── builtin/         # 빌트인 6개 스킬
+│           ├── __init__.py          # BUILTIN_REGISTRY
+│           ├── ai_washing.py        # AI 과장 표현 감지
+│           ├── brand_lexicon.py     # LG 브랜드 용어 검증
+│           ├── brief_normalizer.py  # 브리프-카피 일관성
+│           ├── channel_variant.py   # 채널별 카피 변형 생성
+│           ├── cultural_sensitivity.py # 문화적 민감성 검증
+│           └── tone_consistency.py  # 톤 일관성 검증
 ├── scripts/
 │   └── ingest_data.py       # Knowledge Base → FAISS 인덱스 생성 스크립트
 ├── data/
@@ -55,6 +71,9 @@ EMBEDDING_ENDPOINT=https://your-resource.openai.azure.com/
 
 # Tavily — Web Search API
 TAVILY_API_KEY=tvly-your_tavily_api_key
+
+# PostgreSQL Database
+DATABASE_URL=postgresql+asyncpg://copywriting:agent@localhost:5432/copywriting_agent_db
 ```
 
 ---
@@ -71,9 +90,19 @@ TAVILY_API_KEY=tvly-your_tavily_api_key
 |---|---|---|---|---|
 | GET | `/` | — | JSON | 서버 상태 메시지 |
 | GET | `/health` | — | `{status: "healthy"}` | 헬스체크 (프론트엔드 15초 주기 폴링) |
-| POST | `/api/v1/campaigns/analyze` | `CampaignBrief` | `AnalysisResponse` | 브리프 → LangGraph 분석 파이프라인 실행 |
+| POST | `/api/v1/campaigns/analyze` | `CampaignBrief` | SSE Stream | 브리프 → LangGraph 분석 파이프라인 실행 |
+| POST | `/api/v1/campaigns/strategic-message` | `StrategicMessageRequest` | `StrategicMessageResponse` | 분석 결과 → 전략 메시지 추출 |
+| POST | `/api/v1/campaigns/generate-copy` | `GenerateCopyRequest` | `GenerateCopyResponse` | 국가/페르소나별 카피 생성 |
 | POST | `/api/v1/campaigns/generate-brief` | `GenerateBriefRequest` | `GenerateBriefResponse` | 프로젝트명 → AI 브리프 초안 생성 |
 | POST | `/api/v1/campaigns/chat` | `ChatRequest` | `ChatResponse` | 대화형 Q&A (브리프 작성 도우미) |
+| **POST** | **`/api/v1/campaigns/review`** | `ReviewRequest` | SSE Stream | **Review 실행 — 스킬별 병렬 검증 + DB 저장** |
+| **GET** | **`/api/v1/campaigns/review/history`** | query: `project_name` | JSON | **프로젝트별 리뷰 이력 조회** |
+| **GET** | **`/api/v1/campaigns/review/{session_id}`** | path: UUID | JSON | **리뷰 세션 상세 결과 조회** |
+| **GET** | **`/api/v1/skills`** | — | JSON | **전체 스킬 목록 (빌트인 + 커스텀)** |
+| **POST** | **`/api/v1/skills`** | `CustomSkillCreate` | JSON | **커스텀 스킬 등록** |
+| **GET** | **`/api/v1/skills/{skill_id}`** | path: string | JSON | **스킬 상세 조회** |
+| **PUT** | **`/api/v1/skills/{skill_id}`** | `CustomSkillUpdate` | JSON | **커스텀 스킬 수정 (빌트인 불가)** |
+| **DELETE** | **`/api/v1/skills/{skill_id}`** | path: string | JSON | **커스텀 스킬 삭제 (빌트인 불가)** |
 
 ---
 
@@ -329,11 +358,77 @@ faiss-cpu            # 벡터 유사도 검색
 tiktoken             # 토크나이저
 langchain-text-splitters  # 텍스트 청킹
 tavily-python        # 웹 검색 API
+sqlalchemy[asyncio]  # ORM + 비동기 지원 (v3.0 추가)
+asyncpg              # PostgreSQL 비동기 드라이버 (v3.0 추가)
 ```
 
 ---
 
-## 12. 에러 처리 및 Graceful Degradation
+## 12. 데이터베이스 (v3.0 추가)
+
+### 접속 정보
+
+| 항목 | 값 |
+|------|-----|
+| DBMS | PostgreSQL 16.13 |
+| Host | localhost:5432 |
+| Database | copywriting_agent_db |
+| User/PW | copywriting / agent |
+| Driver | asyncpg (SQLAlchemy 2.0 async) |
+| Pool | pool_size=10, max_overflow=20 |
+| 확장 | uuid-ossp |
+
+### 테이블 (3개)
+
+| 테이블 | PK | 주요 컬럼 | 인덱스 |
+|--------|-----|----------|--------|
+| `review_sessions` | UUID | project_name, status(CHECK), *_snapshot(JSONB) | project_name, status |
+| `review_results` | UUID | session_id(FK CASCADE), skill_id, passed, score(CHECK 0-100), findings/suggestions(JSONB) | session_id |
+| `custom_skills` | VARCHAR | label, category(CHECK), prompt_template(NOT NULL), reference_docs(JSONB) | — |
+
+### 초기화
+
+앱 시작 시 `lifespan` 핸들러 → `Base.metadata.create_all()` 자동 테이블 생성
+
+---
+
+## 13. Skillset Review System (v3.0 추가)
+
+### 빌트인 6개 스킬
+
+| Skill ID | 카테고리 | 설명 |
+|---|---|---|
+| `ai-washing-risk-check` | validation | AI 과장/오해 소지 표현 감지 |
+| `brand-lexicon-check` | validation | LG 브랜드 용어 가이드라인 준수 |
+| `campaign-brief-normalizer` | validation | 브리프-카피 일관성 검증 |
+| `channel-variant-generator` | generation | 채널별(SNS/배너/영상/이메일) 카피 변형 |
+| `cultural-sensitivity-check` | validation | 문화적 민감성 및 현지화 적합성 |
+| `tone-consistency-guard` | validation | 톤 앤 매너 일관성 유지 |
+
+### 실행 아키텍처
+
+```
+enabledSkills × selectedCopies → asyncio.gather()
+    ├─ builtin: BUILTIN_REGISTRY[skill_id](copy_text, context)
+    └─ custom:  DB prompt_template → custom_runner.run_custom_skill()
+         ↓
+    통일된 결과: { passed, score, findings[], suggestions[] }
+         ↓
+    DB INSERT (review_results) + SSE 전송
+```
+
+### Review SSE 이벤트 시퀀스
+
+```
+→ review_started   { sessionId, skills }
+→ skill_completed  { skillId, passed, score, findings, suggestions }  × N
+→ review_done      { sessionId, summary: { total, passed, failed, avgScore } }
+→ [DONE]
+```
+
+---
+
+## 14. 에러 처리 및 Graceful Degradation
 
 | 상황 | 처리 |
 |---|---|

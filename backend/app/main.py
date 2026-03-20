@@ -1,15 +1,39 @@
 import os
+import uuid
 import json as json_module
+from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from .schemas import CampaignBrief, AnalysisResponse, ChatRequest, ChatResponse, GenerateBriefRequest, GenerateBriefResponse, StrategicMessageRequest, StrategicMessageResponse, GenerateCopyRequest, GenerateCopyResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from .schemas import (
+    CampaignBrief, AnalysisResponse, ChatRequest, ChatResponse,
+    GenerateBriefRequest, GenerateBriefResponse,
+    StrategicMessageRequest, StrategicMessageResponse,
+    GenerateCopyRequest, GenerateCopyResponse,
+    ReviewRequest, ReviewSessionResponse, ReviewHistoryResponse,
+    CustomSkillCreate, CustomSkillUpdate, SkillResponse,
+)
 from .graph import app_graph
+from .database import init_db, get_db
+from .models import ReviewSession, ReviewResult, CustomSkill
+from .skills.runner import run_review
+from .skills.catalog import get_all_skills, BUILTIN_IDS
 
 load_dotenv(dotenv_path='.env')
 
-app = FastAPI(title="Copywrite Agent API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    print("Database tables initialized.")
+    yield
+
+
+app = FastAPI(title="Copywrite Agent API", lifespan=lifespan)
 
 # --- CORS Middleware ---
 origins = [
@@ -362,3 +386,314 @@ async def chat_with_agent(request: ChatRequest):
         return {"reply": response.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# Review Endpoints
+# ============================================================
+
+@app.post("/api/v1/campaigns/review")
+async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_db)):
+    """Review 실행 — SSE 스트림으로 스킬별 진행률 + 최종 결과 반환"""
+    project_name = request.brief.get("projectName", "unknown")
+    print(f"Review requested for: {project_name}, skills: {request.enabledSkills}")
+
+    def _sse(data: dict) -> str:
+        return f"data: {json_module.dumps(data, ensure_ascii=False)}\n\n"
+
+    async def event_stream():
+        # 1. 세션 생성
+        session = ReviewSession(
+            project_name=project_name,
+            brief_snapshot=request.brief,
+            analysis_snapshot=request.analysisReport,
+            strategic_message_snapshot=request.strategicMessage,
+            selected_copies=[c.model_dump() for c in request.selectedCopies],
+            enabled_skills=request.enabledSkills,
+            status="running",
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+        session_id = str(session.id)
+
+        yield _sse({"type": "review_started", "sessionId": session_id, "skills": request.enabledSkills})
+
+        try:
+            # 2. 스킬 실행을 위한 카피 목록 준비
+            copies_for_runner = [c.model_dump() for c in request.selectedCopies]
+
+            # 3. 스킬 병렬 실행
+            completed_skills = set()
+
+            async def on_skill_start(skill_ids):
+                pass  # SSE는 이미 위에서 전송
+
+            async def on_skill_complete(result_entry):
+                completed_skills.add(result_entry["skill_id"])
+
+            results = await run_review(
+                db=db,
+                enabled_skills=request.enabledSkills,
+                selected_copies=copies_for_runner,
+                brief=request.brief,
+                analysis_report=request.analysisReport,
+                strategic_message=request.strategicMessage,
+                on_skill_start=on_skill_start,
+                on_skill_complete=on_skill_complete,
+            )
+
+            # 4. 결과를 DB에 저장 + SSE 전송
+            for r in results:
+                db_result = ReviewResult(
+                    session_id=session.id,
+                    skill_id=r["skill_id"],
+                    skill_type=r["skill_type"],
+                    target_copy_key=r["target_copy_key"],
+                    passed=r["passed"],
+                    score=r["score"],
+                    findings=r["findings"],
+                    suggestions=r["suggestions"],
+                    raw_llm_response=r.get("raw_llm_response"),
+                    execution_ms=r.get("execution_ms", 0),
+                )
+                db.add(db_result)
+                yield _sse({
+                    "type": "skill_completed",
+                    "skillId": r["skill_id"],
+                    "skillType": r["skill_type"],
+                    "targetCopyKey": r["target_copy_key"],
+                    "passed": r["passed"],
+                    "score": r["score"],
+                    "findings": r["findings"],
+                    "suggestions": r["suggestions"],
+                    "executionMs": r.get("execution_ms", 0),
+                })
+
+            # 5. 세션 완료 처리
+            session.status = "completed"
+            session.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+
+            # 6. 요약 전송
+            total = len(results)
+            passed = sum(1 for r in results if r["passed"])
+            avg_score = round(sum(r["score"] for r in results) / total, 1) if total else 0
+            yield _sse({
+                "type": "review_done",
+                "sessionId": session_id,
+                "summary": {
+                    "total": total,
+                    "passed": passed,
+                    "failed": total - passed,
+                    "avgScore": avg_score,
+                },
+            })
+
+        except Exception as e:
+            print(f"Review failed: {e}")
+            session.status = "failed"
+            await db.commit()
+            yield _sse({"type": "error", "message": f"Review failed: {str(e)}"})
+
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.get("/api/v1/campaigns/review/history")
+async def get_review_history(project_name: str = None, db: AsyncSession = Depends(get_db)):
+    """프로젝트별 리뷰 이력 조회"""
+    query = select(ReviewSession).order_by(ReviewSession.created_at.desc())
+    if project_name:
+        query = query.where(ReviewSession.project_name == project_name)
+    query = query.limit(50)
+
+    result = await db.execute(query)
+    sessions = [
+        {
+            "id": str(s.id),
+            "projectName": s.project_name,
+            "status": s.status,
+            "enabledSkills": s.enabled_skills,
+            "createdAt": s.created_at.isoformat() if s.created_at else None,
+            "completedAt": s.completed_at.isoformat() if s.completed_at else None,
+        }
+        for s in result.scalars().all()
+    ]
+    return {"sessions": sessions}
+
+
+@app.get("/api/v1/campaigns/review/{session_id}")
+async def get_review_session(session_id: str, db: AsyncSession = Depends(get_db)):
+    """리뷰 세션 결과 조회"""
+    try:
+        uid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID format")
+
+    result = await db.execute(
+        select(ReviewSession).where(ReviewSession.id == uid)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Review session not found")
+
+    # 결과 로딩
+    results_q = await db.execute(
+        select(ReviewResult).where(ReviewResult.session_id == uid)
+    )
+    results = [
+        {
+            "id": str(r.id),
+            "skillId": r.skill_id,
+            "skillType": r.skill_type,
+            "targetCopyKey": r.target_copy_key,
+            "passed": r.passed,
+            "score": r.score,
+            "findings": r.findings,
+            "suggestions": r.suggestions,
+            "executionMs": r.execution_ms,
+            "createdAt": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in results_q.scalars().all()
+    ]
+
+    return {
+        "id": str(session.id),
+        "projectName": session.project_name,
+        "status": session.status,
+        "enabledSkills": session.enabled_skills,
+        "createdAt": session.created_at.isoformat() if session.created_at else None,
+        "completedAt": session.completed_at.isoformat() if session.completed_at else None,
+        "results": results,
+    }
+
+
+# ============================================================
+# Skill CRUD Endpoints
+# ============================================================
+
+@app.get("/api/v1/skills")
+async def list_skills(db: AsyncSession = Depends(get_db)):
+    """전체 스킬 목록 (빌트인 6개 + 커스텀)"""
+    skills = await get_all_skills(db)
+    return {"skills": skills}
+
+
+@app.post("/api/v1/skills", status_code=201)
+async def create_skill(skill: CustomSkillCreate, db: AsyncSession = Depends(get_db)):
+    """커스텀 스킬 등록"""
+    # 빌트인 ID 충돌 체크
+    if skill.id in BUILTIN_IDS:
+        raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' conflicts with a builtin skill")
+
+    # 기존 커스텀 ID 중복 체크
+    existing = await db.execute(select(CustomSkill).where(CustomSkill.id == skill.id))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' already exists")
+
+    # 카테고리 유효성
+    if skill.category not in ("validation", "generation", "analysis"):
+        raise HTTPException(status_code=422, detail="category must be 'validation', 'generation', or 'analysis'")
+
+    db_skill = CustomSkill(
+        id=skill.id,
+        label=skill.label,
+        description=skill.description,
+        category=skill.category,
+        prompt_template=skill.prompt_template,
+        reference_docs=skill.reference_docs,
+        output_schema=skill.output_schema,
+    )
+    db.add(db_skill)
+    await db.commit()
+    await db.refresh(db_skill)
+
+    return {
+        "id": db_skill.id,
+        "label": db_skill.label,
+        "description": db_skill.description,
+        "category": db_skill.category,
+        "type": "custom",
+        "editable": True,
+    }
+
+
+@app.get("/api/v1/skills/{skill_id}")
+async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
+    """단일 스킬 상세 조회"""
+    from .skills.catalog import BUILTIN_SKILLS
+    # 빌트인 체크
+    for bs in BUILTIN_SKILLS:
+        if bs["id"] == skill_id:
+            return bs
+
+    # 커스텀 체크
+    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    return {
+        "id": skill.id,
+        "label": skill.label,
+        "description": skill.description,
+        "category": skill.category,
+        "prompt_template": skill.prompt_template,
+        "reference_docs": skill.reference_docs,
+        "output_schema": skill.output_schema,
+        "is_active": skill.is_active,
+        "type": "custom",
+        "editable": True,
+        "createdAt": skill.created_at.isoformat() if skill.created_at else None,
+        "updatedAt": skill.updated_at.isoformat() if skill.updated_at else None,
+    }
+
+
+@app.put("/api/v1/skills/{skill_id}")
+async def update_skill(skill_id: str, updates: CustomSkillUpdate, db: AsyncSession = Depends(get_db)):
+    """커스텀 스킬 수정 (빌트인 수정 불가)"""
+    if skill_id in BUILTIN_IDS:
+        raise HTTPException(status_code=403, detail="Builtin skills cannot be modified")
+
+    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    update_data = updates.model_dump(exclude_unset=True)
+    if "category" in update_data and update_data["category"] not in ("validation", "generation", "analysis"):
+        raise HTTPException(status_code=422, detail="category must be 'validation', 'generation', or 'analysis'")
+
+    for field, value in update_data.items():
+        setattr(skill, field, value)
+
+    skill.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(skill)
+
+    return {
+        "id": skill.id,
+        "label": skill.label,
+        "description": skill.description,
+        "category": skill.category,
+        "type": "custom",
+        "editable": True,
+    }
+
+
+@app.delete("/api/v1/skills/{skill_id}")
+async def delete_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
+    """커스텀 스킬 삭제 (빌트인 삭제 불가)"""
+    if skill_id in BUILTIN_IDS:
+        raise HTTPException(status_code=403, detail="Builtin skills cannot be deleted")
+
+    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    await db.delete(skill)
+    await db.commit()
+    return {"status": "deleted", "id": skill_id}

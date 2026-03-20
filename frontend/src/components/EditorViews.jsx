@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Zap, Cpu, ArrowRight, Loader, Globe } from 'lucide-react';
+import { Bot, Zap, Cpu, ArrowRight, Loader, Globe, CheckCircle, XCircle, AlertTriangle, Lock, Pencil, Trash2 } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import AnalysisReport from './AnalysisReport';
 import StrategicMessage from './StrategicMessage';
@@ -139,7 +139,83 @@ const COUNTRY_META = {
     ID: { label: 'Indonesia', flag: '🇮🇩' }, SA: { label: 'Saudi Arabia', flag: '🇸🇦' },
 };
 
-const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing = false, copyResults = [], selectedCopies, onToggleCopy }) => {
+const ReviewResultCard = ({ result }) => {
+    const severityColor = { high: '#DC2626', medium: '#D97706', low: '#2563EB' };
+    return (
+        <div style={{
+            padding: '12px 14px', borderRadius: '12px', marginBottom: '8px',
+            border: `1px solid ${result.passed ? '#BBF7D0' : '#FECACA'}`,
+            backgroundColor: result.passed ? '#F0FDF4' : '#FEF2F2',
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                {result.passed
+                    ? <CheckCircle size={16} color="#16A34A" />
+                    : <XCircle size={16} color="#DC2626" />
+                }
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: COLORS.TEXT_MAIN }}>
+                    {result.skillId}
+                </span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: '6px',
+                    backgroundColor: result.passed ? '#DCFCE7' : '#FEE2E2',
+                    color: result.passed ? '#16A34A' : '#DC2626',
+                }}>
+                    {result.score}/100
+                </span>
+                <span style={{ fontSize: '0.72rem', color: COLORS.TEXT_SUB, marginLeft: 'auto' }}>
+                    {result.targetCopyKey} · {result.executionMs}ms
+                </span>
+            </div>
+            {result.findings?.length > 0 && (
+                <div style={{ marginTop: '6px' }}>
+                    {result.findings.map((f, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', marginBottom: '4px' }}>
+                            <AlertTriangle size={12} color={severityColor[f.severity] || '#6B7280'} style={{ marginTop: '2px', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.78rem', color: COLORS.TEXT_MAIN }}>
+                                <span style={{ fontWeight: 600, color: severityColor[f.severity] }}>[{f.severity}]</span> {f.message}
+                                {f.location && <span style={{ color: COLORS.TEXT_SUB }}> ({f.location})</span>}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {result.suggestions?.length > 0 && (
+                <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E5E7EB' }}>
+                    {result.suggestions.map((s, i) => (
+                        <div key={i} style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
+                            <span style={{ color: '#DC2626', textDecoration: 'line-through' }}>{s.original}</span>
+                            {' → '}
+                            <span style={{ color: '#16A34A', fontWeight: 600 }}>{s.suggested}</span>
+                            {s.reason && <span style={{ color: COLORS.TEXT_SUB }}> ({s.reason})</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const ReviewSummaryCard = ({ summary }) => (
+    <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px',
+        padding: '16px', borderRadius: '16px', marginTop: '1rem',
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+    }}>
+        {[
+            { label: 'Total Checks', value: summary.total, color: '#93C5FD' },
+            { label: 'Passed', value: summary.passed, color: '#86EFAC' },
+            { label: 'Avg Score', value: summary.avgScore, color: '#FCD34D' },
+        ].map(item => (
+            <div key={item.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: item.color }}>{item.value}</div>
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>{item.label}</div>
+            </div>
+        ))}
+    </div>
+);
+
+const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing = false, copyResults = [], selectedCopies, onToggleCopy, reviewResults, reviewSummary, availableSkills }) => {
+    const skillsList = availableSkills || SKILLSETS.map(s => ({ ...s, type: 'builtin', editable: false }));
+
     const styles = {
         container: {
             padding: '1.5rem',
@@ -201,7 +277,7 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
             border: `1px solid ${COLORS.BORDER}`, marginBottom: '8px',
         },
         skillInfo: { flex: 1 },
-        skillLabel: { fontSize: '0.85rem', fontWeight: 600, color: COLORS.TEXT_MAIN, margin: 0 },
+        skillLabel: { fontSize: '0.85rem', fontWeight: 600, color: COLORS.TEXT_MAIN, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' },
         skillDesc: { fontSize: '0.75rem', color: COLORS.TEXT_SUB, margin: '2px 0 0 0' },
         toggle: (on) => ({
             width: '40px', height: '22px', borderRadius: '11px', cursor: 'pointer',
@@ -215,7 +291,14 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
             position: 'absolute', top: '2px',
             left: on ? '20px' : '2px', transition: 'left 0.2s ease',
         }),
+        typeBadge: (type) => ({
+            fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '4px',
+            backgroundColor: type === 'builtin' ? '#EFF6FF' : '#FFF7ED',
+            color: type === 'builtin' ? '#2563EB' : '#C2410C',
+        }),
     };
+
+    const hasResults = reviewResults && reviewResults.length > 0;
 
     return (
         <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
@@ -290,16 +373,22 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
 
                     <div style={styles.divider} />
 
-                    {/* Use Skillsets */}
+                    {/* Use Skillsets — from API */}
                     <div style={styles.sectionTitle}>
                         <Cpu size={14} />Use Skillsets
+                        <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                            ({skillsList.length} available)
+                        </span>
                     </div>
                     <div>
-                        {SKILLSETS.map(s => (
+                        {skillsList.map(s => (
                             <div key={s.id} style={styles.skillRow}>
                                 <div style={styles.skillInfo}>
-                                    <p style={styles.skillLabel}>{s.label}</p>
-                                    <p style={styles.skillDesc}>{s.desc}</p>
+                                    <p style={styles.skillLabel}>
+                                        {s.label}
+                                        <span style={styles.typeBadge(s.type)}>{s.type}</span>
+                                    </p>
+                                    <p style={styles.skillDesc}>{s.description || s.desc}</p>
                                 </div>
                                 <button
                                     style={styles.toggle(enabledSkills.includes(s.id))}
@@ -315,15 +404,16 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
                         <button
                             style={{
                                 padding: '12px 32px', borderRadius: '12px', border: 'none',
-                                fontWeight: 700, fontSize: '0.95rem', cursor: isReviewing ? 'not-allowed' : 'pointer',
+                                fontWeight: 700, fontSize: '0.95rem',
+                                cursor: (isReviewing || selectedCopies.size === 0 || enabledSkills.length === 0) ? 'not-allowed' : 'pointer',
                                 display: 'flex', alignItems: 'center', gap: '8px',
                                 backgroundColor: COLORS.LG_RED, color: COLORS.WHITE,
                                 boxShadow: '0 8px 20px rgba(165, 0, 52, 0.25)',
                                 transition: 'all 0.2s ease', fontFamily: 'inherit',
-                                opacity: isReviewing ? 0.7 : 1,
+                                opacity: (isReviewing || selectedCopies.size === 0 || enabledSkills.length === 0) ? 0.7 : 1,
                             }}
                             onClick={onSubmitReview}
-                            disabled={isReviewing}
+                            disabled={isReviewing || selectedCopies.size === 0 || enabledSkills.length === 0}
                         >
                             {isReviewing ? (
                                 <>
@@ -339,6 +429,33 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
                         </button>
                     </div>
                 </div>
+
+                {/* Review Results */}
+                {(hasResults || isReviewing) && (
+                    <div style={{ ...styles.container, marginTop: '1rem' }}>
+                        <h3 style={styles.header}>
+                            <CheckCircle size={22} color={COLORS.LG_RED} />Review Results
+                            {isReviewing && (
+                                <Loader size={16} color={COLORS.LG_RED} style={{ animation: 'spin 1s linear infinite' }} />
+                            )}
+                        </h3>
+
+                        {reviewSummary && <ReviewSummaryCard summary={reviewSummary} />}
+
+                        <div style={{ marginTop: '1rem' }}>
+                            {(reviewResults || []).map((r, i) => (
+                                <ReviewResultCard key={i} result={r} />
+                            ))}
+                        </div>
+
+                        {isReviewing && (!reviewResults || reviewResults.length === 0) && (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: COLORS.TEXT_SUB }}>
+                                <Loader size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '8px' }} />
+                                <p style={{ margin: 0, fontSize: '0.9rem' }}>스킬별 검증을 실행하고 있습니다...</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

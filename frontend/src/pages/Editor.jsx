@@ -59,6 +59,10 @@ const Editor = () => {
   const [reviewSkills, setReviewSkills] = useState(['brand-lexicon-check', 'cultural-sensitivity-check']);
   const [selectedCopies, setSelectedCopies] = useState(new Set());
   const [analysisProgress, setAnalysisProgress] = useState([]);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewResults, setReviewResults] = useState(null);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [availableSkills, setAvailableSkills] = useState(null);
   const messagesEndRef = useRef(null);
   const mainAreaRef = useRef(null);
 
@@ -276,8 +280,92 @@ const Editor = () => {
     });
   };
 
-  const handleSubmitReview = () => {
-    console.log('Submit review with skills:', reviewSkills);
+  // --- Load skills from API ---
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${apiBase}/api/v1/skills`);
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableSkills(data.skills);
+        }
+      } catch (e) {
+        console.error('Failed to load skills:', e);
+      }
+    };
+    fetchSkills();
+  }, []);
+
+  const handleSubmitReview = async () => {
+    if (!copyResults || selectedCopies.size === 0 || reviewSkills.length === 0) return;
+    setIsReviewing(true);
+    setReviewResults([]);
+    setReviewSummary(null);
+
+    // Build selectedCopies payload
+    const copiesPayload = [];
+    copyResults.forEach(r => {
+      const copies = r.copies || [r];
+      copies.forEach((copy, idx) => {
+        const key = `${r.countryCode}-${idx}`;
+        if (selectedCopies.has(key)) {
+          copiesPayload.push({ key, countryCode: r.countryCode, copyData: copy });
+        }
+      });
+    });
+
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/campaigns/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: submittedBrief,
+          analysisReport: analysisResult,
+          strategicMessage: strategicData,
+          selectedCopies: copiesPayload,
+          enabledSkills: reviewSkills,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === 'skill_completed') {
+              setReviewResults(prev => [...prev, event]);
+            } else if (event.type === 'review_done') {
+              setReviewSummary(event.summary);
+            } else if (event.type === 'error') {
+              console.error('Review error:', event.message);
+            }
+          } catch (e) {
+            // ignore parse errors
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Review failed:', error);
+      alert('리뷰 실행에 실패했습니다. 백엔드 서버를 확인해주세요.');
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   const handleModify = () => {
@@ -683,6 +771,10 @@ const Editor = () => {
                       enabledSkills={reviewSkills}
                       onToggleSkill={handleToggleReviewSkill}
                       onSubmitReview={handleSubmitReview}
+                      isReviewing={isReviewing}
+                      reviewResults={reviewResults}
+                      reviewSummary={reviewSummary}
+                      availableSkills={availableSkills}
                     />
                   );
                 default:
