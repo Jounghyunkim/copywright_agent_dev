@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, Loader, ChevronDown, ChevronRight, FileText, BarChart2, MessageSquareText, Globe } from 'lucide-react';
+import { Send, Bot, Loader, ChevronDown, ChevronRight, FileText, BarChart2, MessageSquareText, Globe, Sparkles, CheckCircle, XCircle, Search, Zap, ClipboardCheck } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import WorkflowStepper from '../components/WorkflowStepper';
 import BriefingForm, { PreviewBody } from '../components/BriefingForm';
-import { InitialView, ResultView, StrategicMessageView, GenerationConfigView, ReviewView } from '../components/EditorViews';
+import { InitialView, ResultView, StrategicMessageView, GenerationConfigView, CopyResultsView, ReviewView, ReviewResultsView } from '../components/EditorViews';
 import CopyResults from '../components/CopyResults';
 import AnalysisReport from '../components/AnalysisReport';
 import StrategicMessage from '../components/StrategicMessage';
@@ -36,7 +36,67 @@ const CollapsibleSection = ({ icon, title, badge, collapsed, onToggle, children 
   </div>
 );
 
-const Editor = () => {
+const ACTION_CONFIG = {
+  'brief-auto-generate': { icon: Sparkles, label: 'AI 브리프 자동생성', color: '#7C3AED' },
+  'submit-brief': { icon: FileText, label: '브리프 제출 및 분석 시작', color: COLORS.LG_RED },
+  'approve-analysis': { icon: CheckCircle, label: '분석 결과 승인', color: '#059669' },
+  'strategic-message-extract': { icon: MessageSquareText, label: 'Strategic Message 추출', color: '#2563EB' },
+  'approve-strategic': { icon: CheckCircle, label: 'Strategic Message 승인', color: '#059669' },
+  'generate-copy': { icon: Zap, label: '카피 생성', color: '#D97706' },
+  'start-review': { icon: ClipboardCheck, label: 'Review 시작', color: '#7C3AED' },
+  'submit-review': { icon: ClipboardCheck, label: 'Skillset Review 실행', color: COLORS.LG_RED },
+  'save-campaign': { icon: CheckCircle, label: '캠페인 저장', color: '#059669' },
+  'modify-brief': { icon: FileText, label: '브리프 수정 요청', color: '#DC2626' },
+};
+
+const STATUS_STYLE = {
+  started: { bg: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8', statusLabel: '진행 중...' },
+  completed: { bg: '#F0FDF4', border: '#BBF7D0', text: '#16A34A', statusLabel: '완료' },
+  failed: { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', statusLabel: '실패' },
+};
+
+const ActionStatusBubble = ({ item }) => {
+  const config = ACTION_CONFIG[item.action] || { icon: Zap, label: item.action, color: COLORS.TEXT_SUB };
+  const status = STATUS_STYLE[item.status] || STATUS_STYLE.started;
+  const IconComp = config.icon;
+  const isLoading = item.status === 'started';
+  return (
+    <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', maxWidth: '85%' }}>
+      <div style={{
+        width: '36px', height: '36px', borderRadius: '12px',
+        backgroundColor: config.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: COLORS.WHITE, flexShrink: 0, boxShadow: `0 4px 10px ${config.color}33`,
+      }}>
+        <IconComp size={18} />
+      </div>
+      <div style={{
+        backgroundColor: COLORS.WHITE, padding: '10px 16px',
+        borderRadius: '18px', borderTopLeftRadius: '4px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+        fontSize: '0.88rem', lineHeight: 1.6, color: COLORS.TEXT_MAIN,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: item.detail ? '4px' : 0 }}>
+          {isLoading
+            ? <Loader size={13} color={status.text} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+            : item.status === 'completed'
+              ? <CheckCircle size={13} color={status.text} style={{ flexShrink: 0 }} />
+              : <XCircle size={13} color={status.text} style={{ flexShrink: 0 }} />
+          }
+          <span style={{ fontWeight: 700 }}>{config.label}</span>
+          <span style={{
+            fontSize: '0.68rem', fontWeight: 600, padding: '1px 6px', borderRadius: '4px',
+            backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`,
+          }}>{status.statusLabel}</span>
+        </div>
+        {item.detail && (
+          <div style={{ fontSize: '0.82rem', color: COLORS.TEXT_SUB }}>{item.detail}</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Editor = ({ setView, campaignId }) => {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -63,6 +123,7 @@ const Editor = () => {
   const [reviewResults, setReviewResults] = useState(null);
   const [reviewSummary, setReviewSummary] = useState(null);
   const [availableSkills, setAvailableSkills] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const messagesEndRef = useRef(null);
   const mainAreaRef = useRef(null);
 
@@ -70,9 +131,35 @@ const Editor = () => {
     setTimeline(prev => [...prev, item]);
   }, []);
 
+  // 액션 상태를 타임라인에 추가 (started → completed/failed로 업데이트)
+  const addAction = useCallback((action, status, detail) => {
+    setTimeline(prev => {
+      // started일 때는 새 항목 추가
+      if (status === 'started') {
+        return [...prev, { type: 'action-status', action, status, detail, _actionId: `${action}-${Date.now()}` }];
+      }
+      // completed/failed일 때는 마지막 같은 action의 started를 업데이트
+      const idx = [...prev].reverse().findIndex(
+        it => it.type === 'action-status' && it.action === action && it.status === 'started'
+      );
+      if (idx >= 0) {
+        const realIdx = prev.length - 1 - idx;
+        const updated = [...prev];
+        updated[realIdx] = { ...updated[realIdx], status, detail };
+        return updated;
+      }
+      return [...prev, { type: 'action-status', action, status, detail }];
+    });
+  }, []);
+
+  // BriefingForm에서 올라오는 액션 알림 핸들러
+  const handleActionNotify = useCallback(({ action, status, detail }) => {
+    addAction(action, status, detail);
+  }, [addAction]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [timeline, isAnalyzing, isStrategicLoading, isChatLoading]);
+  }, [timeline, isAnalyzing, isStrategicLoading, isChatLoading, isGenerating, isReviewing]);
 
   // --- Drag resize logic ---
   const handleMouseDown = useCallback((e) => {
@@ -110,7 +197,7 @@ const Editor = () => {
     setAnalysisResult(null);
     setIsApproved(false);
     setAnalysisProgress([]);
-    addToTimeline({ type: 'analysis-progress' });
+    addAction('submit-brief', 'started', `프로젝트: ${formData.projectName}`);
 
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
@@ -144,10 +231,11 @@ const Editor = () => {
           try {
             const event = JSON.parse(raw);
             if (event.type === 'progress') {
-              setAnalysisProgress(prev => [...prev, event.message]);
+              // 진행 로그는 action-status 버블로 대체
             } else if (event.type === 'result') {
               setAnalysisResult(event.data);
               setAnalysisProgress(prev => [...prev, 'Analysis completed successfully.']);
+              addAction('submit-brief', 'completed', 'Market Analyst Report 생성 완료');
               addToTimeline({ type: 'analysis-result' });
               setStep(2);
             } else if (event.type === 'error') {
@@ -161,6 +249,7 @@ const Editor = () => {
     } catch (error) {
       console.error('Analysis API call failed:', error);
       setAnalysisProgress(prev => [...prev, `Error: ${error.message}`]);
+      addAction('submit-brief', 'failed', error.message);
       alert('Analysis failed. Please check the console for details and ensure the backend server is running.');
     } finally {
       setIsAnalyzing(false);
@@ -171,6 +260,8 @@ const Editor = () => {
     setIsApproved(true);
     setStep(3);
     setIsBriefCollapsed(true);
+    addAction('approve-analysis', 'completed', 'Market Analyst Report 승인');
+    addAction('strategic-message-extract', 'started', 'Strategic Message 추출 중...');
     addToTimeline({ type: 'strategic-message' });
     setIsStrategicLoading(true);
 
@@ -191,8 +282,10 @@ const Editor = () => {
 
       const result = await response.json();
       setStrategicData(result.data);
+      addAction('strategic-message-extract', 'completed', 'Core Message + Message Pillars 도출 완료');
     } catch (error) {
       console.error('Strategic message extraction failed:', error);
+      addAction('strategic-message-extract', 'failed', error.message);
       alert('Strategic message 추출에 실패했습니다. 백엔드 서버를 확인해주세요.');
     } finally {
       setIsStrategicLoading(false);
@@ -217,6 +310,7 @@ const Editor = () => {
   const handleApproveStrategic = () => {
     setIsStrategicApproved(true);
     setIsReportCollapsed(true);
+    addAction('approve-strategic', 'completed', 'Strategic Message 승인 → 카피 생성 설정 단계 진입');
     addToTimeline({ type: 'generation-config' });
     setStep(4);
   };
@@ -224,6 +318,7 @@ const Editor = () => {
   const handleSubmitGeneration = async (config) => {
     setIsGenerating(true);
     setCopyResults(null);
+    addAction('generate-copy', 'started', `${config.countries.length}개 국가 × ${config.copyCount}개 변형`);
 
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
@@ -244,8 +339,12 @@ const Editor = () => {
 
       const result = await response.json();
       setCopyResults(result.data);
+      const totalCopies = (result.data || []).reduce((s, r) => s + (r.copies?.length || 1), 0);
+      addAction('generate-copy', 'completed', `${totalCopies}개 카피 생성 완료`);
+      addToTimeline({ type: 'copy-results' });
     } catch (error) {
       console.error('Copy generation failed:', error);
+      addAction('generate-copy', 'failed', error.message);
       alert('카피 생성에 실패했습니다. 백엔드 서버를 확인해주세요.');
     } finally {
       setIsGenerating(false);
@@ -262,6 +361,7 @@ const Editor = () => {
       });
     }
     setSelectedCopies(allKeys);
+    addAction('start-review', 'completed', `${allKeys.size}개 카피 선택됨 → Review 설정 단계`);
     addToTimeline({ type: 'review' });
     setIsStrategicCollapsed(true);
     setStep(5);
@@ -297,11 +397,77 @@ const Editor = () => {
     fetchSkills();
   }, []);
 
+  // --- 기존 캠페인 로딩 (Dashboard에서 클릭 시) ---
+  useEffect(() => {
+    if (!campaignId) return;
+    const loadCampaign = async () => {
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${apiBase}/api/v1/campaigns/${campaignId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // 상태 복원
+        setSubmittedBrief(data.brief);
+        setAnalysisResult(data.analysisReport);
+        setStrategicData(data.strategicMessage);
+        setCopyResults(data.copyResults);
+        setIsApproved(true);
+        setIsStrategicApproved(true);
+        setIsBriefCollapsed(true);
+        setIsReportCollapsed(true);
+        setIsStrategicCollapsed(true);
+        setIsCopyResultsCollapsed(false);
+
+        // Review 결과 복원
+        if (data.reviewResults && data.reviewResults.length > 0) {
+          setReviewResults(data.reviewResults);
+        }
+        if (data.reviewSummary) {
+          setReviewSummary(data.reviewSummary);
+        }
+
+        // 선택된 카피 전체 선택
+        const allKeys = new Set();
+        (data.copyResults || []).forEach(r => {
+          const copies = r.copies || [r];
+          copies.forEach((_, idx) => allKeys.add(`${r.countryCode}-${idx}`));
+        });
+        setSelectedCopies(allKeys);
+
+        // 타임라인 구성 — Review 완료 상태로
+        setTimeline([
+          { type: 'analysis-result' },
+          { type: 'strategic-message' },
+          { type: 'generation-config' },
+          { type: 'copy-results' },
+          { type: 'action-status', action: 'save-campaign', status: 'completed', detail: `캠페인 "${data.projectName}" 로드 완료` },
+          { type: 'review' },
+          ...(data.reviewResults?.length > 0 ? [{ type: 'review-results' }] : []),
+        ]);
+
+        setStep(5);
+      } catch (error) {
+        console.error('Campaign load failed:', error);
+        alert('캠페인 로딩에 실패했습니다.');
+      }
+    };
+    loadCampaign();
+  }, [campaignId]);
+
   const handleSubmitReview = async () => {
     if (!copyResults || selectedCopies.size === 0 || reviewSkills.length === 0) return;
     setIsReviewing(true);
     setReviewResults([]);
     setReviewSummary(null);
+
+    // 기존 review 관련 타임라인 항목 제거 (이전 결과 + 이전 액션)
+    setTimeline(prev => prev.filter(
+      item => item.type !== 'review-results' && !(item.type === 'action-status' && item.action === 'submit-review')
+    ));
+
+    addAction('submit-review', 'started', `${selectedCopies.size}개 카피 × ${reviewSkills.length}개 스킬`);
+    addToTimeline({ type: 'review-results' });
 
     // Build selectedCopies payload
     const copiesPayload = [];
@@ -352,6 +518,7 @@ const Editor = () => {
               setReviewResults(prev => [...prev, event]);
             } else if (event.type === 'review_done') {
               setReviewSummary(event.summary);
+              addAction('submit-review', 'completed', `Avg Score: ${event.summary?.avgScore} (${event.summary?.passed}/${event.summary?.total} Pass)`);
             } else if (event.type === 'error') {
               console.error('Review error:', event.message);
             }
@@ -362,13 +529,54 @@ const Editor = () => {
       }
     } catch (error) {
       console.error('Review failed:', error);
+      addAction('submit-review', 'failed', error.message);
       alert('리뷰 실행에 실패했습니다. 백엔드 서버를 확인해주세요.');
     } finally {
       setIsReviewing(false);
     }
   };
 
+  const handleSaveExit = async () => {
+    setIsSaving(true);
+    const isUpdate = !!campaignId;
+    addAction('save-campaign', 'started', isUpdate ? '캠페인 업데이트 중...' : '캠페인 산출물 저장 중...');
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const url = isUpdate
+        ? `${apiBase}/api/v1/campaigns/${campaignId}`
+        : `${apiBase}/api/v1/campaigns/save`;
+      const response = await fetch(url, {
+        method: isUpdate ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: submittedBrief,
+          analysisReport: analysisResult,
+          strategicMessage: strategicData,
+          copyResults: copyResults,
+          reviewSummary: reviewSummary,
+          reviewResults: reviewResults,
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      const verb = isUpdate ? '업데이트' : '저장';
+      addAction('save-campaign', 'completed', `캠페인 "${result.projectName}" ${verb} 완료`);
+      setTimeout(() => setView('dashboard'), 500);
+    } catch (error) {
+      console.error('Campaign save failed:', error);
+      addAction('save-campaign', 'failed', error.message);
+      alert('캠페인 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExitWithoutSave = () => {
+    setView('dashboard');
+  };
+
   const handleModify = () => {
+    addAction('modify-brief', 'completed', '브리프 수정을 위해 Step 1으로 이동');
     setAnalysisResult(null);
     setSubmittedBrief(null);
     setStrategicData(null);
@@ -577,7 +785,7 @@ const Editor = () => {
 
   return (
     <div style={styles.editorContainer}>
-      <WorkflowStepper currentStep={step} />
+      <WorkflowStepper currentStep={step} reviewCompleted={!!reviewSummary} />
       {isDragging && <div style={styles.dragOverlay} />}
       <div style={styles.mainArea} ref={mainAreaRef}>
         {/* Left panel - Brief form / Brief preview / Previous results */}
@@ -662,6 +870,7 @@ const Editor = () => {
               isAnalyzing={isAnalyzing}
               isDisabled={step > 1}
               onGuideSelect={handleGuideSelect}
+              onActionNotify={handleActionNotify}
             />
           )}
         </div>
@@ -696,38 +905,6 @@ const Editor = () => {
                       <div style={styles.aiBubbleContent}>{item.content}</div>
                     </div>
                   );
-                case 'analysis-progress':
-                  return analysisProgress.length > 0 ? (
-                    <div key={i} style={styles.aiBubbleRow}>
-                      <div style={styles.aiAvatar}><Bot size={18} /></div>
-                      <div style={{
-                        ...styles.aiBubbleContent,
-                        fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
-                        fontSize: '0.82rem',
-                        lineHeight: 1.8,
-                        maxWidth: 'none',
-                      }}>
-                        {analysisProgress.map((line, j) => (
-                          <div key={j} style={{
-                            color: line.startsWith('---') ? COLORS.LG_RED
-                              : line.startsWith('Error') ? '#DC2626'
-                              : line.startsWith('Generated') || line.startsWith('Web search') || line.startsWith('RAG retrieved') ? '#2563EB'
-                              : line === 'Invoking synthesizer LLM...' || line === 'Analysis completed successfully.' ? '#059669'
-                              : COLORS.TEXT_MAIN,
-                            fontWeight: line.startsWith('---') ? 700 : 400,
-                          }}>
-                            {line}
-                          </div>
-                        ))}
-                        {isAnalyzing && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: COLORS.TEXT_SUB }}>
-                            <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                            <span style={{ fontSize: '0.78rem' }}>Processing...</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : null;
                 case 'analysis-result':
                   return (
                     <ResultView
@@ -755,12 +932,21 @@ const Editor = () => {
                     <GenerationConfigView
                       key={i}
                       onSubmitGeneration={handleSubmitGeneration}
-                      copyResults={step < 5 ? copyResults : null}
+                      isGenerating={isGenerating}
+                    />
+                  );
+                case 'copy-results':
+                  return (
+                    <CopyResultsView
+                      key={i}
+                      copyResults={copyResults}
                       isGenerating={isGenerating}
                       onUpdateCopyResults={setCopyResults}
                       onReview={copyResults && step < 5 ? handleReview : undefined}
                     />
                   );
+                case 'action-status':
+                  return <ActionStatusBubble key={i} item={item} />;
                 case 'review':
                   return (
                     <ReviewView
@@ -772,9 +958,20 @@ const Editor = () => {
                       onToggleSkill={handleToggleReviewSkill}
                       onSubmitReview={handleSubmitReview}
                       isReviewing={isReviewing}
+                      availableSkills={availableSkills}
+                    />
+                  );
+                case 'review-results':
+                  return (
+                    <ReviewResultsView
+                      key={i}
                       reviewResults={reviewResults}
                       reviewSummary={reviewSummary}
-                      availableSkills={availableSkills}
+                      copyResults={copyResults}
+                      isReviewing={isReviewing}
+                      onSaveExit={handleSaveExit}
+                      onExitWithoutSave={handleExitWithoutSave}
+                      isSaving={isSaving}
                     />
                   );
                 default:

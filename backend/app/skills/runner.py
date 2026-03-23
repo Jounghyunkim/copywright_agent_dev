@@ -41,8 +41,9 @@ async def _run_single(
         return {
             "passed": False,
             "score": 0,
-            "findings": [{"severity": "high", "message": f"Skill execution error: {str(e)}", "location": "general"}],
-            "suggestions": [],
+            "strengths": [],
+            "weaknesses": [f"스킬 실행 오류: {str(e)}"],
+            "improvements": [],
             "raw_llm_response": str(e),
             "execution_ms": 0,
         }

@@ -20,23 +20,16 @@ Your job is to verify that the advertising copy is culturally appropriate and pr
 - Local competitor or cultural context that makes the message awkward
 - RTL (right-to-left) considerations for Arabic markets
 
-## Scoring guide:
-- 90-100: Culturally sensitive and well-localized
-- 70-89: Minor cultural adjustments needed
-- 50-69: Notable cultural issues that need attention
-- Below 50: Potentially offensive or severely mis-localized
-
-Respond ONLY with a valid JSON object:
+Respond ONLY with a valid JSON object in Korean:
 {
   "passed": true/false,
-  "score": 0-100,
-  "findings": [
-    {"severity": "high|medium|low", "message": "description of cultural issue", "location": "headline|subheadline|bodyCopy|cta"}
-  ],
-  "suggestions": [
-    {"original": "problematic text", "suggested": "culturally adapted text", "reason": "cultural context explanation"}
-  ]
-}"""
+  "score": 0-100 (100 = 문화적으로 완벽하게 적합),
+  "strengths": ["강점 내용 — 현지 문화에 잘 맞는 표현이나 접근"],
+  "weaknesses": ["약점 내용 — 문화적으로 부적절하거나 개선이 필요한 부분"],
+  "improvements": ["보완 내용 — 문화적 적합성을 높이기 위한 구체적 수정 제안"]
+}
+
+IMPORTANT: strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []을 반환하세요."""
 
 
 async def run(copy_text: str, context: dict) -> dict:
@@ -52,7 +45,7 @@ async def run(copy_text: str, context: dict) -> dict:
     country = context.get("country_code", "unknown")
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"## Copy to review\n{copy_text}\n\n## Target market: {country}\n\n## Brief context\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
+        HumanMessage(content=f"## 검토 대상 카피\n{copy_text}\n\n## 타겟 시장: {country}\n\n## 브리프 컨텍스트\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
     ]
     response = await llm.ainvoke(messages)
     result = parser.parse(response.content)
@@ -60,8 +53,9 @@ async def run(copy_text: str, context: dict) -> dict:
     return {
         "passed": result.get("passed", True),
         "score": result.get("score", 100),
-        "findings": result.get("findings", []),
-        "suggestions": result.get("suggestions", []),
+        "strengths": result.get("strengths", []),
+        "weaknesses": result.get("weaknesses", []),
+        "improvements": result.get("improvements", []),
         "raw_llm_response": response.content,
         "execution_ms": elapsed,
     }

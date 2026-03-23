@@ -9,17 +9,15 @@ from langchain_core.output_parsers import JsonOutputParser
 
 OUTPUT_INSTRUCTION = """
 
-IMPORTANT: You MUST respond ONLY with a valid JSON object in this exact format:
+IMPORTANT: You MUST respond ONLY with a valid JSON object in Korean with this exact format:
 {
   "passed": true/false,
   "score": 0-100,
-  "findings": [
-    {"severity": "high|medium|low", "message": "description", "location": "headline|subheadline|bodyCopy|cta|general"}
-  ],
-  "suggestions": [
-    {"original": "original text", "suggested": "improved text", "reason": "why"}
-  ]
-}"""
+  "strengths": ["강점 내용 — 잘 된 부분 설명"],
+  "weaknesses": ["약점 내용 — 문제가 있는 부분 설명"],
+  "improvements": ["보완 내용 — 구체적인 수정 제안"]
+}
+strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []."""
 
 
 def _render_template(template: str, variables: dict) -> str:
@@ -64,8 +62,9 @@ async def run_custom_skill(prompt_template: str, copy_text: str, context: dict) 
     return {
         "passed": result.get("passed", True),
         "score": result.get("score", 100),
-        "findings": result.get("findings", []),
-        "suggestions": result.get("suggestions", []),
+        "strengths": result.get("strengths", []),
+        "weaknesses": result.get("weaknesses", []),
+        "improvements": result.get("improvements", []),
         "raw_llm_response": response.content,
         "execution_ms": elapsed,
     }

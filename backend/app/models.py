@@ -69,6 +69,31 @@ class ReviewResult(Base):
     )
 
 
+class Campaign(Base):
+    __tablename__ = "campaigns"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    brief: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    analysis_report: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    strategic_message: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    copy_results: Mapped[list] = mapped_column(JSONB, nullable=False)
+    review_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    review_results: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    target_countries: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    brand_fit_score: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    review_avg_score: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    total_copies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="completed")
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("idx_campaigns_created", "created_at"),
+    )
+
+
 class CustomSkill(Base):
     __tablename__ = "custom_skills"
 

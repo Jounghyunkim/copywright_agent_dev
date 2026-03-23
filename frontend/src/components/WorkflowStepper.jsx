@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, FileText, Search, MessageSquareText, Zap, CheckCircle, ChevronRight } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
-const WorkflowStepper = ({ currentStep }) => {
+const WorkflowStepper = ({ currentStep, reviewCompleted = false }) => {
   const steps = [
     { id: 1, label: 'Briefing', desc: 'Campaign brief', icon: FileText },
     { id: 2, label: 'Analysis', desc: 'Market research', icon: Search },
@@ -112,8 +112,8 @@ const WorkflowStepper = ({ currentStep }) => {
   return (
     <nav style={styles.container}>
       {steps.map((step, index) => {
-        const isCompleted = currentStep > step.id;
-        const isActive = currentStep === step.id;
+        const isCompleted = currentStep > step.id || (step.id === 5 && reviewCompleted);
+        const isActive = currentStep === step.id && !reviewCompleted;
         const isLastStep = index === steps.length - 1;
 
         return (

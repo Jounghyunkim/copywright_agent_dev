@@ -22,17 +22,16 @@ Your job is to detect AI-related exaggerations, vague claims, and misleading exp
 - Qualified claims ("AI-assisted", "AI helps optimize")
 - Technical accuracy with proof points
 
-Respond ONLY with a valid JSON object:
+Respond ONLY with a valid JSON object in Korean:
 {
   "passed": true/false,
-  "score": 0-100 (100 = no AI washing risk, 0 = severe risk),
-  "findings": [
-    {"severity": "high|medium|low", "message": "description of the issue", "location": "headline|subheadline|bodyCopy|cta"}
-  ],
-  "suggestions": [
-    {"original": "problematic text", "suggested": "improved text", "reason": "why this is better"}
-  ]
-}"""
+  "score": 0-100 (100 = AI 워싱 리스크 없음, 0 = 심각한 리스크),
+  "strengths": ["강점 내용 — AI 표현이 적절하게 사용된 부분 설명"],
+  "weaknesses": ["약점 내용 — AI 관련 과장/오해 소지가 있는 부분 설명"],
+  "improvements": ["보완 내용 — 구체적인 수정 제안 (원문 → 수정안 형태)"]
+}
+
+IMPORTANT: strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []을 반환하세요."""
 
 
 async def run(copy_text: str, context: dict) -> dict:
@@ -47,7 +46,7 @@ async def run(copy_text: str, context: dict) -> dict:
     parser = JsonOutputParser()
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"## Copy to review\n{copy_text}\n\n## Brief context\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
+        HumanMessage(content=f"## 검토 대상 카피\n{copy_text}\n\n## 브리프 컨텍스트\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
     ]
     response = await llm.ainvoke(messages)
     result = parser.parse(response.content)
@@ -55,8 +54,9 @@ async def run(copy_text: str, context: dict) -> dict:
     return {
         "passed": result.get("passed", True),
         "score": result.get("score", 100),
-        "findings": result.get("findings", []),
-        "suggestions": result.get("suggestions", []),
+        "strengths": result.get("strengths", []),
+        "weaknesses": result.get("weaknesses", []),
+        "improvements": result.get("improvements", []),
         "raw_llm_response": response.content,
         "execution_ms": elapsed,
     }

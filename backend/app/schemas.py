@@ -138,3 +138,23 @@ class SkillResponse(BaseModel):
     category: str
     type: str            # builtin / custom
     editable: bool
+
+
+# --- Skill Draft Generation ---
+
+class SkillDraftRequest(BaseModel):
+    purpose: str          # 작성 목적
+    goal: str             # 스킬 목적
+    goodExample: Optional[str] = None  # 좋은 예시
+    badExample: Optional[str] = None   # 나쁜 예시
+
+
+# --- Campaign Save ---
+
+class CampaignSaveRequest(BaseModel):
+    brief: dict
+    analysisReport: dict
+    strategicMessage: dict
+    copyResults: list
+    reviewSummary: Optional[dict] = None
+    reviewResults: Optional[list] = None

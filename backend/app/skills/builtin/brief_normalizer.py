@@ -18,23 +18,16 @@ Your job is to verify that the generated copy aligns with the original campaign 
 - Proof points claimed in copy but not in the brief
 - Tone that doesn't match the brief's intended communication style
 
-## Scoring guide:
-- 90-100: Copy perfectly aligns with brief
-- 70-89: Minor deviations, still on-strategy
-- 50-69: Noticeable gaps between brief and copy
-- Below 50: Copy significantly deviates from brief
-
-Respond ONLY with a valid JSON object:
+Respond ONLY with a valid JSON object in Korean:
 {
   "passed": true/false,
-  "score": 0-100,
-  "findings": [
-    {"severity": "high|medium|low", "message": "description of misalignment", "location": "headline|subheadline|bodyCopy|cta"}
-  ],
-  "suggestions": [
-    {"original": "current text", "suggested": "aligned text", "reason": "how this better matches the brief"}
-  ]
-}"""
+  "score": 0-100 (100 = 브리프와 완벽 일치),
+  "strengths": ["강점 내용 — 브리프 목표/메시지가 잘 반영된 부분"],
+  "weaknesses": ["약점 내용 — 브리프와 불일치하거나 누락된 부분"],
+  "improvements": ["보완 내용 — 브리프 정합성을 높이기 위한 구체적 수정 제안"]
+}
+
+IMPORTANT: strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []을 반환하세요."""
 
 
 async def run(copy_text: str, context: dict) -> dict:
@@ -51,7 +44,7 @@ async def run(copy_text: str, context: dict) -> dict:
     strategic_str = json.dumps(context.get("strategic_message", {}), ensure_ascii=False)
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"## Copy to review\n{copy_text}\n\n## Campaign Brief\n{brief_str}\n\n## Strategic Message\n{strategic_str}"),
+        HumanMessage(content=f"## 검토 대상 카피\n{copy_text}\n\n## 캠페인 브리프\n{brief_str}\n\n## 전략 메시지\n{strategic_str}"),
     ]
     response = await llm.ainvoke(messages)
     result = parser.parse(response.content)
@@ -59,8 +52,9 @@ async def run(copy_text: str, context: dict) -> dict:
     return {
         "passed": result.get("passed", True),
         "score": result.get("score", 100),
-        "findings": result.get("findings", []),
-        "suggestions": result.get("suggestions", []),
+        "strengths": result.get("strengths", []),
+        "weaknesses": result.get("weaknesses", []),
+        "improvements": result.get("improvements", []),
         "raw_llm_response": response.content,
         "execution_ms": elapsed,
     }

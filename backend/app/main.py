@@ -16,10 +16,13 @@ from .schemas import (
     GenerateCopyRequest, GenerateCopyResponse,
     ReviewRequest, ReviewSessionResponse, ReviewHistoryResponse,
     CustomSkillCreate, CustomSkillUpdate, SkillResponse,
+    SkillDraftRequest,
+    CampaignSaveRequest,
 )
 from .graph import app_graph
 from .database import init_db, get_db
-from .models import ReviewSession, ReviewResult, CustomSkill
+from .models import ReviewSession, ReviewResult, CustomSkill, Campaign
+from sqlalchemy import func
 from .skills.runner import run_review
 from .skills.catalog import get_all_skills, BUILTIN_IDS
 
@@ -452,8 +455,8 @@ async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_d
                     target_copy_key=r["target_copy_key"],
                     passed=r["passed"],
                     score=r["score"],
-                    findings=r["findings"],
-                    suggestions=r["suggestions"],
+                    findings=r.get("weaknesses", r.get("findings", [])),
+                    suggestions=r.get("improvements", r.get("suggestions", [])),
                     raw_llm_response=r.get("raw_llm_response"),
                     execution_ms=r.get("execution_ms", 0),
                 )
@@ -465,8 +468,9 @@ async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_d
                     "targetCopyKey": r["target_copy_key"],
                     "passed": r["passed"],
                     "score": r["score"],
-                    "findings": r["findings"],
-                    "suggestions": r["suggestions"],
+                    "strengths": r.get("strengths", []),
+                    "weaknesses": r.get("weaknesses", r.get("findings", [])),
+                    "improvements": r.get("improvements", r.get("suggestions", [])),
                     "executionMs": r.get("execution_ms", 0),
                 })
 
@@ -697,3 +701,270 @@ async def delete_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(skill)
     await db.commit()
     return {"status": "deleted", "id": skill_id}
+
+
+# ============================================================
+# Skill Draft Generation
+# ============================================================
+
+@app.post("/api/v1/skills/generate-draft")
+async def generate_skill_draft(request: SkillDraftRequest):
+    """사용자의 핵심 입력으로부터 스킬 전체 초안을 AI로 생성"""
+    from langchain_openai import AzureChatOpenAI
+    from langchain_core.messages import HumanMessage, SystemMessage
+    from langchain_core.output_parsers import JsonOutputParser
+    import json
+
+    llm = AzureChatOpenAI(
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        temperature=0.5,
+    )
+
+    system_prompt = """You are a senior QA & copywriting expert at LG Electronics.
+Given a user's description of WHY they need a review skill and WHAT it should do, generate a complete skill definition.
+
+Return a JSON object with these exact keys:
+
+{
+  "id": "kebab-case-skill-id (unique, descriptive, e.g. 'promo-legal-check')",
+  "label": "Human-readable skill name in Korean (e.g. '프로모션 법적 검증')",
+  "description": "1-2 sentence description of what this skill does, in Korean",
+  "category": "validation",
+  "prompt_template": "A detailed prompt template that an LLM will use to evaluate copywriting. The prompt should:\n  - Clearly state the evaluation criteria\n  - Reference {{copies}}, {{brief}}, {{analysis_report}}, {{strategic_message}} as template variables\n  - Include scoring rubric (0-100)\n  - Define pass/fail threshold\n  - Specify output format with: score, passed, strengths[], weaknesses[], improvements[]\n  - Be written in Korean for the marketing team\n  - Include the good/bad examples provided by the user as reference cases",
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "score": {"type": "number", "description": "0-100 점수"},
+      "passed": {"type": "boolean"},
+      "strengths": {"type": "array", "items": {"type": "string"}},
+      "weaknesses": {"type": "array", "items": {"type": "string"}},
+      "improvements": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}
+
+IMPORTANT:
+- The prompt_template is the most critical field — it must be thorough, precise, and actionable
+- category should always be "validation" for review skills
+- The id must be kebab-case, 3-5 words, unique and descriptive
+- Write everything in Korean except the id and JSON keys"""
+
+    user_content = f"""## 작성 목적
+{request.purpose}
+
+## 스킬 목적
+{request.goal}"""
+
+    if request.goodExample:
+        user_content += f"\n\n## 좋은 예시\n{request.goodExample}"
+    if request.badExample:
+        user_content += f"\n\n## 나쁜 예시\n{request.badExample}"
+
+    user_content += "\n\n위 정보를 기반으로 완전한 스킬 정의를 JSON으로 생성해 주세요."
+
+    try:
+        parser = JsonOutputParser()
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_content),
+        ]
+        response = await llm.ainvoke(messages)
+        data = parser.parse(response.content)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        print(f"Skill draft generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Skill draft generation failed: {str(e)}")
+
+
+# ============================================================
+# Campaign Save / Dashboard Endpoints
+# ============================================================
+
+@app.post("/api/v1/campaigns/save", status_code=201)
+async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
+    """단계별 산출물 + Review 결과를 Campaign으로 저장"""
+    brief = request.brief
+    project_name = brief.get("projectName", "Untitled")
+
+    # 타겟 국가 추출
+    countries = list({r.get("countryCode", "") for r in (request.copyResults or []) if r.get("countryCode")})
+
+    # Brand Fit Score 추출
+    brand_fit = request.analysisReport.get("brandFit", {})
+    brand_fit_score = brand_fit.get("score", 0) if isinstance(brand_fit, dict) else 0
+
+    # Review 평균 점수
+    review_avg = 0
+    if request.reviewSummary and request.reviewSummary.get("avgScore"):
+        review_avg = round(request.reviewSummary["avgScore"])
+
+    # 총 카피 수
+    total_copies = sum(len(r.get("copies", [r])) for r in (request.copyResults or []))
+
+    campaign = Campaign(
+        project_name=project_name,
+        brief=brief,
+        analysis_report=request.analysisReport,
+        strategic_message=request.strategicMessage,
+        copy_results=request.copyResults,
+        review_summary=request.reviewSummary,
+        review_results=request.reviewResults,
+        target_countries=countries,
+        brand_fit_score=brand_fit_score,
+        review_avg_score=review_avg,
+        total_copies=total_copies,
+        status="completed",
+    )
+    db.add(campaign)
+    await db.commit()
+    await db.refresh(campaign)
+
+    return {
+        "id": str(campaign.id),
+        "projectName": campaign.project_name,
+        "status": "saved",
+    }
+
+
+@app.get("/api/v1/campaigns/dashboard")
+async def get_dashboard(db: AsyncSession = Depends(get_db)):
+    """Dashboard 통계 + 최근 캠페인 목록"""
+    # 최근 캠페인 20개
+    result = await db.execute(
+        select(Campaign).order_by(Campaign.created_at.desc()).limit(20)
+    )
+    campaigns = result.scalars().all()
+
+    # 통계 계산
+    total_projects = len(campaigns)
+    all_countries = set()
+    brand_scores = []
+    review_scores = []
+    for c in campaigns:
+        all_countries.update(c.target_countries or [])
+        if c.brand_fit_score > 0:
+            brand_scores.append(c.brand_fit_score)
+        if c.review_avg_score > 0:
+            review_scores.append(c.review_avg_score)
+
+    avg_brand_score = round(sum(brand_scores) / len(brand_scores), 1) if brand_scores else 0
+    avg_review_score = round(sum(review_scores) / len(review_scores), 1) if review_scores else 0
+    target_regions = len(all_countries)
+
+    campaign_list = [
+        {
+            "id": str(c.id),
+            "title": c.project_name,
+            "countries": c.target_countries or [],
+            "date": c.created_at.strftime("%Y-%m-%d") if c.created_at else "",
+            "brandFitScore": c.brand_fit_score,
+            "reviewAvgScore": c.review_avg_score,
+            "totalCopies": c.total_copies,
+            "status": c.status,
+            "summary": c.brief.get("projectContext", "")[:120] if isinstance(c.brief, dict) else "",
+        }
+        for c in campaigns
+    ]
+
+    return {
+        "stats": {
+            "totalProjects": total_projects,
+            "avgBrandScore": avg_brand_score,
+            "avgReviewScore": avg_review_score,
+            "targetRegions": target_regions,
+        },
+        "campaigns": campaign_list,
+    }
+
+
+@app.get("/api/v1/campaigns/{campaign_id}")
+async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+    """캠페인 상세 조회 — 전체 산출물 반환"""
+    try:
+        uid = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID format")
+
+    result = await db.execute(select(Campaign).where(Campaign.id == uid))
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    return {
+        "id": str(campaign.id),
+        "projectName": campaign.project_name,
+        "brief": campaign.brief,
+        "analysisReport": campaign.analysis_report,
+        "strategicMessage": campaign.strategic_message,
+        "copyResults": campaign.copy_results,
+        "reviewSummary": campaign.review_summary,
+        "reviewResults": campaign.review_results,
+        "targetCountries": campaign.target_countries,
+        "brandFitScore": campaign.brand_fit_score,
+        "reviewAvgScore": campaign.review_avg_score,
+        "totalCopies": campaign.total_copies,
+        "status": campaign.status,
+        "createdAt": campaign.created_at.isoformat() if campaign.created_at else None,
+    }
+
+
+@app.delete("/api/v1/campaigns/{campaign_id}")
+async def delete_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+    """캠페인 삭제"""
+    try:
+        uid = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID format")
+
+    result = await db.execute(select(Campaign).where(Campaign.id == uid))
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    await db.delete(campaign)
+    await db.commit()
+    return {"status": "deleted", "id": campaign_id}
+
+
+@app.put("/api/v1/campaigns/{campaign_id}")
+async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
+    """기존 캠페인 업데이트"""
+    try:
+        uid = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign ID format")
+
+    result = await db.execute(select(Campaign).where(Campaign.id == uid))
+    campaign = result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    brief = request.brief
+    campaign.project_name = brief.get("projectName", campaign.project_name)
+    campaign.brief = brief
+    campaign.analysis_report = request.analysisReport
+    campaign.strategic_message = request.strategicMessage
+    campaign.copy_results = request.copyResults
+    campaign.review_summary = request.reviewSummary
+    campaign.review_results = request.reviewResults
+    campaign.target_countries = list({r.get("countryCode", "") for r in (request.copyResults or []) if r.get("countryCode")})
+
+    brand_fit = request.analysisReport.get("brandFit", {})
+    campaign.brand_fit_score = brand_fit.get("score", 0) if isinstance(brand_fit, dict) else 0
+
+    if request.reviewSummary and request.reviewSummary.get("avgScore"):
+        campaign.review_avg_score = round(request.reviewSummary["avgScore"])
+
+    campaign.total_copies = sum(len(r.get("copies", [r])) for r in (request.copyResults or []))
+
+    await db.commit()
+    await db.refresh(campaign)
+
+    return {
+        "id": str(campaign.id),
+        "projectName": campaign.project_name,
+        "status": "updated",
+    }

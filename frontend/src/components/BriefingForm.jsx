@@ -161,7 +161,7 @@ const PreviewBody = ({ formData }) => {
   );
 };
 
-const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect }) => {
+const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect, onActionNotify }) => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -205,6 +205,7 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
       return;
     }
     setIsGenerating(true);
+    onActionNotify?.({ action: 'brief-auto-generate', status: 'started', detail: `프로젝트: ${name}` });
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
       const response = await fetch(`${apiBase}/api/v1/campaigns/generate-brief`, {
@@ -224,9 +225,11 @@ const BriefingForm = ({ onStartAnalysis, isAnalyzing, isDisabled, onGuideSelect 
         }));
         setCollapsedSections({});
         setSubmitted(false);
+        onActionNotify?.({ action: 'brief-auto-generate', status: 'completed', detail: '9개 항목이 자동 생성되었습니다.' });
       }
     } catch (error) {
       console.error('Brief generation failed:', error);
+      onActionNotify?.({ action: 'brief-auto-generate', status: 'failed', detail: error.message });
       alert('AI 자동생성에 실패했습니다. 백엔드 서버를 확인해 주세요.');
     } finally {
       setIsGenerating(false);

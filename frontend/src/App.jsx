@@ -3,12 +3,27 @@ import { COLORS } from './styles/theme';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
+import SkillBuilderModal from './components/SkillBuilderModal';
+import SkillManagerModal from './components/SkillManagerModal';
 
 const HEALTH_CHECK_INTERVAL = 15000; // 15 seconds
 
 function App() {
   const [view, setView] = useState('dashboard');
   const [backendConnected, setBackendConnected] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+  const [showSkillBuilder, setShowSkillBuilder] = useState(false);
+  const [showSkillManager, setShowSkillManager] = useState(false);
+
+  const openCampaign = (campaignId) => {
+    setSelectedCampaignId(campaignId);
+    setView('editor');
+  };
+
+  const openNewCampaign = () => {
+    setSelectedCampaignId(null);
+    setView('editor');
+  };
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -41,8 +56,18 @@ function App() {
 
   return (
     <div style={styles.container}>
-      <Header setView={setView} backendConnected={backendConnected} />
-      {view === 'dashboard' ? <Dashboard setView={setView} /> : <Editor />}
+      <Header
+        setView={setView}
+        backendConnected={backendConnected}
+        onOpenSkillBuilder={() => setShowSkillBuilder(true)}
+        onOpenSkillManager={() => setShowSkillManager(true)}
+      />
+      {view === 'dashboard'
+        ? <Dashboard setView={openNewCampaign} onOpenCampaign={openCampaign} />
+        : <Editor setView={setView} campaignId={selectedCampaignId} key={selectedCampaignId || 'new'} />
+      }
+      {showSkillBuilder && <SkillBuilderModal onClose={() => setShowSkillBuilder(false)} />}
+      {showSkillManager && <SkillManagerModal onClose={() => setShowSkillManager(false)} />}
     </div>
   );
 }

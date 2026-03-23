@@ -1,9 +1,21 @@
-import React from 'react';
-import { Bot, Search, Settings } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bot, Search, Settings, PenTool, ListChecks } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 
-const Header = ({ setView, backendConnected = true }) => {
+const Header = ({ setView, backendConnected = true, onOpenSkillBuilder, onOpenSkillManager }) => {
   const statusColor = backendConnected ? COLORS.SUCCESS : COLORS.LG_RED;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   const styles = {
     header: {
@@ -65,7 +77,50 @@ const Header = ({ setView, backendConnected = true }) => {
           <Search size={16} /> Knowledge Base Ready
         </div>
         <div style={{ height: '24px', width: '1px', backgroundColor: COLORS.BORDER }}></div>
-        <Settings style={{ cursor: 'pointer', color: COLORS.TEXT_SUB }} size={20} />
+
+        {/* Settings with dropdown */}
+        <div ref={menuRef} style={{ position: 'relative' }}>
+          <Settings
+            style={{
+              cursor: 'pointer',
+              color: menuOpen ? COLORS.LG_RED : COLORS.TEXT_SUB,
+              transition: 'color 0.2s, transform 0.3s',
+              transform: menuOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
+            size={20}
+            onClick={() => setMenuOpen(!menuOpen)}
+          />
+          {menuOpen && (
+            <div style={{
+              position: 'absolute', top: '36px', right: 0, minWidth: '200px',
+              backgroundColor: COLORS.WHITE, borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)', border: `1px solid ${COLORS.BORDER}`,
+              padding: '6px', zIndex: 200, animation: 'fadeIn 0.15s ease',
+            }}>
+              {[
+                { label: '스킬 작성', icon: PenTool, onClick: onOpenSkillBuilder },
+                { label: '스킬 관리', icon: ListChecks, onClick: onOpenSkillManager },
+              ].map(item => (
+                <button
+                  key={item.label}
+                  onClick={() => { setMenuOpen(false); item.onClick?.(); }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 14px', border: 'none', background: 'none',
+                    borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem',
+                    fontWeight: 600, color: COLORS.TEXT_MAIN, fontFamily: 'inherit',
+                    transition: 'background-color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F3F4F6')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <item.icon size={16} color={COLORS.LG_RED} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

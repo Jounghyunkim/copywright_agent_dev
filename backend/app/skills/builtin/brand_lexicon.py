@@ -29,17 +29,16 @@ Your job is to verify that the advertising copy uses LG-approved brand terminolo
 - Deviation from brand voice guidelines
 - Generic terms where branded terms should be used
 
-Respond ONLY with a valid JSON object:
+Respond ONLY with a valid JSON object in Korean:
 {
   "passed": true/false,
-  "score": 0-100 (100 = perfect brand compliance),
-  "findings": [
-    {"severity": "high|medium|low", "message": "description", "location": "headline|subheadline|bodyCopy|cta"}
-  ],
-  "suggestions": [
-    {"original": "incorrect text", "suggested": "corrected text", "reason": "brand guideline reference"}
-  ]
-}"""
+  "score": 0-100 (100 = 브랜드 용어 완벽 준수),
+  "strengths": ["강점 내용 — 브랜드 용어가 올바르게 사용된 부분"],
+  "weaknesses": ["약점 내용 — 브랜드 용어 오류 또는 가이드라인 위반 부분"],
+  "improvements": ["보완 내용 — 구체적 수정 제안 (원문 → 수정안)"]
+}
+
+IMPORTANT: strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []을 반환하세요."""
 
 
 async def run(copy_text: str, context: dict) -> dict:
@@ -54,7 +53,7 @@ async def run(copy_text: str, context: dict) -> dict:
     parser = JsonOutputParser()
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"## Copy to review\n{copy_text}\n\n## Brief context\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
+        HumanMessage(content=f"## 검토 대상 카피\n{copy_text}\n\n## 브리프 컨텍스트\n{json.dumps(context.get('brief_summary', ''), ensure_ascii=False)}"),
     ]
     response = await llm.ainvoke(messages)
     result = parser.parse(response.content)
@@ -62,8 +61,9 @@ async def run(copy_text: str, context: dict) -> dict:
     return {
         "passed": result.get("passed", True),
         "score": result.get("score", 100),
-        "findings": result.get("findings", []),
-        "suggestions": result.get("suggestions", []),
+        "strengths": result.get("strengths", []),
+        "weaknesses": result.get("weaknesses", []),
+        "improvements": result.get("improvements", []),
         "raw_llm_response": response.content,
         "execution_ms": elapsed,
     }
