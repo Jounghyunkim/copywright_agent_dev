@@ -79,6 +79,8 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+    currentStep: Optional[int] = 1
+    context: Optional[dict] = None  # {brief, analysisReport, strategicMessage, copyResults, reviewResults}
 
 class ChatResponse(BaseModel):
     reply: str

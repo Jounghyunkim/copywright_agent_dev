@@ -370,12 +370,42 @@ async def chat_with_agent(request: ChatRequest):
         temperature=0.7,
     )
 
-    system_prompt = SystemMessage(content=(
+    # Build step-aware system prompt with available context
+    step = request.currentStep or 1
+    ctx = request.context or {}
+
+    base_instruction = (
         "You are a professional LG marketing copywriting expert and campaign strategist. "
-        "Help users craft effective campaign briefs by answering questions about target audiences, "
-        "tone & manner, key benefits, market trends, and copywriting best practices. "
-        "Keep answers concise, practical, and actionable. Respond in the same language as the user."
-    ))
+        "Keep answers concise, practical, and actionable. Respond in the same language as the user.\n\n"
+    )
+
+    step_instructions = {
+        1: "The user is currently writing a campaign brief. Help them fill out fields like target audience, key message, proof points, tone & manner, and market needs. Provide specific, actionable advice.",
+        2: "The user is reviewing the Market Analyst Report generated from their brief. Help them interpret the analysis results, discuss persona insights, brand fit scores, competitive keywords, and emotional JTBD. Suggest whether to approve or request modifications.",
+        3: "The user is working on the Strategic Message step. Help them refine the Core Message and Message Pillars. Discuss how the strategic direction aligns with the brief and analysis insights.",
+        4: "The user is in the Copy Generation step. Help them evaluate generated copy variants, discuss headline/subheadline effectiveness, CTA strength, and cultural appropriateness for each target market.",
+        5: "The user is in the Review step where generated copies are being validated by skill-based checks. Help them interpret review results, understand flagged issues, and decide on final copy selections.",
+    }
+
+    prompt_parts = [base_instruction, step_instructions.get(step, step_instructions[1])]
+
+    # Attach available artifacts as reference context
+    if ctx.get("brief"):
+        prompt_parts.append(f"\n\n=== Campaign Brief ===\n{json_module.dumps(ctx['brief'], ensure_ascii=False, indent=2)}")
+    if ctx.get("analysisReport"):
+        prompt_parts.append(f"\n\n=== Market Analyst Report ===\n{json_module.dumps(ctx['analysisReport'], ensure_ascii=False, indent=2)}")
+    if ctx.get("strategicMessage"):
+        prompt_parts.append(f"\n\n=== Strategic Message ===\n{json_module.dumps(ctx['strategicMessage'], ensure_ascii=False, indent=2)}")
+    if ctx.get("copyResults"):
+        # Send summary to avoid token overflow
+        copy_summary = []
+        for c in ctx["copyResults"][:10]:
+            copy_summary.append({k: v for k, v in c.items() if k in ("countryCode", "headline", "subheadline", "cta")})
+        prompt_parts.append(f"\n\n=== Generated Copies (summary) ===\n{json_module.dumps(copy_summary, ensure_ascii=False, indent=2)}")
+    if ctx.get("reviewResults"):
+        prompt_parts.append(f"\n\n=== Review Results ===\n{json_module.dumps(ctx['reviewResults'], ensure_ascii=False, indent=2)}")
+
+    system_prompt = SystemMessage(content="".join(prompt_parts))
 
     history = [system_prompt]
     for msg in request.messages:

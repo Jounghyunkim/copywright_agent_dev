@@ -591,6 +591,25 @@ const Editor = ({ setView, campaignId }) => {
     setStep(1);
   };
 
+  // Step-aware chat placeholder & context
+  const chatPlaceholders = {
+    1: '브리프 작성에 대해 질문하세요. 타겟 오디언스, 키 메시지, 톤앤매너 등을 도와드립니다... (Enter로 전송)',
+    2: '분석 결과에 대해 질문하세요. 페르소나, 브랜드 적합도, 경쟁 키워드 등을 설명해 드립니다... (Enter로 전송)',
+    3: 'Strategic Message에 대해 질문하세요. Core Message, Message Pillars 방향성을 함께 논의합니다... (Enter로 전송)',
+    4: '생성된 카피에 대해 질문하세요. 헤드라인, CTA 효과, 시장별 적합성 등을 검토합니다... (Enter로 전송)',
+    5: '리뷰 결과에 대해 질문하세요. 검증 결과 해석, 수정 방향을 함께 논의합니다... (Enter로 전송)',
+  };
+
+  const buildChatContext = () => {
+    const ctx = {};
+    if (submittedBrief) ctx.brief = submittedBrief;
+    if (analysisResult) ctx.analysisReport = analysisResult;
+    if (strategicData) ctx.strategicMessage = strategicData;
+    if (copyResults) ctx.copyResults = copyResults;
+    if (reviewResults) ctx.reviewResults = reviewResults;
+    return Object.keys(ctx).length > 0 ? ctx : null;
+  };
+
   const handleGuideSelect = (guideInfo) => {
     const guideMessage = `[${guideInfo.title}] 작성 가이드\n\n${guideInfo.guide}`;
     addToTimeline({ type: 'chat-assistant', content: guideMessage });
@@ -617,7 +636,7 @@ const Editor = ({ setView, campaignId }) => {
       const response = await fetch(`${apiBase}/api/v1/campaigns/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: chatHistory }),
+        body: JSON.stringify({ messages: chatHistory, currentStep: step, context: buildChatContext() }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -998,7 +1017,7 @@ const Editor = ({ setView, campaignId }) => {
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="브리프 작성에 대해 자유롭게 질문하세요... (Enter로 전송, Shift+Enter 줄바꿈)"
+              placeholder={chatPlaceholders[step] || chatPlaceholders[1]}
               style={styles.chatInput}
               rows={2}
               disabled={isChatLoading}
