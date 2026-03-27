@@ -1,7 +1,5 @@
-"""스킬 카탈로그 — 빌트인 메타데이터 + DB 커스텀 스킬 병합"""
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import CustomSkill
+"""스킬 카탈로그 — 빌트인 메타데이터 + 파일 기반 커스텀 스킬 병합"""
+from .custom import list_custom_skills
 
 BUILTIN_SKILLS = [
     {
@@ -57,18 +55,15 @@ BUILTIN_SKILLS = [
 BUILTIN_IDS = {s["id"] for s in BUILTIN_SKILLS}
 
 
-async def get_all_skills(db: AsyncSession) -> list[dict]:
+def get_all_skills() -> list[dict]:
     """빌트인 + 커스텀 스킬 통합 목록 반환"""
-    result = await db.execute(
-        select(CustomSkill).where(CustomSkill.is_active == True)
-    )
-    custom_rows = result.scalars().all()
+    custom_rows = list_custom_skills()
     custom_skills = [
         {
-            "id": row.id,
-            "label": row.label,
-            "description": row.description,
-            "category": row.category,
+            "id": row["id"],
+            "label": row["label"],
+            "description": row["description"],
+            "category": row["category"],
             "type": "custom",
             "editable": True,
         }

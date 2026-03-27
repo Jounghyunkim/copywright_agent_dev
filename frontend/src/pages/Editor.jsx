@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, Loader, ChevronDown, ChevronRight, FileText, BarChart2, MessageSquareText, Globe, Sparkles, CheckCircle, XCircle, Search, Zap, ClipboardCheck } from 'lucide-react';
 import { COLORS } from '../styles/theme';
+import { Markdown } from '@/shared/ui/markdown';
 import WorkflowStepper from '../components/WorkflowStepper';
 import BriefingForm, { PreviewBody } from '../components/BriefingForm';
 import { InitialView, ResultView, StrategicMessageView, GenerationConfigView, CopyResultsView, ReviewView, ReviewResultsView } from '../components/EditorViews';
@@ -921,7 +922,7 @@ const Editor = ({ setView, campaignId }) => {
                   return (
                     <div key={i} style={styles.aiBubbleRow}>
                       <div style={styles.aiAvatar}><Bot size={18} /></div>
-                      <div style={styles.aiBubbleContent}>{item.content}</div>
+                      <div style={styles.aiBubbleContent}><Markdown>{item.content || ''}</Markdown></div>
                     </div>
                   );
                 case 'analysis-result':

@@ -1,0 +1,48 @@
+// Template: SSE Event Bridge
+// Customize EVENT_STATUS_MAP and invalidation rules for your domain.
+
+import { QueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { env } from '@/shared/config/env'
+import { useUIStore } from '@/shared/state/ui-store'
+
+type Props = { queryClient: QueryClient }
+
+// === CUSTOMIZE: Map event types to user-readable messages ===
+const EVENT_STATUS_MAP: Record<string, string> = {
+  // 'YOUR_EVENT_STARTED': 'Processing started...',
+  // 'YOUR_EVENT_COMPLETED': 'Processing complete.',
+}
+
+export function EventBridge({ queryClient }: Props) {
+  const setSseConnected = useUIStore((s) => s.setSseConnected)
+  const setProcessingStatus = useUIStore((s) => s.setProcessingStatus)
+
+  useEffect(() => {
+    const source = new EventSource(`${env.apiBaseUrl}/events/stream`)
+    source.onopen = () => setSseConnected(true)
+    source.onerror = () => setSseConnected(false)
+
+    source.onmessage = (event) => {
+      if (!event.data) return
+      let payload: Record<string, unknown>
+      try { payload = JSON.parse(event.data) } catch { return }
+
+      const eventType = String(payload.event_type ?? '')
+
+      // === CUSTOMIZE: Add your invalidation rules ===
+      queryClient.invalidateQueries({ queryKey: ['cases'] })
+      if (eventType.includes('APPROVAL')) {
+        queryClient.invalidateQueries({ queryKey: ['approvals'] })
+      }
+
+      // Update processing status
+      const msg = EVENT_STATUS_MAP[eventType]
+      if (msg) setProcessingStatus(msg)
+    }
+
+    return () => { source.close(); setSseConnected(false) }
+  }, [queryClient, setSseConnected, setProcessingStatus])
+
+  return null
+}

@@ -21,7 +21,7 @@ from .schemas import (
 )
 from .graph import app_graph
 from .database import init_db, get_db
-from .models import ReviewSession, ReviewResult, CustomSkill, Campaign
+from .models import ReviewSession, ReviewResult, Campaign
 from sqlalchemy import func
 from .skills.runner import run_review
 from .skills.catalog import get_all_skills, BUILTIN_IDS
@@ -466,7 +466,6 @@ async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_d
                 completed_skills.add(result_entry["skill_id"])
 
             results = await run_review(
-                db=db,
                 enabled_skills=request.enabledSkills,
                 selected_copies=copies_for_runner,
                 brief=request.brief,
@@ -609,67 +608,27 @@ async def get_review_session(session_id: str, db: AsyncSession = Depends(get_db)
 # ============================================================
 
 @app.get("/api/v1/skills")
-async def list_skills(db: AsyncSession = Depends(get_db)):
+async def list_skills():
     """전체 스킬 목록 (빌트인 6개 + 커스텀)"""
-    skills = await get_all_skills(db)
+    skills = get_all_skills()
     return {"skills": skills}
 
 
 @app.post("/api/v1/skills", status_code=201)
-async def create_skill(skill: CustomSkillCreate, db: AsyncSession = Depends(get_db)):
-    """커스텀 스킬 등록"""
-    # 빌트인 ID 충돌 체크
+async def create_skill(skill: CustomSkillCreate):
+    """커스텀 스킬 등록 — skills/custom/ 폴더에 JSON 파일로 저장"""
+    from .skills.custom import get_custom_skill, save_custom_skill
+
     if skill.id in BUILTIN_IDS:
         raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' conflicts with a builtin skill")
 
-    # 기존 커스텀 ID 중복 체크
-    existing = await db.execute(select(CustomSkill).where(CustomSkill.id == skill.id))
-    if existing.scalar_one_or_none():
+    if get_custom_skill(skill.id):
         raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' already exists")
 
-    # 카테고리 유효성
     if skill.category not in ("validation", "generation", "analysis"):
         raise HTTPException(status_code=422, detail="category must be 'validation', 'generation', or 'analysis'")
 
-    db_skill = CustomSkill(
-        id=skill.id,
-        label=skill.label,
-        description=skill.description,
-        category=skill.category,
-        prompt_template=skill.prompt_template,
-        reference_docs=skill.reference_docs,
-        output_schema=skill.output_schema,
-    )
-    db.add(db_skill)
-    await db.commit()
-    await db.refresh(db_skill)
-
-    return {
-        "id": db_skill.id,
-        "label": db_skill.label,
-        "description": db_skill.description,
-        "category": db_skill.category,
-        "type": "custom",
-        "editable": True,
-    }
-
-
-@app.get("/api/v1/skills/{skill_id}")
-async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
-    """단일 스킬 상세 조회"""
-    from .skills.catalog import BUILTIN_SKILLS
-    # 빌트인 체크
-    for bs in BUILTIN_SKILLS:
-        if bs["id"] == skill_id:
-            return bs
-
-    # 커스텀 체크
-    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
-    skill = result.scalar_one_or_none()
-    if not skill:
-        raise HTTPException(status_code=404, detail="Skill not found")
-
-    return {
+    data = save_custom_skill({
         "id": skill.id,
         "label": skill.label,
         "description": skill.description,
@@ -677,22 +636,57 @@ async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
         "prompt_template": skill.prompt_template,
         "reference_docs": skill.reference_docs,
         "output_schema": skill.output_schema,
-        "is_active": skill.is_active,
+    })
+
+    return {
+        "id": data["id"],
+        "label": data["label"],
+        "description": data["description"],
+        "category": data["category"],
         "type": "custom",
         "editable": True,
-        "createdAt": skill.created_at.isoformat() if skill.created_at else None,
-        "updatedAt": skill.updated_at.isoformat() if skill.updated_at else None,
+    }
+
+
+@app.get("/api/v1/skills/{skill_id}")
+async def get_skill(skill_id: str):
+    """단일 스킬 상세 조회"""
+    from .skills.catalog import BUILTIN_SKILLS
+    from .skills.custom import get_custom_skill
+
+    for bs in BUILTIN_SKILLS:
+        if bs["id"] == skill_id:
+            return bs
+
+    skill = get_custom_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    return {
+        "id": skill["id"],
+        "label": skill["label"],
+        "description": skill["description"],
+        "category": skill["category"],
+        "prompt_template": skill.get("prompt_template"),
+        "reference_docs": skill.get("reference_docs"),
+        "output_schema": skill.get("output_schema"),
+        "is_active": skill.get("is_active", True),
+        "type": "custom",
+        "editable": True,
+        "createdAt": skill.get("created_at"),
+        "updatedAt": skill.get("updated_at"),
     }
 
 
 @app.put("/api/v1/skills/{skill_id}")
-async def update_skill(skill_id: str, updates: CustomSkillUpdate, db: AsyncSession = Depends(get_db)):
+async def update_skill(skill_id: str, updates: CustomSkillUpdate):
     """커스텀 스킬 수정 (빌트인 수정 불가)"""
+    from .skills.custom import get_custom_skill, save_custom_skill
+
     if skill_id in BUILTIN_IDS:
         raise HTTPException(status_code=403, detail="Builtin skills cannot be modified")
 
-    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
-    skill = result.scalar_one_or_none()
+    skill = get_custom_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
 
@@ -700,36 +694,30 @@ async def update_skill(skill_id: str, updates: CustomSkillUpdate, db: AsyncSessi
     if "category" in update_data and update_data["category"] not in ("validation", "generation", "analysis"):
         raise HTTPException(status_code=422, detail="category must be 'validation', 'generation', or 'analysis'")
 
-    for field, value in update_data.items():
-        setattr(skill, field, value)
-
-    skill.updated_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(skill)
+    skill.update(update_data)
+    save_custom_skill(skill)
 
     return {
-        "id": skill.id,
-        "label": skill.label,
-        "description": skill.description,
-        "category": skill.category,
+        "id": skill["id"],
+        "label": skill["label"],
+        "description": skill["description"],
+        "category": skill["category"],
         "type": "custom",
         "editable": True,
     }
 
 
 @app.delete("/api/v1/skills/{skill_id}")
-async def delete_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_skill(skill_id: str):
     """커스텀 스킬 삭제 (빌트인 삭제 불가)"""
+    from .skills.custom import delete_custom_skill
+
     if skill_id in BUILTIN_IDS:
         raise HTTPException(status_code=403, detail="Builtin skills cannot be deleted")
 
-    result = await db.execute(select(CustomSkill).where(CustomSkill.id == skill_id))
-    skill = result.scalar_one_or_none()
-    if not skill:
+    if not delete_custom_skill(skill_id):
         raise HTTPException(status_code=404, detail="Skill not found")
 
-    await db.delete(skill)
-    await db.commit()
     return {"status": "deleted", "id": skill_id}
 
 
@@ -782,7 +770,10 @@ IMPORTANT:
 - The id must be kebab-case, 3-5 words, unique and descriptive
 - Write everything in Korean except the id and JSON keys"""
 
-    user_content = f"""## 작성 목적
+    user_content = f"""## 스킬 이름
+{request.name}
+
+## 작성 목적
 {request.purpose}
 
 ## 스킬 목적
@@ -803,7 +794,7 @@ IMPORTANT:
         ]
         response = await llm.ainvoke(messages)
         data = parser.parse(response.content)
-        return {"status": "success", "data": data}
+        return {"draft": data}
     except Exception as e:
         print(f"Skill draft generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Skill draft generation failed: {str(e)}")

@@ -1,11 +1,8 @@
 """스킬 병렬 실행 + 라우팅 (빌트인/커스텀 분류)"""
 import asyncio
-import json
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import CustomSkill
 from .builtin import BUILTIN_REGISTRY
 from .custom_runner import run_custom_skill
+from .custom import get_custom_skill
 from .catalog import BUILTIN_IDS
 
 
@@ -50,7 +47,6 @@ async def _run_single(
 
 
 async def run_review(
-    db: AsyncSession,
     enabled_skills: list[str],
     selected_copies: list[dict],
     brief: dict,
@@ -63,18 +59,13 @@ async def run_review(
     선택된 스킬들을 선택된 카피들에 대해 병렬 실행.
     Returns: list of result dicts (skill_id, skill_type, target_copy_key, ...)
     """
-    # 커스텀 스킬 prompt_template 미리 로딩
+    # 커스텀 스킬 prompt_template 미리 로딩 (파일 기반)
     custom_ids = [sid for sid in enabled_skills if sid not in BUILTIN_IDS]
     custom_templates = {}
-    if custom_ids:
-        result = await db.execute(
-            select(CustomSkill).where(
-                CustomSkill.id.in_(custom_ids),
-                CustomSkill.is_active == True,
-            )
-        )
-        for row in result.scalars().all():
-            custom_templates[row.id] = row.prompt_template
+    for sid in custom_ids:
+        skill_data = get_custom_skill(sid)
+        if skill_data and skill_data.get("is_active", True):
+            custom_templates[sid] = skill_data["prompt_template"]
 
     # 태스크 생성: 각 (스킬 × 카피) 조합
     tasks = []

@@ -1,4 +1,5 @@
-// This file will export our color palette and other theme constants
+// Legacy theme constants — now backed by CSS variables from tokens.css
+// Kept for backward compatibility with existing JSX components
 export const COLORS = {
   LG_RED: '#A50034',
   LG_RED_LIGHT: '#C21E4A',
@@ -8,6 +9,6 @@ export const COLORS = {
   TEXT_SUB: '#6E6E73',
   BORDER: '#E5E5E7',
   WHITE: '#FFFFFF',
-  SUCCESS: '#34C759',
+  SUCCESS: '#22C55E',
   SHADOW: 'rgba(0, 0, 0, 0.08)'
 };

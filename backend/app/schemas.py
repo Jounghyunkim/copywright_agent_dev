@@ -145,6 +145,7 @@ class SkillResponse(BaseModel):
 # --- Skill Draft Generation ---
 
 class SkillDraftRequest(BaseModel):
+    name: str             # 스킬 이름
     purpose: str          # 작성 목적
     goal: str             # 스킬 목적
     goodExample: Optional[str] = None  # 좋은 예시

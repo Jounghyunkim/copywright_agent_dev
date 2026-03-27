@@ -52,7 +52,7 @@ const InitialView = () => (
           lineHeight: 1.7, fontSize: '1rem',
         }}>
           <p style={{ margin: 0, fontWeight: 600, fontSize: '1.05rem' }}>
-            안녕하세요, 정현님! 👋
+            안녕하세요! 저는 AI Copywriting Agent 입니다. 반가워요~
           </p>
           <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
             AI Copywriting Agent와 함께 글로벌 캠페인 카피를 만들어 보세요.
@@ -404,14 +404,14 @@ const CopyReviewItem = ({ data }) => {
                 </span>
                 <span style={{
                     fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', flexShrink: 0,
-                    backgroundColor: allPassed ? '#DCFCE7' : '#FEE2E2',
-                    color: allPassed ? '#16A34A' : '#DC2626',
+                    backgroundColor: allPassed ? '#DCFCE7' : '#fef9e2',
+                    color: allPassed ? '#16A34A' : '#f79708',
                 }}>
-                    {allPassed ? 'Pass' : 'Fail'}
+                    {allPassed ? 'All Pass' : 'Need Check'}
                 </span>
                 {lowestSkill && !allPassed && (
                     <span style={{ fontSize: '0.7rem', color: '#DC2626', flexShrink: 0 }}>
-                        Check Point : {lowestSkill.skillId}
+                        {lowestSkill.skillId}
                     </span>
                 )}
             </div>
