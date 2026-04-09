@@ -271,10 +271,10 @@ const AnalysisReport = ({ onApprove, onModify, isApproved, analysisResult }) => 
                 {!isApproved && (
                     <div style={{...styles.card, gridColumn: 'span 12', backgroundColor: '#FFFBEA', border: '1px solid #FFD6A5', textAlign: 'center'}}>
                         <h4 style={{ ...styles.cardTitle, justifyContent: 'center' }}><SmilePlus size={14} />Does this analysis align with your vision?</h4>
-                        <p style={{margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to the Strategic Message step, or modify the research to re-analyze.</p>
+                        <p style={{margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to Copywriting Strategy, or modify the research to re-analyze.</p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                             <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.WHITE, color: COLORS.LG_RED, border: `1px solid ${COLORS.LG_RED}` }} onClick={onModify}>Modify Research</button>
-                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED, color: COLORS.WHITE }} onClick={onApprove}>Approve & Strategic Message</button>
+                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED, color: COLORS.WHITE }} onClick={onApprove}>Approve & Copywriting Strategy</button>
                         </div>
                     </div>
                 )}

@@ -9,7 +9,7 @@ import {
 const WORKFLOW_STEPS = [
   { num: 1, label: 'Research', desc: 'Message Matrix 업로드 또는 캠페인 리서치 정보를 입력합니다.', icon: FileText, color: '#A50034' },
   { num: 2, label: 'Analysis', desc: '웹 검색 + RAG를 통해 10개 항목의 시장 분석 리포트를 생성합니다.', icon: Search, color: '#2563EB' },
-  { num: 3, label: 'Strategic Message', desc: '감성/행동 기반 전략 메시지를 추출하고 마케터가 승인합니다.', icon: MessageSquareText, color: '#7C3AED' },
+  { num: 3, label: 'Copywriting Strategy', desc: '감성/행동 기반 카피라이팅 전략을 추출하고 마케터가 승인합니다.', icon: MessageSquareText, color: '#7C3AED' },
   { num: 4, label: 'Generation', desc: '국가/페르소나별로 최적화된 카피 변형을 생성합니다.', icon: Zap, color: '#D97706' },
   { num: 5, label: 'Review', desc: 'Builtin + Custom Skill로 카피 품질을 자동 검증합니다.', icon: ClipboardCheck, color: '#059669' },
 ]

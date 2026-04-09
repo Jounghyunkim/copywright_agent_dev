@@ -36,7 +36,7 @@ import {
 
 /* ──────────────────── Step Wizard Config ──────────────────── */
 type Step = 1 | 2 | 3 | 4 | 5
-const STEP_LABELS = ['Research', 'Analysis', 'Strategic Message', 'Generation', 'Review']
+const STEP_LABELS = ['Research', 'Analysis', 'Copywriting Strategy', 'Generation', 'Review']
 const STEP_ICONS = [FileText, Search, MessageSquareText, Zap, ClipboardCheck]
 
 
@@ -47,8 +47,8 @@ const ACTION_CONFIG: Record<string, { icon: typeof Zap; label: string; color: st
   'brief-auto-generate': { icon: Sparkles, label: 'AI Research Auto-generation', color: '#7C3AED' },
   'submit-brief': { icon: FileText, label: 'Submit Research & Start Analysis', color: 'var(--color-primary)' },
   'approve-analysis': { icon: CheckCircle, label: 'Approve Analysis', color: '#059669' },
-  'strategic-message-extract': { icon: MessageSquareText, label: 'Strategic Message Extraction', color: '#2563EB' },
-  'approve-strategic': { icon: CheckCircle, label: 'Approve Strategic Message', color: '#059669' },
+  'strategic-message-extract': { icon: MessageSquareText, label: 'Copywriting Strategy Extraction', color: '#2563EB' },
+  'approve-strategic': { icon: CheckCircle, label: 'Approve Copywriting Strategy', color: '#059669' },
   'generate-copy': { icon: Zap, label: 'Generate Copy', color: '#D97706' },
   'start-review': { icon: ClipboardCheck, label: 'Start Review', color: '#7C3AED' },
   'submit-review': { icon: ClipboardCheck, label: 'Skillset Review', color: 'var(--color-primary)' },
@@ -133,7 +133,12 @@ function ActionStatusBubble({ item }: { item: TimelineItem }) {
 }
 
 /* ──────────────────── Step Progress Bar ──────────────────── */
-const STEP_DESCS = ['Research input', 'Market research', 'Message strategy', 'Copy creation', 'Final approval']
+const STEP_DESCS = ['Research input', 'Market research', 'Copy strategy', 'Copy creation', 'Final approval']
+
+const STEP_GROUPS = [
+  { label: 'Research & Strategy', steps: [0, 1, 2] },  // Step 1, 2, 3
+  { label: 'Creation & Review', steps: [3, 4] },        // Step 4, 5
+]
 
 function StepProgressBar({ step, reviewCompleted, onStepClick }: { step: Step; reviewCompleted: boolean; onStepClick?: (s: Step) => void }) {
   const getStepColor = (done: boolean, active: boolean) => {
@@ -142,85 +147,129 @@ function StepProgressBar({ step, reviewCompleted, onStepClick }: { step: Step; r
     return '#D1D5DB'
   }
 
+  const renderStep = (i: number) => {
+    const s = (i + 1) as Step
+    const done = step > s || (s === 5 && reviewCompleted)
+    const active = step === s && !reviewCompleted
+    const Icon = STEP_ICONS[i]
+    const color = getStepColor(done, active)
+    const clickable = done || active
+
+    return (
+      <div
+        key={i}
+        onClick={() => { if (clickable && onStepClick) onStepClick(s) }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '6px 12px', borderRadius: 10,
+          backgroundColor: active ? '#FFF0F3' : done ? '#F0FFF4' : 'transparent',
+          transition: 'all 0.3s ease',
+          cursor: clickable ? 'pointer' : 'default',
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            backgroundColor: done ? '#22C55E' : active ? '#A50034' : '#F3F4F6',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: done || active ? '#fff' : '#9CA3AF',
+            transition: 'all 0.3s ease',
+            flexShrink: 0,
+            boxShadow: active ? '0 3px 10px rgba(165, 0, 52, 0.2)' : done ? '0 3px 10px rgba(52, 199, 89, 0.2)' : 'none',
+          }}>
+            {done ? <Check size={14} strokeWidth={3} /> : <Icon size={13} />}
+          </div>
+          <div style={{
+            position: 'absolute', top: -2, right: -3,
+            width: 13, height: 13, borderRadius: '50%',
+            backgroundColor: '#fff', color,
+            fontSize: '0.5rem', fontWeight: 800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1.5px solid ${color}`,
+          }}>{s}</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' as const }}>
+          <span style={{
+            fontSize: '0.78rem', fontWeight: active ? 700 : 600,
+            color: active ? '#A50034' : done ? '#22C55E' : 'var(--color-text)',
+            lineHeight: 1.2, transition: 'color 0.3s ease',
+          }}>{STEP_LABELS[i]}</span>
+          <span style={{
+            fontSize: '0.62rem',
+            color: active ? 'rgba(165, 0, 52, 0.6)' : done ? 'rgba(52, 199, 89, 0.7)' : 'var(--color-text-secondary)',
+            lineHeight: 1.2, marginTop: 1, transition: 'color 0.3s ease',
+          }}>{STEP_DESCS[i]}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <nav style={{
-      padding: '0 2rem',
+      padding: '0 1.5rem',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: '#fff',
       borderBottom: '1px solid var(--color-border)',
-      height: 64,
-      gap: 0,
+      height: 72,
+      gap: 12,
     }}>
-      {STEP_LABELS.map((label, i) => {
-        const s = (i + 1) as Step
-        const done = step > s || (s === 5 && reviewCompleted)
-        const active = step === s && !reviewCompleted
-        const Icon = STEP_ICONS[i]
-        const color = getStepColor(done, active)
-        const clickable = done || active
+      {STEP_GROUPS.map((group, gi) => {
+        const groupSteps = group.steps
+        const allDone = groupSteps.every((i) => step > (i + 1) || ((i + 1) === 5 && reviewCompleted))
+        const hasActive = groupSteps.some((i) => step === (i + 1) && !reviewCompleted)
 
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-            <div
-              onClick={() => { if (clickable && onStepClick) onStepClick(s) }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '8px 16px', borderRadius: 12,
-                backgroundColor: active ? '#FFF0F3' : done ? '#F0FFF4' : 'transparent',
-                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: clickable ? 'pointer' : 'default',
-              }}
-            >
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 10,
-                  backgroundColor: done ? '#22C55E' : active ? '#A50034' : '#F3F4F6',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: done || active ? '#fff' : '#9CA3AF',
-                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                  flexShrink: 0,
-                  boxShadow: active
-                    ? '0 4px 12px rgba(165, 0, 52, 0.25)'
-                    : done
-                    ? '0 4px 12px rgba(52, 199, 89, 0.25)'
-                    : 'none',
-                }}>
-                  {done ? <Check size={16} strokeWidth={3} /> : <Icon size={15} />}
-                </div>
-                <div style={{
-                  position: 'absolute', top: -2, right: -2,
-                  width: 14, height: 14, borderRadius: '50%',
-                  backgroundColor: '#fff', color,
-                  fontSize: '0.55rem', fontWeight: 800,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: `1.5px solid ${color}`,
-                }}>{s}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const }}>
-                <span style={{
-                  fontSize: '0.82rem', fontWeight: active ? 700 : 600,
-                  color: active ? '#A50034' : done ? '#22C55E' : 'var(--color-text)',
-                  lineHeight: 1.2, transition: 'color 0.3s ease',
-                }}>{label}</span>
-                <span style={{
-                  fontSize: '0.68rem',
-                  color: active ? 'rgba(165, 0, 52, 0.6)' : done ? 'rgba(52, 199, 89, 0.7)' : 'var(--color-text-secondary)',
-                  lineHeight: 1.2, marginTop: 1, transition: 'color 0.3s ease',
-                }}>{STEP_DESCS[i]}</span>
-              </div>
+          <div key={gi} style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '6px 10px',
+              borderRadius: 14,
+              border: `1.5px dashed ${allDone ? '#22C55E' : hasActive ? '#A50034' : 'var(--color-border)'}`,
+              backgroundColor: allDone ? '#F0FDF4' : hasActive ? '#FFFBFB' : 'transparent',
+              transition: 'all 0.3s ease',
+              position: 'relative' as const,
+            }}>
+              {/* Group label */}
+              <span style={{
+                position: 'absolute', top: -8, left: 12,
+                fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.3px',
+                textTransform: 'uppercase' as const,
+                color: allDone ? '#16A34A' : hasActive ? '#A50034' : 'var(--color-text-secondary)',
+                backgroundColor: '#fff',
+                padding: '0 4px',
+              }}>{group.label}</span>
+
+              {groupSteps.map((stepIdx, si) => {
+                const stepDone = step > (stepIdx + 1) || ((stepIdx + 1) === 5 && reviewCompleted)
+                return (
+                  <div key={stepIdx} style={{ display: 'flex', alignItems: 'center' }}>
+                    {renderStep(stepIdx)}
+                    {si < groupSteps.length - 1 && (
+                      <div style={{
+                        width: 16, height: 1.5, borderRadius: 1,
+                        backgroundColor: stepDone ? '#22C55E' : 'var(--color-border)',
+                        margin: '0 2px',
+                        transition: 'background-color 0.3s ease',
+                      }} />
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            {i < STEP_LABELS.length - 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, flexShrink: 0 }}>
+
+            {/* Connector between groups */}
+            {gi < STEP_GROUPS.length - 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, flexShrink: 0 }}>
                 <div style={{
-                  width: 20, height: 2, borderRadius: 1,
-                  backgroundColor: done ? '#22C55E' : 'var(--color-border)',
-                  transition: 'background-color 0.35s ease',
+                  width: 14, height: 1.5, borderRadius: 1,
+                  backgroundColor: allDone ? '#22C55E' : 'var(--color-border)',
+                  transition: 'background-color 0.3s ease',
                 }} />
                 <ChevronRight size={14} style={{
-                  color: done ? '#22C55E' : '#D1D5DB',
-                  transition: 'color 0.35s ease',
+                  color: allDone ? '#22C55E' : '#D1D5DB',
+                  transition: 'color 0.3s ease',
                 }} />
               </div>
             )}
@@ -556,7 +605,7 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     setMatrixSectionOpen(false)
     setIsReportCollapsed(true)
     setIsStrategicCollapsed(true)
-    addAction('approve-strategic', 'completed', 'Strategic Message approved')
+    addAction('approve-strategic', 'completed', 'Copywriting Strategy approved')
     addToTimeline({ type: 'generation-config' })
     setStep(4)
   }
@@ -995,11 +1044,11 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
                 </CollapsibleSection>
               )}
 
-              {/* Strategic Message */}
+              {/* Copywriting Strategy */}
               {strategicData && (
                 <CollapsibleSection
                   icon={<MessageSquareText size={16} color="var(--color-primary)" />}
-                  title="Strategic Message" badge="Confirmed"
+                  title="Copywriting Strategy" badge="Confirmed"
                   collapsed={isStrategicCollapsed} onToggle={() => setIsStrategicCollapsed((p) => !p)}
                 >
                   <div style={{ padding: '0 1rem 1rem' }}>

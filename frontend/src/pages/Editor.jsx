@@ -41,8 +41,8 @@ const ACTION_CONFIG = {
   'brief-auto-generate': { icon: Sparkles, label: 'AI 리서치 자동생성', color: '#7C3AED' },
   'submit-brief': { icon: FileText, label: '리서치 제출 및 분석 시작', color: COLORS.LG_RED },
   'approve-analysis': { icon: CheckCircle, label: '분석 결과 승인', color: '#059669' },
-  'strategic-message-extract': { icon: MessageSquareText, label: 'Strategic Message 추출', color: '#2563EB' },
-  'approve-strategic': { icon: CheckCircle, label: 'Strategic Message 승인', color: '#059669' },
+  'strategic-message-extract': { icon: MessageSquareText, label: 'Copywriting Strategy 추출', color: '#2563EB' },
+  'approve-strategic': { icon: CheckCircle, label: 'Copywriting Strategy 승인', color: '#059669' },
   'generate-copy': { icon: Zap, label: '카피 생성', color: '#D97706' },
   'start-review': { icon: ClipboardCheck, label: 'Review 시작', color: '#7C3AED' },
   'submit-review': { icon: ClipboardCheck, label: 'Skillset Review 실행', color: COLORS.LG_RED },
@@ -262,7 +262,7 @@ const Editor = ({ setView, campaignId }) => {
     setStep(3);
     setIsBriefCollapsed(true);
     addAction('approve-analysis', 'completed', 'Market Analyst Report 승인');
-    addAction('strategic-message-extract', 'started', 'Strategic Message 추출 중...');
+    addAction('strategic-message-extract', 'started', 'Copywriting Strategy 추출 중...');
     addToTimeline({ type: 'strategic-message' });
     setIsStrategicLoading(true);
 
@@ -311,7 +311,7 @@ const Editor = ({ setView, campaignId }) => {
   const handleApproveStrategic = () => {
     setIsStrategicApproved(true);
     setIsReportCollapsed(true);
-    addAction('approve-strategic', 'completed', 'Strategic Message 승인 → 카피 생성 설정 단계 진입');
+    addAction('approve-strategic', 'completed', 'Copywriting Strategy 승인 → 카피 생성 설정 단계 진입');
     addToTimeline({ type: 'generation-config' });
     setStep(4);
   };
@@ -596,7 +596,7 @@ const Editor = ({ setView, campaignId }) => {
   const chatPlaceholders = {
     1: '브리프 작성에 대해 질문하세요. 타겟 오디언스, 키 메시지, 톤앤매너 등을 도와드립니다... (Enter로 전송)',
     2: '분석 결과에 대해 질문하세요. 페르소나, 브랜드 적합도, 경쟁 키워드 등을 설명해 드립니다... (Enter로 전송)',
-    3: 'Strategic Message에 대해 질문하세요. Core Message, Message Pillars 방향성을 함께 논의합니다... (Enter로 전송)',
+    3: 'Copywriting Strategy에 대해 질문하세요. Core Message, Message Pillars 방향성을 함께 논의합니다... (Enter로 전송)',
     4: '생성된 카피에 대해 질문하세요. 헤드라인, CTA 효과, 시장별 적합성 등을 검토합니다... (Enter로 전송)',
     5: '리뷰 결과에 대해 질문하세요. 검증 결과 해석, 수정 방향을 함께 논의합니다... (Enter로 전송)',
   };
@@ -843,11 +843,11 @@ const Editor = ({ setView, campaignId }) => {
                 </CollapsibleSection>
               )}
 
-              {/* Strategic Message */}
+              {/* Copywriting Strategy */}
               {strategicData && (
                 <CollapsibleSection
                   icon={<MessageSquareText size={16} color={COLORS.LG_RED} />}
-                  title="Strategic Message"
+                  title="Copywriting Strategy"
                   badge="Confirmed"
                   collapsed={isStrategicCollapsed}
                   onToggle={() => setIsStrategicCollapsed(prev => !prev)}

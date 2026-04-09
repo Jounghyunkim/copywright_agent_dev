@@ -56,7 +56,7 @@ const t: Translations = {
   // ─── Workflow Steps ───
   'step.research': { en: 'Research', ko: '리서치', de: 'Recherche' },
   'step.analysis': { en: 'Analysis', ko: '분석', de: 'Analyse' },
-  'step.strategicMessage': { en: 'Strategic Message', ko: '전략 메시지', de: 'Strategische Botschaft' },
+  'step.strategicMessage': { en: 'Copywriting Strategy', ko: '카피라이팅 전략', de: 'Copywriting-Strategie' },
   'step.generation': { en: 'Generation', ko: '카피 생성', de: 'Generierung' },
   'step.review': { en: 'Review', ko: '리뷰', de: 'Überprüfung' },
 
@@ -213,14 +213,14 @@ const t: Translations = {
     de: 'Analyseergebnisse genehmigt! ✅',
   },
   'chat.analysisApprovedDesc': {
-    en: 'Strategic Message has been extracted from the Market Analyst Report.',
-    ko: 'Market Analyst Report를 기반으로 Strategic Message를 추출했습니다.',
-    de: 'Strategische Botschaft wurde aus dem Market Analyst Report extrahiert.',
+    en: 'Copywriting Strategy has been extracted from the Market Analyst Report.',
+    ko: 'Market Analyst Report를 기반으로 Copywriting Strategy를 추출했습니다.',
+    de: 'Copywriting-Strategie wurde aus dem Market Analyst Report extrahiert.',
   },
   'chat.strategicApproved': {
-    en: 'Strategic Message confirmed! ✅',
-    ko: 'Strategic Message가 확정되었습니다! ✅',
-    de: 'Strategische Botschaft bestätigt! ✅',
+    en: 'Copywriting Strategy confirmed! ✅',
+    ko: 'Copywriting Strategy가 확정되었습니다! ✅',
+    de: 'Copywriting-Strategie bestätigt! ✅',
   },
   'chat.strategicApprovedDesc': {
     en: 'Please set target countries, age groups, and personas for customized copy generation.',
@@ -386,7 +386,7 @@ const t: Translations = {
   'strategic.loading': {
     en: 'Extracting strategic message based on Market Analyst Report...',
     ko: 'Market Analyst Report를 기반으로 전략 메시지를 추출하고 있습니다...',
-    de: 'Strategische Botschaft wird aus dem Market Analyst Report extrahiert...',
+    de: 'Copywriting-Strategie wird aus dem Market Analyst Report extrahiert...',
   },
 
   // ─── Review Results Labels ───

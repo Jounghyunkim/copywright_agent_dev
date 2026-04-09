@@ -166,7 +166,7 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
         return (
             <div style={styles.container}>
                 <h3 style={styles.header}>
-                    <MessageSquareText size={22} color={COLORS.LG_RED} />Strategic Message
+                    <MessageSquareText size={22} color={COLORS.LG_RED} />Copywriting Strategy
                 </h3>
                 <div style={styles.loadingContainer}>
                     <Loader size={28} style={{ animation: 'spin 1s linear infinite', color: COLORS.LG_RED }} />
@@ -185,14 +185,14 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
     return (
         <div style={styles.container}>
             <h3 style={styles.header}>
-                <MessageSquareText size={22} color={COLORS.LG_RED} />Strategic Message
+                <MessageSquareText size={22} color={COLORS.LG_RED} />Copywriting Strategy
             </h3>
             <div style={styles.gridContainer}>
 
-                {/* 1. Core Strategic Message */}
+                {/* 1. Core Copywriting Strategy */}
                 {coreMessage && (
                     <div style={{ ...styles.card, gridColumn: 'span 12' }}>
-                        <CardHeader icon={<Target size={14} />} title="Core Strategic Message" cardId="coreMessage" editValue={coreMessage} />
+                        <CardHeader icon={<Target size={14} />} title="Core Copywriting Strategy" cardId="coreMessage" editValue={coreMessage} />
                         {editingCard === 'coreMessage' ? (
                             <textarea
                                 style={{ ...styles.textarea, minHeight: '80px' }}
@@ -371,7 +371,7 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
                         <h4 style={{ ...styles.cardTitle, justifyContent: 'center', marginBottom: '1rem' }}><SmilePlus size={14} />Does this strategic message align with your vision?</h4>
                         <p style={{margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#B45309'}}>Approve to proceed to Copy Generation, or modify the strategic message.</p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.WHITE, color: COLORS.LG_RED, border: `1px solid ${COLORS.LG_RED}` }} onClick={onModify}>Modify Strategic Message</button>
+                            <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.WHITE, color: COLORS.LG_RED, border: `1px solid ${COLORS.LG_RED}` }} onClick={onModify}>Modify Copywriting Strategy</button>
                             <button style={{ ...styles.primaryBtn, flex: 1, backgroundColor: COLORS.LG_RED, color: COLORS.WHITE }} onClick={onApprove}>Generate Copy</button>
                         </div>
                     </div>
