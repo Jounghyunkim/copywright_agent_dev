@@ -125,12 +125,20 @@ export function HomePage() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 800, fontSize: '1rem' }}>{project.title}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                  {project.status === 'draft' && (
+                    <Badge variant="warning">Step {project.currentStep || 1}/5</Badge>
+                  )}
+                  {project.status === 'completed' && (
+                    <Badge variant="info">Completed</Badge>
+                  )}
                   {(project.countries || []).map((cc) => (
                     <Badge key={cc}>{COUNTRY_FLAGS[cc] || '\u{1F310}'} {cc}</Badge>
                   ))}
-                  <Badge variant="success">{project.totalCopies} copies</Badge>
+                  {project.totalCopies > 0 && <Badge variant="success">{project.totalCopies} copies</Badge>}
+                </div>
+                <div style={{ marginBottom: 5 }}>
+                  <span style={{ fontWeight: 800, fontSize: '1rem' }}>{project.title}</span>
                 </div>
                 <p style={{
                   margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)',

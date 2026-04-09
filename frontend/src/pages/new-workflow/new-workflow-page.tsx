@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Send, Bot, Loader, ChevronDown, ChevronRight, FileText, BarChart2,
   MessageSquareText, Globe, Sparkles, CheckCircle, XCircle, Zap,
-  ClipboardCheck, Search, Check,
+  ClipboardCheck, Search, Check, FlaskConical,
 } from 'lucide-react'
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
@@ -12,14 +12,19 @@ import { ProcessingModal } from '@/shared/ui/processing-modal'
 import { Markdown } from '@/shared/ui/markdown'
 import { useUIStore } from '@/shared/state/ui-store'
 import { readSSE, apiClient } from '@/shared/api/client'
+import { useT } from '@/shared/i18n/useTranslation'
 import type {
   CampaignBrief, AnalysisReport, StrategicMessageData,
   CopyResult, ReviewResult, ReviewSummary,
+  CopyCandidateResult, CopyCandidate,
 } from '@/shared/api/types'
 
 // Lazy-import existing JSX components that still live in components/
 // These are kept as-is from the old codebase, just re-exported
 import BriefingForm, { PreviewBody } from '@/components/BriefingForm'
+import MessageMatrixUpload from '@/components/MessageMatrixUpload'
+import MessageMatrixEditor from '@/components/MessageMatrixEditor'
+import MessageMatrixPreviewModal from '@/components/MessageMatrixPreviewModal'
 import AnalysisReportView from '@/components/AnalysisReport'
 import StrategicMessage from '@/components/StrategicMessage'
 import CopyResults from '@/components/CopyResults'
@@ -31,14 +36,16 @@ import {
 
 /* ──────────────────── Step Wizard Config ──────────────────── */
 type Step = 1 | 2 | 3 | 4 | 5
-const STEP_LABELS = ['Briefing', 'Analysis', 'Strategic Message', 'Generation', 'Review']
+const STEP_LABELS = ['Research', 'Analysis', 'Strategic Message', 'Generation', 'Review']
 const STEP_ICONS = [FileText, Search, MessageSquareText, Zap, ClipboardCheck]
 
 
 /* ──────────────────── Action config (timeline) ──────────────────── */
 const ACTION_CONFIG: Record<string, { icon: typeof Zap; label: string; color: string }> = {
-  'brief-auto-generate': { icon: Sparkles, label: 'AI Brief Auto-generation', color: '#7C3AED' },
-  'submit-brief': { icon: FileText, label: 'Submit Brief & Start Analysis', color: 'var(--color-primary)' },
+  'matrix-upload': { icon: FileText, label: 'Message Matrix Upload', color: '#2563EB' },
+  'matrix-parse': { icon: Search, label: 'Message Matrix Parsing', color: '#2563EB' },
+  'brief-auto-generate': { icon: Sparkles, label: 'AI Research Auto-generation', color: '#7C3AED' },
+  'submit-brief': { icon: FileText, label: 'Submit Research & Start Analysis', color: 'var(--color-primary)' },
   'approve-analysis': { icon: CheckCircle, label: 'Approve Analysis', color: '#059669' },
   'strategic-message-extract': { icon: MessageSquareText, label: 'Strategic Message Extraction', color: '#2563EB' },
   'approve-strategic': { icon: CheckCircle, label: 'Approve Strategic Message', color: '#059669' },
@@ -46,7 +53,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Zap; label: string; color: st
   'start-review': { icon: ClipboardCheck, label: 'Start Review', color: '#7C3AED' },
   'submit-review': { icon: ClipboardCheck, label: 'Skillset Review', color: 'var(--color-primary)' },
   'save-campaign': { icon: CheckCircle, label: 'Save Campaign', color: '#059669' },
-  'modify-brief': { icon: FileText, label: 'Modify Brief', color: 'var(--color-error)' },
+  'modify-brief': { icon: FileText, label: 'Modify Research', color: 'var(--color-error)' },
 }
 
 const STATUS_COLORS = {
@@ -126,9 +133,9 @@ function ActionStatusBubble({ item }: { item: TimelineItem }) {
 }
 
 /* ──────────────────── Step Progress Bar ──────────────────── */
-const STEP_DESCS = ['Campaign brief', 'Market research', 'Message strategy', 'Copy creation', 'Final approval']
+const STEP_DESCS = ['Research input', 'Market research', 'Message strategy', 'Copy creation', 'Final approval']
 
-function StepProgressBar({ step, reviewCompleted }: { step: Step; reviewCompleted: boolean }) {
+function StepProgressBar({ step, reviewCompleted, onStepClick }: { step: Step; reviewCompleted: boolean; onStepClick?: (s: Step) => void }) {
   const getStepColor = (done: boolean, active: boolean) => {
     if (done) return '#22C55E'
     if (active) return '#A50034'
@@ -152,16 +159,20 @@ function StepProgressBar({ step, reviewCompleted }: { step: Step; reviewComplete
         const active = step === s && !reviewCompleted
         const Icon = STEP_ICONS[i]
         const color = getStepColor(done, active)
+        const clickable = done || active
 
         return (
           <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 16px', borderRadius: 12,
-              backgroundColor: active ? '#FFF0F3' : done ? '#F0FFF4' : 'transparent',
-              transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-              cursor: 'default',
-            }}>
+            <div
+              onClick={() => { if (clickable && onStepClick) onStepClick(s) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 16px', borderRadius: 12,
+                backgroundColor: active ? '#FFF0F3' : done ? '#F0FFF4' : 'transparent',
+                transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: clickable ? 'pointer' : 'default',
+              }}
+            >
               <div style={{ position: 'relative' }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 10,
@@ -231,6 +242,13 @@ interface NewWorkflowPageProps {
 export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPageProps) {
   const navigate = useNavigate()
   const addToast = useUIStore((s) => s.addToast)
+  const t = useT()
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+
+  // 페이지 진입 시 사이드바 접기
+  useEffect(() => {
+    setSidebarCollapsed(true)
+  }, [])
 
   // Step state
   const [step, setStep] = useState<Step>(1)
@@ -250,16 +268,32 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
   const [isStrategicLoading, setIsStrategicLoading] = useState(false)
   const [isStrategicApproved, setIsStrategicApproved] = useState(false)
   const [copyResults, setCopyResults] = useState<CopyResult[] | null>(null)
+  const [copyCandidates, setCopyCandidates] = useState<CopyCandidateResult | null>(null)
+  const [selectedCandidateIdx, setSelectedCandidateIdx] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCopyResultsCollapsed, setIsCopyResultsCollapsed] = useState(false)
-  const [reviewSkills, setReviewSkills] = useState(['brand-lexicon-check', 'cultural-sensitivity-check'])
+  const [reviewSkills, setReviewSkills] = useState([
+    'regulatory-copy-validation',
+    'brand-lexicon-check',
+    'copy-scorecard-generator',
+    'compliance-redflag-detector',
+    'lg-brand-fit-check',
+  ])
   const [selectedCopies, setSelectedCopies] = useState<Set<string>>(new Set())
   const [analysisProgress, setAnalysisProgress] = useState<string[]>([])
   const [isReviewing, setIsReviewing] = useState(false)
   const [reviewResults, setReviewResults] = useState<ReviewResult[] | null>(null)
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
   const [availableSkills, setAvailableSkills] = useState<unknown[] | null>(null)
+  const [aiPersonas, setAiPersonas] = useState<unknown[] | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [savedCampaignId, setSavedCampaignId] = useState<string | null>(campaignId || null)
+  const [matrixData, setMatrixData] = useState<Record<string, unknown> | null>(null)
+  const [matrixSectionOpen, setMatrixSectionOpen] = useState(true)
+  const [sampleLoading, setSampleLoading] = useState(false)
+  const [briefSectionOpen, setBriefSectionOpen] = useState(true)
+  const [showMatrixPreview, setShowMatrixPreview] = useState(false)
+  const [briefFormData, setBriefFormData] = useState<Record<string, string> | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const mainAreaRef = useRef<HTMLDivElement>(null)
@@ -289,6 +323,20 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
   const handleActionNotify = useCallback(({ action, status, detail }: { action: string; status: string; detail?: string }) => {
     addAction(action, status, detail)
   }, [addAction])
+
+  const handleLoadSampleMatrix = useCallback(async () => {
+    setSampleLoading(true)
+    handleActionNotify({ action: 'matrix-upload', status: 'started', detail: t('wf.sampleLoading') })
+    try {
+      const data = await apiClient.get<{ results: Record<string, unknown> }>('/api/v1/message-matrix/sample')
+      setMatrixData(data.results)
+      handleActionNotify({ action: 'matrix-parse', status: 'completed', detail: t('wf.sampleDone') })
+    } catch (err) {
+      handleActionNotify({ action: 'matrix-upload', status: 'failed', detail: `샘플 로드 실패: ${err}` })
+    } finally {
+      setSampleLoading(false)
+    }
+  }, [handleActionNotify])
 
   // Auto-scroll timeline
   useEffect(() => {
@@ -320,7 +368,7 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     }
   }, [isDragging])
 
-  // Load skills
+  // Load skills + personas
   useEffect(() => {
     const fetchSkills = async () => {
       try {
@@ -334,43 +382,73 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
         console.error('Failed to load skills:', e)
       }
     }
+    const fetchPersonas = async () => {
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+        const res = await fetch(`${apiBase}/api/v1/personas`)
+        if (res.ok) {
+          const data = await res.json()
+          setAiPersonas(data.data || [])
+        }
+      } catch (e) {
+        console.error('Failed to load AI personas:', e)
+      }
+    }
     fetchSkills()
+    fetchPersonas()
   }, [])
 
   // Load existing campaign
   useEffect(() => {
     if (!campaignData) return
     const d = campaignData as Record<string, unknown>
+    const loadedStep = (d.currentStep as number) || 5
+
+    // 저장된 데이터 복원
     setSubmittedBrief(d.brief as CampaignBrief)
-    setAnalysisResult(d.analysisReport as AnalysisReport)
-    setStrategicData(d.strategicMessage as StrategicMessageData)
-    setCopyResults(d.copyResults as CopyResult[])
-    setIsApproved(true)
-    setIsStrategicApproved(true)
-    setIsBriefCollapsed(true)
-    setIsReportCollapsed(true)
-    setIsStrategicCollapsed(true)
-    setIsCopyResultsCollapsed(false)
+    if (d.analysisReport) setAnalysisResult(d.analysisReport as AnalysisReport)
+    if (d.strategicMessage) setStrategicData(d.strategicMessage as StrategicMessageData)
+    if (d.copyResults) setCopyResults(d.copyResults as CopyResult[])
+    if (d.copyCandidates) setCopyCandidates(d.copyCandidates as CopyCandidateResult)
     if (d.reviewResults && (d.reviewResults as unknown[]).length > 0) {
       setReviewResults(d.reviewResults as ReviewResult[])
     }
     if (d.reviewSummary) setReviewSummary(d.reviewSummary as ReviewSummary)
-    const allKeys = new Set<string>();
-    ((d.copyResults as CopyResult[]) || []).forEach((r) => {
-      const copies = r.copies || [r]
-      copies.forEach((_, idx) => allKeys.add(`${r.countryCode}-${idx}`))
-    })
-    setSelectedCopies(allKeys)
-    setTimeline([
-      { type: 'analysis-result' },
-      { type: 'strategic-message' },
-      { type: 'generation-config' },
-      { type: 'copy-results' },
-      { type: 'action-status', action: 'save-campaign', status: 'completed', detail: `Campaign "${(d as Record<string, unknown>).projectName}" loaded` },
-      { type: 'review' },
-      ...((d.reviewResults as unknown[])?.length ? [{ type: 'review-results' }] : []),
-    ])
-    setStep(5)
+
+    // 단계별 상태 복원
+    if (loadedStep >= 2) setIsApproved(true)
+    if (loadedStep >= 4) setIsStrategicApproved(true)
+    setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
+    setIsReportCollapsed(loadedStep > 2)
+    setIsStrategicCollapsed(loadedStep > 3)
+    setIsCopyResultsCollapsed(loadedStep > 4)
+
+    // 카피 선택 복원
+    if (d.copyResults) {
+      const allKeys = new Set<string>();
+      ((d.copyResults as CopyResult[]) || []).forEach((r) => {
+        const copies = r.copies || [r]
+        copies.forEach((_, idx) => allKeys.add(`${r.countryCode}-${idx}`))
+      })
+      setSelectedCopies(allKeys)
+    }
+
+    // 타임라인 복원 — 현재 단계까지만
+    const tl: TimelineItem[] = []
+    if (loadedStep >= 2) tl.push({ type: 'analysis-result' })
+    if (loadedStep >= 3) tl.push({ type: 'strategic-message' })
+    if (loadedStep >= 4) {
+      tl.push({ type: 'generation-config' })
+      if (d.copyResults) tl.push({ type: 'copy-results' })
+    }
+    tl.push({ type: 'action-status', action: 'resume-campaign', status: 'completed', detail: `Campaign "${d.projectName}" resumed at Step ${loadedStep}` })
+    if (loadedStep >= 5) {
+      tl.push({ type: 'review' })
+      if ((d.reviewResults as unknown[])?.length) tl.push({ type: 'review-results' })
+    }
+    setTimeline(tl)
+    setStep(loadedStep as Step)
   }, [campaignData])
 
   /* ── Handlers ── */
@@ -382,13 +460,19 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     setAnalysisProgress([])
     addAction('submit-brief', 'started', `Project: ${formData.projectName}`)
 
+    const payload = matrixData
+      ? { ...formData, message_matrix: matrixData }
+      : formData
+
     try {
-      await readSSE('/api/v1/campaigns/analyze', formData, (event) => {
+      await readSSE('/api/v1/campaigns/analyze', payload, (event) => {
         if (event.type === 'result') {
           setAnalysisResult(event.data as AnalysisReport)
           addAction('submit-brief', 'completed', 'Market Analyst Report generated')
           addToTimeline({ type: 'analysis-result' })
           setStep(2)
+          // Auto-save at step 2 — pass analysisReport directly
+          autoSave(2, { analysisReport: event.data })
         } else if (event.type === 'error') {
           throw new Error(event.message as string)
         }
@@ -406,6 +490,8 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     setIsApproved(true)
     setStep(3)
     setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
+    setIsReportCollapsed(true)
     addAction('approve-analysis', 'completed', 'Market Analyst Report approved')
     addAction('strategic-message-extract', 'started', 'Extracting strategic message...')
     addToTimeline({ type: 'strategic-message' })
@@ -421,6 +507,8 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
       const result = await res.json()
       setStrategicData(result.data)
       addAction('strategic-message-extract', 'completed', 'Core Message + Message Pillars extracted')
+      // Auto-save at step 3 — pass strategicMessage directly
+      autoSave(3, { strategicMessage: result.data })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error'
       addAction('strategic-message-extract', 'failed', msg)
@@ -431,14 +519,23 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
   }
 
   const handleModify = () => {
-    addAction('modify-brief', 'completed', 'Returning to Step 1 for brief modification')
+    addAction('modify-brief', 'completed', 'Returning to Step 1 for research modification')
     setAnalysisResult(null)
-    setSubmittedBrief(null)
+    // submittedBrief, matrixData, briefFormData 는 보존하여 수정 가능하도록 함
     setStrategicData(null)
     setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
     setIsStrategicApproved(false)
     setIsApproved(false)
     setAnalysisProgress([])
+    setTimeline((prev) => prev.filter(
+      (item) => item.type !== 'analysis-result'
+        && item.type !== 'strategic-message'
+        && item.type !== 'generation-config'
+        && item.type !== 'copy-results'
+        && item.type !== 'review'
+        && item.type !== 'review-results'
+    ))
     setStep(1)
   }
 
@@ -455,19 +552,29 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
 
   const handleApproveStrategic = () => {
     setIsStrategicApproved(true)
+    setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
     setIsReportCollapsed(true)
+    setIsStrategicCollapsed(true)
     addAction('approve-strategic', 'completed', 'Strategic Message approved')
     addToTimeline({ type: 'generation-config' })
     setStep(4)
   }
 
-  const handleSubmitGeneration = async (config: { countries: string[]; copyCount: number; ageGroup?: string; persona?: string }) => {
+  const handleSubmitGeneration = async (config: { countries: string[]; ageGroups: string[]; personas: string[]; skillsets: string[]; copyCount: number; usePersonaMode?: boolean; selectedWriters?: string[] }) => {
     setIsGenerating(true)
     setCopyResults(null)
-    addAction('generate-copy', 'started', `${config.countries.length} countries x ${config.copyCount} variants`)
+    setCopyCandidates(null)
+    setSelectedCandidateIdx(0)
+
+    const isPersonaMode = config.usePersonaMode && (config.selectedWriters || []).length > 0
+    const endpoint = isPersonaMode ? '/api/v1/campaigns/generate-copy-candidates' : '/api/v1/campaigns/generate-copy'
+    const modeLabel = isPersonaMode ? `Persona mode (${(config.selectedWriters || []).length} writers)` : 'Standard mode'
+    addAction('generate-copy', 'started', `${config.countries.length} countries x ${config.copyCount} variants — ${modeLabel}`)
+
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-      const res = await fetch(`${apiBase}/api/v1/campaigns/generate-copy`, {
+      const res = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -477,10 +584,30 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const result = await res.json()
-      setCopyResults(result.data)
-      const totalCopies = (result.data || []).reduce((s: number, r: CopyResult) => s + (r.copies?.length || 1), 0)
-      addAction('generate-copy', 'completed', `${totalCopies} copies generated`)
+
+      if (isPersonaMode && result.data?.candidates) {
+        // 페르소나 후보 모드: candidates 저장 + 첫 번째 후보를 기본 copyResults로 설정
+        setCopyCandidates(result.data)
+        const firstCandidate = result.data.candidates[0]
+        if (firstCandidate) {
+          setCopyResults(firstCandidate.copies)
+          setSelectedCandidateIdx(0)
+        }
+        const totalCandidates = result.data.candidates.length
+        addAction('generate-copy', 'completed', `${totalCandidates} persona candidates generated`)
+      } else {
+        // 표준 모드: 기존과 동일
+        setCopyResults(result.data)
+        const totalCopies = (result.data || []).reduce((s: number, r: CopyResult) => s + (r.copies?.length || 1), 0)
+        addAction('generate-copy', 'completed', `${totalCopies} copies generated`)
+      }
       addToTimeline({ type: 'copy-results' })
+      // Auto-save at step 4 — pass copy data directly
+      if (isPersonaMode && result.data?.candidates) {
+        autoSave(4, { copyResults: result.data.candidates[0]?.copies, copyCandidates: result.data })
+      } else {
+        autoSave(4, { copyResults: result.data })
+      }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error'
       addAction('generate-copy', 'failed', msg)
@@ -501,7 +628,11 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     setSelectedCopies(allKeys)
     addAction('start-review', 'completed', `${allKeys.size} copies selected`)
     addToTimeline({ type: 'review' })
+    setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
+    setIsReportCollapsed(true)
     setIsStrategicCollapsed(true)
+    setIsCopyResultsCollapsed(true)
     setStep(5)
   }
 
@@ -534,9 +665,12 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
         if (event.type === 'skill_completed') {
           setReviewResults((prev) => [...(prev || []), event as unknown as ReviewResult])
         } else if (event.type === 'review_done') {
-          setReviewSummary((event as Record<string, unknown>).summary as ReviewSummary)
           const summary = (event as Record<string, unknown>).summary as ReviewSummary
+          setReviewSummary(summary)
+          setIsReviewing(false)
           addAction('submit-review', 'completed', `Avg Score: ${summary?.avgScore} (${summary?.passed}/${summary?.total} Pass)`)
+          // Auto-save at step 5 — pass reviewSummary directly
+          autoSave(5, { reviewSummary: summary })
         }
       })
     } catch (error: unknown) {
@@ -548,19 +682,196 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     }
   }
 
+  const handleCorrectCopy = async (copyKey: string, copyInfo: Record<string, unknown>, improvements: Array<{ skillId: string; text: string }>) => {
+    const result = await apiClient.post<{ headline: string; subheadline: string; bodyCopy: string; cta: string }>(
+      '/api/v1/campaigns/correct',
+      { copyKey, copyData: copyInfo, improvements },
+    )
+    return result
+  }
+
+  const handleUpdateAndReReview = async (copyKey: string, correctedCopy: Record<string, string>) => {
+    const [countryCode] = copyKey.split('-')
+    const copyIdx = Number(copyKey.split('-')[1])
+
+    // 1. 현재 copyResults에서 원본 카피를 찾아 corrected 내용으로 merge
+    let updatedCopyData: Record<string, unknown> | null = null
+    if (copyResults) {
+      for (const r of copyResults) {
+        if (r.countryCode !== countryCode) continue
+        const copies = (r.copies || [r]) as Array<Record<string, unknown>>
+        if (copies[copyIdx]) {
+          updatedCopyData = { ...copies[copyIdx], ...correctedCopy }
+        }
+      }
+    }
+    if (!updatedCopyData) return null
+
+    // 2. copyResults 상태도 업데이트 (UI 반영용)
+    setCopyResults((prev) => {
+      if (!prev) return prev
+      return prev.map((r) => {
+        if (r.countryCode !== countryCode) return r
+        const copies = (r.copies || [r]) as Array<Record<string, unknown>>
+        const updatedCopies = copies.map((copy, idx) =>
+          idx === copyIdx ? { ...copy, ...correctedCopy } : copy
+        )
+        return { ...r, copies: updatedCopies }
+      }) as typeof prev
+    })
+
+    // 3. corrected copy 데이터로 재평가 요청
+    const copiesPayload = [{ key: copyKey, countryCode, copyData: updatedCopyData }]
+    const reResults: Array<Record<string, unknown>> = []
+
+    let reReviewDone = false
+    try {
+      await readSSE('/api/v1/campaigns/review', {
+        brief: submittedBrief,
+        analysisReport: analysisResult,
+        strategicMessage: strategicData,
+        selectedCopies: copiesPayload,
+        enabledSkills: reviewSkills,
+      }, (event) => {
+        if (event.type === 'skill_completed') {
+          reResults.push(event as Record<string, unknown>)
+          setReviewResults((prev) => {
+            const filtered = (prev || []).filter((r) => (r as unknown as Record<string, unknown>).targetCopyKey !== copyKey)
+            return [...filtered, event as unknown as ReviewResult]
+          })
+        } else if (event.type === 'review_done') {
+          reReviewDone = true
+          // reviewSummary 즉시 재계산
+          setReviewResults((prev) => {
+            if (!prev) return prev
+            const all = prev as unknown as Array<Record<string, unknown>>
+            const total = all.length
+            const passed = all.filter((r) => r.passed).length
+            const avgScore = total > 0 ? Math.round(all.reduce((s, r) => s + (r.score as number), 0) / total) : 0
+            setReviewSummary({ total, passed, failed: total - passed, avgScore } as ReviewSummary)
+            return prev
+          })
+        }
+      })
+    } catch {
+      // ignore
+    }
+
+    // Fallback: SSE 스트림에서 review_done을 못 받았으면 직접 재계산
+    if (!reReviewDone) {
+      setReviewResults((prev) => {
+        if (!prev) return prev
+        const all = prev as unknown as Array<Record<string, unknown>>
+        const total = all.length
+        const passed = all.filter((r) => r.passed).length
+        const avgScore = total > 0 ? Math.round(all.reduce((s, r) => s + (r.score as number), 0) / total) : 0
+        setReviewSummary({ total, passed, failed: total - passed, avgScore } as ReviewSummary)
+        return prev
+      })
+    }
+
+    return reResults
+  }
+
+  // ── Auto-save: 각 단계 완료 시 서버에 자동 저장 ──
+  // 모든 state를 ref로 추적하여 stale closure 문제를 근본적으로 해결
+  const savedIdRef = useRef<string | null>(savedCampaignId)
+  savedIdRef.current = savedCampaignId
+  const stateRef = useRef({ submittedBrief, analysisResult, strategicData, copyResults, reviewSummary, reviewResults, copyCandidates })
+  stateRef.current = { submittedBrief, analysisResult, strategicData, copyResults, reviewSummary, reviewResults, copyCandidates }
+
+  const autoSave = useCallback(async (stepNum: number, overrides: Record<string, unknown> = {}) => {
+    // 500ms 딜레이 — React state 반영 + ref 업데이트 대기
+    await new Promise((r) => setTimeout(r, 500))
+    const s = stateRef.current
+    const brief = (overrides.brief ?? s.submittedBrief) as Record<string, unknown> | null
+    if (!brief) {
+      console.warn('[AutoSave] Skipped — no brief data')
+      return
+    }
+    const payload = {
+      brief,
+      analysisReport: overrides.analysisReport ?? s.analysisResult,
+      strategicMessage: overrides.strategicMessage ?? s.strategicData,
+      copyResults: overrides.copyResults ?? s.copyResults,
+      reviewSummary: overrides.reviewSummary ?? s.reviewSummary,
+      reviewResults: overrides.reviewResults ?? s.reviewResults,
+      copyCandidates: overrides.copyCandidates ?? s.copyCandidates,
+      currentStep: stepNum,
+    }
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+      const curId = savedIdRef.current
+      const isUpdate = !!curId
+      const url = isUpdate ? `${apiBase}/api/v1/campaigns/${curId}` : `${apiBase}/api/v1/campaigns/save`
+      const res = await fetch(url, {
+        method: isUpdate ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (!curId && result.id) {
+          setSavedCampaignId(result.id)
+          savedIdRef.current = result.id
+        }
+        console.log(`[AutoSave] Step ${stepNum} saved (id: ${result.id})`)
+      } else {
+        console.warn(`[AutoSave] HTTP ${res.status}`)
+      }
+    } catch (err) {
+      console.warn('[AutoSave] Failed:', err)
+    }
+  }, [])
+
+  // ── Step 클릭으로 해당 단계 결과물로 이동 ──
+  const handleStepClick = useCallback((targetStep: Step) => {
+    // 모든 섹션 접기
+    setIsBriefCollapsed(true)
+    setMatrixSectionOpen(false)
+    setIsReportCollapsed(true)
+    setIsStrategicCollapsed(true)
+    setIsCopyResultsCollapsed(true)
+
+    // 클릭한 단계의 해당 섹션만 펼치기
+    switch (targetStep) {
+      case 1:
+        setIsBriefCollapsed(false)
+        setMatrixSectionOpen(true)
+        break
+      case 2:
+        setIsReportCollapsed(false)
+        break
+      case 3:
+        setIsStrategicCollapsed(false)
+        break
+      case 4:
+        setIsCopyResultsCollapsed(false)
+        break
+      case 5:
+        // Review — 오른쪽 패널의 타임라인으로 스크롤
+        break
+    }
+
+    // 왼쪽 패널 최상단으로 스크롤
+    const leftPanel = document.querySelector('[data-panel="left"]') as HTMLElement
+    if (leftPanel) leftPanel.scrollTop = 0
+  }, [])
+
   const handleSaveExit = async () => {
     setIsSaving(true)
-    const isUpdate = !!campaignId
+    const isUpdate = !!savedCampaignId
     addAction('save-campaign', 'started', isUpdate ? 'Updating...' : 'Saving...')
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-      const url = isUpdate ? `${apiBase}/api/v1/campaigns/${campaignId}` : `${apiBase}/api/v1/campaigns/save`
+      const url = isUpdate ? `${apiBase}/api/v1/campaigns/${savedCampaignId}` : `${apiBase}/api/v1/campaigns/save`
       const res = await fetch(url, {
         method: isUpdate ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brief: submittedBrief, analysisReport: analysisResult,
           strategicMessage: strategicData, copyResults, reviewSummary, reviewResults,
+          copyCandidates, currentStep: step,
         }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -582,11 +893,11 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
   }
 
   const chatPlaceholders: Record<number, string> = {
-    1: 'Ask about brief writing: target audience, key message, tone & manner... (Enter to send)',
-    2: 'Ask about analysis: persona, brand fit, competitive keywords... (Enter to send)',
-    3: 'Ask about strategic message: core message, pillars direction... (Enter to send)',
-    4: 'Ask about generated copies: headlines, CTA effectiveness... (Enter to send)',
-    5: 'Ask about review results: scores, improvement suggestions... (Enter to send)',
+    1: t('chat.ph.step1'),
+    2: t('chat.ph.step2'),
+    3: t('chat.ph.step3'),
+    4: t('chat.ph.step4'),
+    5: t('chat.ph.step5'),
   }
 
   const buildChatContext = () => {
@@ -633,7 +944,7 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Step Progress */}
-      <StepProgressBar step={step} reviewCompleted={!!reviewSummary} />
+      <StepProgressBar step={step} reviewCompleted={!!reviewSummary} onStepClick={handleStepClick} />
 
       {isDragging && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, cursor: 'col-resize' }} />
@@ -645,11 +956,25 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
           width: `${leftRatio * 100}%`, flexShrink: 0, overflow: 'hidden',
           borderRight: '1px solid var(--color-border)',
         }}>
-          {step >= 3 && submittedBrief ? (
-            <div style={{ width: '100%', height: '100%', background: 'var(--color-bg)', overflowY: 'auto' }}>
+          {step > 1 && submittedBrief ? (
+            <div data-panel="left" style={{ width: '100%', height: '100%', background: 'var(--color-bg)', overflowY: 'auto' }}>
+              {/* Message Matrix */}
+              {matrixData && (
+                <CollapsibleSection
+                  icon={<FileText size={16} color="var(--color-primary)" />}
+                  title="Message Matrix" badge="Loaded"
+                  collapsed={!matrixSectionOpen} onToggle={() => setMatrixSectionOpen((p) => !p)}
+                >
+                  <div style={{ padding: '0 1rem 1rem' }}>
+                    <MessageMatrixEditor matrixData={matrixData} onChange={(d: Record<string, unknown>) => setMatrixData(d)} />
+                  </div>
+                </CollapsibleSection>
+              )}
+
+              {/* Research Summary */}
               <CollapsibleSection
-                icon={<FileText size={16} color="var(--color-primary)" />}
-                title="Campaign Brief" badge="Submitted"
+                icon={<Search size={16} color="#2563EB" />}
+                title="Research Summary" badge="Submitted"
                 collapsed={isBriefCollapsed} onToggle={() => setIsBriefCollapsed((p) => !p)}
               >
                 <div style={{ padding: '0 1.5rem 1.5rem' }}>
@@ -657,23 +982,21 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
                 </div>
               </CollapsibleSection>
 
-              {step >= 4 ? (
+              {/* Market Analyst Report */}
+              {step >= 2 && analysisResult && (
                 <CollapsibleSection
                   icon={<BarChart2 size={16} color="var(--color-primary)" />}
-                  title="Market Analyst Report" badge="Approved"
+                  title="Market Analyst Report" badge={isApproved ? 'Approved' : 'Generated'}
                   collapsed={isReportCollapsed} onToggle={() => setIsReportCollapsed((p) => !p)}
                 >
                   <div style={{ padding: '0 1rem 1rem' }}>
                     <AnalysisReportView isApproved={true} analysisResult={analysisResult} />
                   </div>
                 </CollapsibleSection>
-              ) : (
-                <div style={{ padding: '1rem' }}>
-                  <AnalysisReportView isApproved={true} analysisResult={analysisResult} />
-                </div>
               )}
 
-              {step >= 4 && strategicData && (
+              {/* Strategic Message */}
+              {strategicData && (
                 <CollapsibleSection
                   icon={<MessageSquareText size={16} color="var(--color-primary)" />}
                   title="Strategic Message" badge="Confirmed"
@@ -685,7 +1008,8 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
                 </CollapsibleSection>
               )}
 
-              {step >= 5 && copyResults && (
+              {/* Generated Copy */}
+              {copyResults && (
                 <CollapsibleSection
                   icon={<Globe size={16} color="var(--color-primary)" />}
                   title="Generated Copy" badge="Generated"
@@ -697,18 +1021,174 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
                 </CollapsibleSection>
               )}
             </div>
-          ) : step > 1 && submittedBrief ? (
-            <div style={{ width: '100%', height: '100%', background: 'var(--color-surface)', overflowY: 'auto', padding: '1.5rem' }}>
-              <PreviewBody formData={submittedBrief} />
-            </div>
           ) : (
-            <BriefingForm
-              onStartAnalysis={handleStartAnalysis}
-              isAnalyzing={isAnalyzing}
-              isDisabled={step > 1}
-              onGuideSelect={handleGuideSelect}
-              onActionNotify={handleActionNotify}
-            />
+            <div style={{ width: '100%', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {/* ── Message Matrix 입력 (기본 펼침) ── */}
+              <div style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                <div
+                  onClick={() => setMatrixSectionOpen(p => !p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                  }}
+                >
+                  {matrixSectionOpen
+                    ? <ChevronDown size={16} color="var(--color-text-secondary)" />
+                    : <ChevronRight size={16} color="var(--color-text-secondary)" />}
+                  <FileText size={16} color="var(--color-primary)" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('matrix.title')}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleLoadSampleMatrix(); }}
+                    disabled={sampleLoading || step > 1 || isAnalyzing}
+                    style={{
+                      marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '3px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface)', cursor: sampleLoading ? 'wait' : 'pointer',
+                      fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)',
+                      opacity: (sampleLoading || step > 1 || isAnalyzing) ? 0.5 : 1,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {sampleLoading ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FlaskConical size={13} />}
+                    Test Sample File
+                  </button>
+                  {matrixData && (
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 600,
+                      padding: '2px 8px', borderRadius: 4,
+                      background: 'var(--color-success-bg)', color: 'var(--color-success-text)',
+                      border: '1px solid var(--color-success-border)',
+                    }}>Loaded</span>
+                  )}
+                </div>
+                {matrixSectionOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <MessageMatrixUpload
+                      onParsed={(data: Record<string, unknown>) => setMatrixData(data)}
+                      isDisabled={step > 1 || isAnalyzing}
+                      onActionNotify={handleActionNotify}
+                    />
+                    {matrixData && (
+                      <div style={{ marginTop: 12 }}>
+                        <MessageMatrixEditor
+                          matrixData={matrixData}
+                          onChange={(updated: Record<string, unknown>) => setMatrixData(updated)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── LG Campaign Research (기본 접힘) ── */}
+              <div style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                <div
+                  onClick={() => setBriefSectionOpen(p => !p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                  }}
+                >
+                  {briefSectionOpen
+                    ? <ChevronDown size={16} color="var(--color-text-secondary)" />
+                    : <ChevronRight size={16} color="var(--color-text-secondary)" />}
+                  <Search size={16} color="#2563EB" />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>LG Campaign Research</span>
+                </div>
+                {briefSectionOpen && (
+                  <BriefingForm
+                    onStartAnalysis={handleStartAnalysis}
+                    isAnalyzing={isAnalyzing}
+                    isDisabled={step > 1}
+                    onGuideSelect={handleGuideSelect}
+                    onActionNotify={handleActionNotify}
+                    matrixData={matrixData}
+                    onFormChange={(data: Record<string, string>) => setBriefFormData(data)}
+                    initialData={briefFormData || submittedBrief}
+                  />
+                )}
+              </div>
+
+              {/* ── Preview + Submit 버튼 ── */}
+              {(matrixData || briefFormData?.projectName) && (
+                <div style={{
+                  padding: '16px 20px', background: 'var(--color-surface)',
+                  borderTop: '1px solid var(--color-border)',
+                  display: 'flex', gap: 10, justifyContent: 'flex-end',
+                  position: 'sticky', bottom: 0, zIndex: 5,
+                  boxShadow: '0 -4px 12px rgba(0,0,0,0.06)',
+                }}>
+                  <button
+                    onClick={() => setShowMatrixPreview(true)}
+                    style={{
+                      padding: '10px 20px', borderRadius: 8,
+                      border: '1px solid var(--color-border)', background: '#FFF',
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      color: 'var(--color-text-primary)',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <FileText size={15} /> Preview
+                  </button>
+                  <button
+                    onClick={() => {
+                      // briefFormData(LG Campaign Research 폼)를 우선 사용, 없으면 Matrix에서 자동 매핑
+                      if (briefFormData?.projectName) {
+                        handleStartAnalysis(briefFormData as unknown as CampaignBrief)
+                      } else if (matrixData) {
+                        const firstSheet = Object.keys(matrixData)[0]
+                        const product = matrixData[firstSheet] as Record<string, unknown>
+                        const autoBrief = {
+                          projectName: `${product.product_name || ''}${product.sub_name ? ' ' + product.sub_name : ''}`,
+                          date: new Date().toISOString().slice(0, 10),
+                          projectContext: (product.description as string) || '',
+                          objectiveCommercial: '',
+                          objectiveBehavior: '',
+                          objectiveAttitudinal: '',
+                          audience: '',
+                          keyMessage: (product.head_message as string) || '',
+                          proofPoints: ((product.categories as Array<Record<string, unknown>>) || [])
+                            .flatMap((c: Record<string, unknown>) =>
+                              ((c.usps as Array<Record<string, string>>) || []).map(u => `[${u.feature_name}] ${u.benefit_description}`)
+                            )
+                            .filter(Boolean)
+                            .join('\n'),
+                          mandatories: ((product.categories as Array<Record<string, unknown>>) || [])
+                            .flatMap((c: Record<string, unknown>) =>
+                              ((c.usps as Array<Record<string, string>>) || []).map(u => u.disclaimer).filter(Boolean)
+                            )
+                            .join('\n'),
+                          budget: '',
+                          marketNeeds: '',
+                          timing: '',
+                        }
+                        handleStartAnalysis(autoBrief as CampaignBrief)
+                      }
+                    }}
+                    disabled={isAnalyzing}
+                    style={{
+                      padding: '10px 24px', borderRadius: 8, border: 'none',
+                      background: isAnalyzing ? '#999' : 'var(--color-primary)',
+                      color: '#FFF', fontSize: 13, fontWeight: 600, cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      boxShadow: isAnalyzing ? 'none' : '0 4px 12px var(--color-primary-shadow)',
+                    }}
+                  >
+                    {isAnalyzing ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Zap size={15} />}
+                    {isAnalyzing ? 'Analyzing...' : 'Submit & Analyze'}
+                  </button>
+                </div>
+              )}
+
+              {/* Preview Modal */}
+              {showMatrixPreview && (
+                <MessageMatrixPreviewModal
+                  matrixData={matrixData}
+                  briefData={briefFormData}
+                  onClose={() => setShowMatrixPreview(false)}
+                />
+              )}
+            </div>
           )}
         </div>
 
@@ -765,15 +1245,25 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
                 case 'strategic-message':
                   return <StrategicMessageView key={i} strategicData={strategicData} isStrategicLoading={isStrategicLoading} isStrategicApproved={isStrategicApproved} onModifyStrategic={handleModifyStrategic} onApproveStrategic={handleApproveStrategic} onUpdateStrategic={setStrategicData} />
                 case 'generation-config':
-                  return <GenerationConfigView key={i} onSubmitGeneration={handleSubmitGeneration} isGenerating={isGenerating} />
+                  return <GenerationConfigView key={i} onSubmitGeneration={handleSubmitGeneration} isGenerating={isGenerating} aiPersonas={aiPersonas} />
                 case 'copy-results':
-                  return <CopyResultsView key={i} copyResults={copyResults} isGenerating={isGenerating} onUpdateCopyResults={setCopyResults} onReview={copyResults && step < 5 ? handleReview : undefined} />
+                  return <CopyResultsView key={i} copyResults={copyResults} isGenerating={isGenerating} onUpdateCopyResults={setCopyResults} onReview={copyResults && step < 5 ? handleReview : undefined} copyCandidates={copyCandidates} selectedCandidateIdx={selectedCandidateIdx} onSelectCandidate={(idx: number) => {
+                    // 현재 후보의 편집 내용을 보존
+                    if (copyCandidates?.candidates && copyResults) {
+                      const updated = { ...copyCandidates, candidates: [...copyCandidates.candidates] }
+                      updated.candidates[selectedCandidateIdx] = { ...updated.candidates[selectedCandidateIdx], copies: copyResults as unknown as CopyResult[] }
+                      setCopyCandidates(updated)
+                    }
+                    setSelectedCandidateIdx(idx)
+                    const c = copyCandidates?.candidates
+                    if (c?.[idx]) setCopyResults(c[idx].copies as CopyResult[])
+                  }} />
                 case 'action-status':
                   return <ActionStatusBubble key={i} item={item} />
                 case 'review':
                   return <ReviewView key={i} copyResults={copyResults} selectedCopies={selectedCopies} onToggleCopy={(k: string) => setSelectedCopies((prev) => { const next = new Set(prev); if (next.has(k)) next.delete(k); else next.add(k); return next })} enabledSkills={reviewSkills} onToggleSkill={(id: string) => setReviewSkills((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])} onSubmitReview={handleSubmitReview} isReviewing={isReviewing} availableSkills={availableSkills} />
                 case 'review-results':
-                  return <ReviewResultsView key={i} reviewResults={reviewResults} reviewSummary={reviewSummary} copyResults={copyResults} isReviewing={isReviewing} onSaveExit={handleSaveExit} onExitWithoutSave={() => navigate('/')} isSaving={isSaving} />
+                  return <ReviewResultsView key={i} reviewResults={reviewResults} reviewSummary={reviewSummary} copyResults={copyResults} isReviewing={isReviewing} onSaveExit={handleSaveExit} onExitWithoutSave={() => navigate('/')} isSaving={isSaving} onCorrectCopy={handleCorrectCopy} onUpdateAndReReview={handleUpdateAndReReview} />
                 default:
                   return null
               }

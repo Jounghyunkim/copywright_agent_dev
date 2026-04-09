@@ -38,8 +38,8 @@ const CollapsibleSection = ({ icon, title, badge, collapsed, onToggle, children 
 );
 
 const ACTION_CONFIG = {
-  'brief-auto-generate': { icon: Sparkles, label: 'AI 브리프 자동생성', color: '#7C3AED' },
-  'submit-brief': { icon: FileText, label: '브리프 제출 및 분석 시작', color: COLORS.LG_RED },
+  'brief-auto-generate': { icon: Sparkles, label: 'AI 리서치 자동생성', color: '#7C3AED' },
+  'submit-brief': { icon: FileText, label: '리서치 제출 및 분석 시작', color: COLORS.LG_RED },
   'approve-analysis': { icon: CheckCircle, label: '분석 결과 승인', color: '#059669' },
   'strategic-message-extract': { icon: MessageSquareText, label: 'Strategic Message 추출', color: '#2563EB' },
   'approve-strategic': { icon: CheckCircle, label: 'Strategic Message 승인', color: '#059669' },
@@ -47,7 +47,7 @@ const ACTION_CONFIG = {
   'start-review': { icon: ClipboardCheck, label: 'Review 시작', color: '#7C3AED' },
   'submit-review': { icon: ClipboardCheck, label: 'Skillset Review 실행', color: COLORS.LG_RED },
   'save-campaign': { icon: CheckCircle, label: '캠페인 저장', color: '#059669' },
-  'modify-brief': { icon: FileText, label: '브리프 수정 요청', color: '#DC2626' },
+  'modify-brief': { icon: FileText, label: '리서치 수정 요청', color: '#DC2626' },
 };
 
 const STATUS_STYLE = {
@@ -577,7 +577,7 @@ const Editor = ({ setView, campaignId }) => {
   };
 
   const handleModify = () => {
-    addAction('modify-brief', 'completed', '브리프 수정을 위해 Step 1으로 이동');
+    addAction('modify-brief', 'completed', '리서치 수정을 위해 Step 1으로 이동');
     setAnalysisResult(null);
     setSubmittedBrief(null);
     setStrategicData(null);
@@ -810,15 +810,15 @@ const Editor = ({ setView, campaignId }) => {
       <div style={styles.mainArea} ref={mainAreaRef}>
         {/* Left panel - Brief form / Brief preview / Previous results */}
         <div style={styles.leftPanel}>
-          {step >= 3 && submittedBrief ? (
+          {step > 1 && submittedBrief ? (
             <div style={{
               width: '100%', height: '100%', backgroundColor: COLORS.BG_GRAY,
               overflowY: 'auto', boxSizing: 'border-box',
             }}>
-              {/* Collapsible Brief */}
+              {/* Research Summary */}
               <CollapsibleSection
                 icon={<FileText size={16} color={COLORS.LG_RED} />}
-                title="Campaign Brief"
+                title="Research Summary"
                 badge="Submitted"
                 collapsed={isBriefCollapsed}
                 onToggle={handleToggleBriefCollapse}
@@ -828,12 +828,12 @@ const Editor = ({ setView, campaignId }) => {
                 </div>
               </CollapsibleSection>
 
-              {/* Market Analyst Report — collapsible at step 4+ */}
-              {step >= 4 ? (
+              {/* Market Analyst Report */}
+              {analysisResult && (
                 <CollapsibleSection
                   icon={<BarChart2 size={16} color={COLORS.LG_RED} />}
                   title="Market Analyst Report"
-                  badge="Approved"
+                  badge={isApproved ? 'Approved' : 'Generated'}
                   collapsed={isReportCollapsed}
                   onToggle={() => setIsReportCollapsed(prev => !prev)}
                 >
@@ -841,14 +841,10 @@ const Editor = ({ setView, campaignId }) => {
                     <AnalysisReport isApproved={true} analysisResult={analysisResult} />
                   </div>
                 </CollapsibleSection>
-              ) : (
-                <div style={{ padding: '1rem' }}>
-                  <AnalysisReport isApproved={true} analysisResult={analysisResult} />
-                </div>
               )}
 
-              {/* Strategic Message — shown at step 4+ */}
-              {step >= 4 && strategicData && (
+              {/* Strategic Message */}
+              {strategicData && (
                 <CollapsibleSection
                   icon={<MessageSquareText size={16} color={COLORS.LG_RED} />}
                   title="Strategic Message"
@@ -862,8 +858,8 @@ const Editor = ({ setView, campaignId }) => {
                 </CollapsibleSection>
               )}
 
-              {/* Generated Copy — shown at step 5 (Review) */}
-              {step >= 5 && copyResults && (
+              {/* Generated Copy */}
+              {copyResults && (
                 <CollapsibleSection
                   icon={<Globe size={16} color={COLORS.LG_RED} />}
                   title="Generated Copy"
@@ -876,13 +872,6 @@ const Editor = ({ setView, campaignId }) => {
                   </div>
                 </CollapsibleSection>
               )}
-            </div>
-          ) : step > 1 && submittedBrief ? (
-            <div style={{
-              width: '100%', height: '100%', backgroundColor: COLORS.WHITE,
-              overflowY: 'auto', padding: '1.5rem', boxSizing: 'border-box',
-            }}>
-              <PreviewBody formData={submittedBrief} />
             </div>
           ) : (
             <BriefingForm

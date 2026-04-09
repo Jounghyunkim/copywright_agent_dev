@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, FileText, Lightbulb, BookOpen, ChevronDown, ChevronRight, Loader, Pencil, Check, X, ArrowRight } from 'lucide-react';
 import { COLORS } from '../styles/theme';
+import { useT } from '../shared/i18n/useTranslation';
 
 const COUNTRY_META = {
     US: { label: 'USA', flag: '🇺🇸', lang: 'English' },
@@ -15,9 +16,21 @@ const COUNTRY_META = {
     AU: { label: 'Australia', flag: '🇦🇺', lang: 'English (AU)' },
     ID: { label: 'Indonesia', flag: '🇮🇩', lang: 'Bahasa Indonesia' },
     SA: { label: 'Saudi Arabia', flag: '🇸🇦', lang: 'العربية' },
+    JP: { label: 'Japan', flag: '🇯🇵', lang: '日本語' },
+    CN: { label: 'China', flag: '🇨🇳', lang: '中文' },
+    NL: { label: 'Netherlands', flag: '🇳🇱', lang: 'Nederlands' },
+    PL: { label: 'Poland', flag: '🇵🇱', lang: 'Polski' },
+    SE: { label: 'Sweden', flag: '🇸🇪', lang: 'Svenska' },
+    TH: { label: 'Thailand', flag: '🇹🇭', lang: 'ไทย' },
+    CA: { label: 'Canada', flag: '🇨🇦', lang: 'English / Français' },
+    MX: { label: 'Mexico', flag: '🇲🇽', lang: 'Español' },
+    AR: { label: 'Argentina', flag: '🇦🇷', lang: 'Español' },
+    AE: { label: 'UAE', flag: '🇦🇪', lang: 'العربية' },
+    ZA: { label: 'South Africa', flag: '🇿🇦', lang: 'English' },
 };
 
 const CopyResults = ({ results, isGenerating, onUpdate, onReview, readOnly = false }) => {
+    const t = useT();
     const [expandedCountries, setExpandedCountries] = useState(new Set());
     const [activeCopyIndex, setActiveCopyIndex] = useState({});
     const [localResults, setLocalResults] = useState(null);
@@ -195,10 +208,10 @@ const CopyResults = ({ results, isGenerating, onUpdate, onReview, readOnly = fal
                 <p style={styles.label}>{label}</p>
                 {readOnly ? null : isEditing ? (
                     <div style={styles.editActions}>
-                        <button style={styles.cancelBtn} onClick={cancelEdit} title="취소">
+                        <button style={styles.cancelBtn} onClick={cancelEdit} title={t('common.cancel')}>
                             <X size={12} />
                         </button>
-                        <button style={styles.saveBtn} onClick={() => saveEdit(countryCode, copyIdx, field)} title="저장">
+                        <button style={styles.saveBtn} onClick={() => saveEdit(countryCode, copyIdx, field)} title={t('common.save')}>
                             <Check size={12} />
                         </button>
                     </div>
@@ -206,7 +219,7 @@ const CopyResults = ({ results, isGenerating, onUpdate, onReview, readOnly = fal
                     <button
                         style={styles.editBtn}
                         onClick={() => startEdit(fieldKey, value)}
-                        title="수정"
+                        title={t('common.edit')}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.LG_RED; e.currentTarget.style.color = COLORS.LG_RED; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.BORDER; e.currentTarget.style.color = COLORS.TEXT_SUB; }}
                     >
@@ -226,7 +239,7 @@ const CopyResults = ({ results, isGenerating, onUpdate, onReview, readOnly = fal
                 <div style={styles.loadingContainer}>
                     <Loader size={28} style={{ animation: 'spin 1s linear infinite', color: COLORS.LG_RED }} />
                     <p style={{ margin: 0, fontSize: '0.9rem', color: COLORS.TEXT_SUB, textAlign: 'center' }}>
-                        각 국가의 문화와 언어에 맞는 카피를 생성하고 있습니다...
+                        {t('copy.generatingForCountries')}
                     </p>
                 </div>
             </div>
@@ -242,7 +255,7 @@ const CopyResults = ({ results, isGenerating, onUpdate, onReview, readOnly = fal
             <h3 style={styles.header}>
                 <Globe size={22} color={COLORS.LG_RED} />Generated Copy
                 <span style={{ fontSize: '0.8rem', fontWeight: 500, color: COLORS.TEXT_SUB, marginLeft: 'auto' }}>
-                    {localResults.length}개 국가 · {totalCopies}개 카피
+                    {t('copy.countriesAndCopies', { countries: localResults.length, copies: totalCopies })}
                 </span>
             </h3>
 

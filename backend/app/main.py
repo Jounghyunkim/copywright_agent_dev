@@ -4,27 +4,31 @@ import json as json_module
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends
+import tempfile
+from fastapi import FastAPI, File, Form, HTTPException, Depends, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from .schemas import (
-    CampaignBrief, AnalysisResponse, ChatRequest, ChatResponse,
+    CampaignBrief, AnalyzeRequest, AnalysisResponse, ChatRequest, ChatResponse,
     GenerateBriefRequest, GenerateBriefResponse,
     StrategicMessageRequest, StrategicMessageResponse,
     GenerateCopyRequest, GenerateCopyResponse,
     ReviewRequest, ReviewSessionResponse, ReviewHistoryResponse,
+    CorrectionRequest, CorrectionResponse,
     CustomSkillCreate, CustomSkillUpdate, SkillResponse,
     SkillDraftRequest,
     CampaignSaveRequest,
+    MessageMatrixSheetsResponse, MessageMatrixParseResponse,
+    MessageMatrixProduct, MessageMatrixCategory, MessageMatrixUSP,
 )
 from .graph import app_graph
 from .database import init_db, get_db
 from .models import ReviewSession, ReviewResult, Campaign
 from sqlalchemy import func
 from .skills.runner import run_review
-from .skills.catalog import get_all_skills, BUILTIN_IDS
+from .skills.catalog import get_all_skills, get_skillmd_skills
 
 load_dotenv(dotenv_path='.env')
 
@@ -62,16 +66,17 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/api/v1/campaigns/analyze")
-async def analyze_campaign(brief: CampaignBrief):
-    print(f"Received analysis request for: {brief.projectName}")
+async def analyze_campaign(req: AnalyzeRequest):
+    print(f"Received analysis request for: {req.projectName}")
 
     def _sse(data: dict) -> str:
         return f"data: {json_module.dumps(data, ensure_ascii=False)}\n\n"
 
     async def event_stream():
-        yield _sse({"type": "progress", "message": f"Received analysis request for: {brief.projectName}"})
+        yield _sse({"type": "progress", "message": f"Received analysis request for: {req.projectName}"})
 
-        inputs = {"brief": brief.dict()}
+        brief_dict = req.dict(exclude={"message_matrix"})
+        inputs = {"brief": brief_dict, "message_matrix": req.message_matrix or {}}
         completed_parallel = set()
         final_report = None
 
@@ -182,109 +187,127 @@ IMPORTANT:
 
 @app.post("/api/v1/campaigns/generate-copy", response_model=GenerateCopyResponse)
 async def generate_copy(request: GenerateCopyRequest):
-    from langchain_openai import AzureChatOpenAI
-    from langchain_core.messages import HumanMessage, SystemMessage
-    from langchain_core.output_parsers import JsonOutputParser
-    import json
+    """DeepAgent 기반 카피 생성 — SKILL.md 스킬 자동 선택 + 컨텍스트 주입"""
+    from .skills.deep_agent import DeepAgentExecutor
 
     config = request.config
     countries_str = ", ".join(config.countries)
-    print(f"Generating copy for countries: {countries_str}")
-
-    llm = AzureChatOpenAI(
-        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        temperature=0.7,
-    )
-
-    country_names = {
-        "US": "USA (English)", "DE": "Germany (Deutsch)", "GB": "UK (English)",
-        "FR": "France (Français)", "IT": "Italy (Italiano)", "ES": "Spain (Español)",
-        "IN": "India (English/Hindi)", "BR": "Brazil (Português)", "KR": "Korea (한국어)",
-        "AU": "Australia (English)", "ID": "Indonesia (Bahasa Indonesia)", "SA": "Saudi Arabia (العربية)",
-    }
-
-    copy_count = min(max(config.copyCount, 1), 10)
-
-    system_prompt = f"""You are a world-class multilingual copywriter for LG Electronics with deep expertise in cultural adaptation and localization.
-
-Given the Campaign Brief, Market Analyst Report, Strategic Message, and Generation Config, generate culturally adapted copy for EACH target country.
-
-## Generation Config
-- Target Countries: {', '.join(country_names.get(c, c) for c in config.countries)}
-- Target Age Groups: {', '.join(config.ageGroups)}
-- Personas: {', '.join(config.personas)}
-- Active Skillsets: {', '.join(config.skillsets)}
-- Number of Copy Variants per Country: {copy_count}
-
-## Skillset Instructions
-Apply these checks/enhancements based on active skillsets:
-- ai-washing-risk-check: Avoid vague AI claims ("AI-powered", "smart") without concrete benefit proof
-- brand-lexicon-check: Use LG-approved terminology (Life's Good, ThinQ, etc.) correctly
-- campaign-brief-normalizer: Ensure copy aligns with brief objectives and key messages
-- channel-variant-generator: Optimize copy length and format for digital channels
-- cultural-sensitivity-check: Verify cultural appropriateness for each market
-- tone-consistency-guard: Maintain consistent tone across all country variants
-
-## Output Format
-Return a JSON array. For EACH country, produce one object containing a "copies" array with exactly {copy_count} distinct copy variants:
-
-[
-  {{
-    "countryCode": "XX",
-    "copies": [
-      {{
-        "headline": "Attention-grabbing headline in the LOCAL LANGUAGE of that country",
-        "subheadline": "Supporting subheadline in LOCAL LANGUAGE",
-        "bodyCopy": "2-3 sentence body copy in LOCAL LANGUAGE that connects the strategic message to the local consumer's emotional need",
-        "cta": "Call-to-action text in LOCAL LANGUAGE",
-        "methodology": "1-2 sentences in Korean explaining HOW you crafted this copy — which strategic pillar, persona insight, or cultural factor drove the creative choices",
-        "culturalNotes": "1-2 sentences in Korean explaining the cultural adaptation — what was localized and why (idioms, humor style, formality level, cultural references)",
-        "toneAnalysis": "1 sentence in Korean describing the tone used and how it differs from other markets"
-      }}
-    ]
-  }}
-]
-
-CRITICAL RULES:
-- Each country MUST have exactly {copy_count} copy variants in the "copies" array
-- Each variant should take a DIFFERENT creative angle (different hook, tone variation, or emphasis) while staying aligned with the strategic message
-- headline, subheadline, bodyCopy, cta MUST be written in the LOCAL LANGUAGE of each country
-- methodology, culturalNotes, toneAnalysis are always in Korean (for the Korean marketing team to understand)
-- Each country's copy must feel native, not translated — use local idioms, cultural references, and communication styles
-- Adapt formality, humor, directness based on each culture's communication norms
-- For Arabic (SA): ensure right-to-left friendly phrasing
-- For multilingual markets (IN): default to English with Hindi cultural sensibility"""
+    print(f"[DeepAgent] Generating copy for countries: {countries_str}")
 
     try:
-        parser = JsonOutputParser()
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"""## Campaign Brief
-```json
-{json.dumps(request.brief, ensure_ascii=False, indent=2)}
-```
+        agent = DeepAgentExecutor()
+        result = await agent.generate_copy(
+            brief=request.brief,
+            analysis_report=request.analysisReport,
+            strategic_message=request.strategicMessage,
+            config={
+                "countries": config.countries,
+                "ageGroups": config.ageGroups,
+                "personas": config.personas,
+                "skillsets": config.skillsets,
+                "copyCount": config.copyCount,
+            },
+        )
 
-## Market Analyst Report
-```json
-{json.dumps(request.analysisReport, ensure_ascii=False, indent=2)}
-```
+        print(f"[DeepAgent] Selected skills: {result['selected_skills']}")
+        print(f"[DeepAgent] Skill reviews: {result.get('skill_reviews', {})}")
+        print(f"[DeepAgent] Elapsed: {result['elapsed_ms']}ms")
 
-## Strategic Message
-```json
-{json.dumps(request.strategicMessage, ensure_ascii=False, indent=2)}
-```
-
-Please generate culturally adapted copy for each target country."""),
-        ]
-        response = await llm.ainvoke(messages)
-        data = parser.parse(response.content)
-        return {"status": "success", "data": data}
+        return {"status": "success", "data": result["copies"]}
     except Exception as e:
         print(f"Copy generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Copy generation failed: {str(e)}")
+
+
+@app.get("/api/v1/culture-profiles")
+async def list_culture_profiles():
+    """사용 가능한 국가별 문화 프로필 목록"""
+    from .skills.loader import SkillLoader
+    loader = SkillLoader()
+    profiles = loader.list_culture_profiles()
+    return {
+        "status": "success",
+        "data": [
+            {
+                "id": p["name"],
+                "description": p["description"],
+                "country_code": p["name"].replace("culture-", "").upper(),
+            }
+            for p in profiles
+        ],
+    }
+
+
+@app.get("/api/v1/skills/catalog")
+async def get_full_skill_catalog():
+    """전체 스킬 카탈로그 (SKILL.md 포함, 카테고리/태그별 분류)"""
+    from .skills.catalog import get_all_skills
+    skills = get_all_skills()
+    # 카테고리별 분류
+    by_category: dict[str, list] = {}
+    for s in skills:
+        cat = s.get("category", "other")
+        by_category.setdefault(cat, []).append(s)
+    return {
+        "status": "success",
+        "total": len(skills),
+        "by_category": by_category,
+        "data": skills,
+    }
+
+
+@app.post("/api/v1/campaigns/generate-copy-candidates")
+async def generate_copy_candidates(request: GenerateCopyRequest):
+    """페르소나 기반 다중 후보 생성 — 각 페르소나별 카피 후보를 반환"""
+    from .skills.deep_agent import DeepAgentExecutor
+
+    config = request.config
+    print(f"[DeepAgent] Generating persona candidates for: {', '.join(config.countries)}")
+
+    try:
+        agent = DeepAgentExecutor()
+        result = await agent.generate_copy_with_personas(
+            brief=request.brief,
+            analysis_report=request.analysisReport,
+            strategic_message=request.strategicMessage,
+            config={
+                "countries": config.countries,
+                "ageGroups": config.ageGroups,
+                "personas": config.personas,
+                "skillsets": config.skillsets,
+                "copyCount": config.copyCount,
+            },
+        )
+
+        print(f"[DeepAgent] Personas used: {[p['id'] for p in result.get('selected_personas', [])]}")
+        print(f"[DeepAgent] Candidates generated: {len(result.get('candidates', []))}")
+        print(f"[DeepAgent] Elapsed: {result['elapsed_ms']}ms")
+
+        return {"status": "success", "data": result}
+    except Exception as e:
+        print(f"Persona candidate generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Candidate generation failed: {str(e)}")
+
+
+@app.get("/api/v1/personas")
+async def list_personas():
+    """사용 가능한 AI Writer 페르소나 목록"""
+    from .skills.creative_personas import get_creative_personas
+    personas = get_creative_personas()
+    return {
+        "status": "success",
+        "data": [
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "avatar": p.get("avatar", ""),
+                "color": p.get("color", "#9ca3af"),
+                "tags": p.get("tags", []),
+                "temperature": p.get("temperature", 0.9),
+            }
+            for p in personas
+        ],
+    }
 
 
 @app.post("/api/v1/campaigns/generate-brief", response_model=GenerateBriefResponse)
@@ -604,6 +627,74 @@ async def get_review_session(session_id: str, db: AsyncSession = Depends(get_db)
 
 
 # ============================================================
+# Copy Correction Endpoint
+# ============================================================
+
+@app.post("/api/v1/campaigns/correct", response_model=CorrectionResponse)
+async def correct_copy(request: CorrectionRequest):
+    """선택된 보완사항을 기반으로 카피를 보정하여 반환."""
+    from langchain_openai import AzureChatOpenAI
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    llm = AzureChatOpenAI(
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        temperature=0.4,
+    )
+
+    copy = request.copyData
+    improvements_text = "\n".join(
+        f"- [{imp.skillId}] {imp.text}" for imp in request.improvements
+    )
+
+    system_prompt = SystemMessage(content=(
+        "You are an expert LG brand copywriter. You will receive an existing marketing copy "
+        "(headline, subheadline, bodyCopy, cta) and a list of review improvement suggestions "
+        "from quality-check skills.\n\n"
+        "Your task is to revise the copy to address ALL the improvement suggestions.\n\n"
+        "CRITICAL RULES:\n"
+        "1. Apply improvements to EVERY relevant part — headline, subheadline, bodyCopy, AND cta.\n"
+        "2. The HEADLINE is the most visible element. If an improvement relates to tone, brand compliance, "
+        "   keyword usage, or messaging clarity, the headline MUST be updated accordingly.\n"
+        "3. Do NOT leave any field unchanged if the improvement logically applies to it.\n"
+        "4. Preserve the original language, tone intent, and approximate length.\n"
+        "5. Return ONLY a JSON object with these exact keys: headline, subheadline, bodyCopy, cta.\n"
+        "6. Do not include any explanation, markdown, or code fences — just the raw JSON object.\n"
+        "7. Keep the same language as the original copy."
+    ))
+
+    user_prompt = HumanMessage(content=(
+        f"=== Original Copy ===\n"
+        f"Headline: {copy.get('headline', '')}\n"
+        f"Subheadline: {copy.get('subheadline', '')}\n"
+        f"Body Copy: {copy.get('bodyCopy', '')}\n"
+        f"CTA: {copy.get('cta', '')}\n\n"
+        f"=== Improvement Suggestions ===\n{improvements_text}\n\n"
+        f"Revise ALL four fields (headline, subheadline, bodyCopy, cta) to address the improvements above. "
+        f"Pay special attention to updating the HEADLINE — it must reflect the key improvements. "
+        f"Return only a JSON object with all four keys."
+    ))
+
+    try:
+        response = await llm.ainvoke([system_prompt, user_prompt])
+        content = response.content.strip()
+        # Strip markdown code fences if present
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        result = json_module.loads(content)
+        return CorrectionResponse(
+            headline=result.get("headline", copy.get("headline", "")),
+            subheadline=result.get("subheadline", copy.get("subheadline", "")),
+            bodyCopy=result.get("bodyCopy", copy.get("bodyCopy", "")),
+            cta=result.get("cta", copy.get("cta", "")),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Copy correction failed: {str(e)}")
+
+
+# ============================================================
 # Skill CRUD Endpoints
 # ============================================================
 
@@ -619,8 +710,9 @@ async def create_skill(skill: CustomSkillCreate):
     """커스텀 스킬 등록 — skills/custom/ 폴더에 JSON 파일로 저장"""
     from .skills.custom import get_custom_skill, save_custom_skill
 
-    if skill.id in BUILTIN_IDS:
-        raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' conflicts with a builtin skill")
+    skillmd_ids = {s["id"] for s in get_skillmd_skills()}
+    if skill.id in skillmd_ids:
+        raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' conflicts with an existing SKILL.md skill")
 
     if get_custom_skill(skill.id):
         raise HTTPException(status_code=409, detail=f"Skill ID '{skill.id}' already exists")
@@ -651,13 +743,14 @@ async def create_skill(skill: CustomSkillCreate):
 @app.get("/api/v1/skills/{skill_id}")
 async def get_skill(skill_id: str):
     """단일 스킬 상세 조회"""
-    from .skills.catalog import BUILTIN_SKILLS
     from .skills.custom import get_custom_skill
 
-    for bs in BUILTIN_SKILLS:
-        if bs["id"] == skill_id:
-            return bs
+    # SKILL.md 기반 스킬 검색
+    for s in get_skillmd_skills():
+        if s["id"] == skill_id:
+            return s
 
+    # 커스텀 스킬 검색
     skill = get_custom_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
@@ -680,11 +773,11 @@ async def get_skill(skill_id: str):
 
 @app.put("/api/v1/skills/{skill_id}")
 async def update_skill(skill_id: str, updates: CustomSkillUpdate):
-    """커스텀 스킬 수정 (빌트인 수정 불가)"""
+    """커스텀 스킬 수정 (SKILL.md 스킬은 수정 불가)"""
     from .skills.custom import get_custom_skill, save_custom_skill
 
-    if skill_id in BUILTIN_IDS:
-        raise HTTPException(status_code=403, detail="Builtin skills cannot be modified")
+    if skill_id in {s["id"] for s in get_skillmd_skills()}:
+        raise HTTPException(status_code=403, detail="SKILL.md skills cannot be modified via API")
 
     skill = get_custom_skill(skill_id)
     if not skill:
@@ -709,11 +802,11 @@ async def update_skill(skill_id: str, updates: CustomSkillUpdate):
 
 @app.delete("/api/v1/skills/{skill_id}")
 async def delete_skill(skill_id: str):
-    """커스텀 스킬 삭제 (빌트인 삭제 불가)"""
+    """커스텀 스킬 삭제 (SKILL.md 스킬 삭제 불가)"""
     from .skills.custom import delete_custom_skill
 
-    if skill_id in BUILTIN_IDS:
-        raise HTTPException(status_code=403, detail="Builtin skills cannot be deleted")
+    if skill_id in {s["id"] for s in get_skillmd_skills()}:
+        raise HTTPException(status_code=403, detail="SKILL.md skills cannot be deleted via API")
 
     if not delete_custom_skill(skill_id):
         raise HTTPException(status_code=404, detail="Skill not found")
@@ -804,26 +897,27 @@ IMPORTANT:
 # Campaign Save / Dashboard Endpoints
 # ============================================================
 
+def _derive_campaign_fields(request: CampaignSaveRequest) -> dict:
+    """Save/Update 공통: 파생 필드 계산"""
+    countries = list({r.get("countryCode", "") for r in (request.copyResults or []) if r.get("countryCode")})
+    brand_fit = (request.analysisReport or {}).get("brandFit", {})
+    brand_fit_score = brand_fit.get("score", 0) if isinstance(brand_fit, dict) else 0
+    review_avg = round(request.reviewSummary["avgScore"]) if request.reviewSummary and request.reviewSummary.get("avgScore") else 0
+    total_copies = sum(len(r.get("copies", [r])) for r in (request.copyResults or []))
+    # 상태: step 5 완료 + reviewSummary가 있으면 completed, 아니면 draft
+    status = "completed" if request.currentStep >= 5 and request.reviewSummary else "draft"
+    return dict(
+        target_countries=countries, brand_fit_score=brand_fit_score,
+        review_avg_score=review_avg, total_copies=total_copies, status=status,
+    )
+
+
 @app.post("/api/v1/campaigns/save", status_code=201)
 async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
-    """단계별 산출물 + Review 결과를 Campaign으로 저장"""
+    """캠페인 저장 (신규 생성) — 각 단계 완료 시 자동 저장"""
     brief = request.brief
     project_name = brief.get("projectName", "Untitled")
-
-    # 타겟 국가 추출
-    countries = list({r.get("countryCode", "") for r in (request.copyResults or []) if r.get("countryCode")})
-
-    # Brand Fit Score 추출
-    brand_fit = request.analysisReport.get("brandFit", {})
-    brand_fit_score = brand_fit.get("score", 0) if isinstance(brand_fit, dict) else 0
-
-    # Review 평균 점수
-    review_avg = 0
-    if request.reviewSummary and request.reviewSummary.get("avgScore"):
-        review_avg = round(request.reviewSummary["avgScore"])
-
-    # 총 카피 수
-    total_copies = sum(len(r.get("copies", [r])) for r in (request.copyResults or []))
+    derived = _derive_campaign_fields(request)
 
     campaign = Campaign(
         project_name=project_name,
@@ -833,11 +927,9 @@ async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends
         copy_results=request.copyResults,
         review_summary=request.reviewSummary,
         review_results=request.reviewResults,
-        target_countries=countries,
-        brand_fit_score=brand_fit_score,
-        review_avg_score=review_avg,
-        total_copies=total_copies,
-        status="completed",
+        copy_candidates=request.copyCandidates,
+        current_step=request.currentStep,
+        **derived,
     )
     db.add(campaign)
     await db.commit()
@@ -847,6 +939,7 @@ async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends
         "id": str(campaign.id),
         "projectName": campaign.project_name,
         "status": "saved",
+        "currentStep": campaign.current_step,
     }
 
 
@@ -884,6 +977,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
             "brandFitScore": c.brand_fit_score,
             "reviewAvgScore": c.review_avg_score,
             "totalCopies": c.total_copies,
+            "currentStep": c.current_step,
             "status": c.status,
             "summary": c.brief.get("projectContext", "")[:120] if isinstance(c.brief, dict) else "",
         }
@@ -923,10 +1017,12 @@ async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
         "copyResults": campaign.copy_results,
         "reviewSummary": campaign.review_summary,
         "reviewResults": campaign.review_results,
+        "copyCandidates": campaign.copy_candidates,
         "targetCountries": campaign.target_countries,
         "brandFitScore": campaign.brand_fit_score,
         "reviewAvgScore": campaign.review_avg_score,
         "totalCopies": campaign.total_copies,
+        "currentStep": campaign.current_step,
         "status": campaign.status,
         "createdAt": campaign.created_at.isoformat() if campaign.created_at else None,
     }
@@ -952,7 +1048,7 @@ async def delete_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
 
 @app.put("/api/v1/campaigns/{campaign_id}")
 async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
-    """기존 캠페인 업데이트"""
+    """기존 캠페인 업데이트 — 단계 진행 시 자동 저장"""
     try:
         uid = uuid.UUID(campaign_id)
     except ValueError:
@@ -964,6 +1060,8 @@ async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: As
         raise HTTPException(status_code=404, detail="Campaign not found")
 
     brief = request.brief
+    derived = _derive_campaign_fields(request)
+
     campaign.project_name = brief.get("projectName", campaign.project_name)
     campaign.brief = brief
     campaign.analysis_report = request.analysisReport
@@ -971,15 +1069,13 @@ async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: As
     campaign.copy_results = request.copyResults
     campaign.review_summary = request.reviewSummary
     campaign.review_results = request.reviewResults
-    campaign.target_countries = list({r.get("countryCode", "") for r in (request.copyResults or []) if r.get("countryCode")})
-
-    brand_fit = request.analysisReport.get("brandFit", {})
-    campaign.brand_fit_score = brand_fit.get("score", 0) if isinstance(brand_fit, dict) else 0
-
-    if request.reviewSummary and request.reviewSummary.get("avgScore"):
-        campaign.review_avg_score = round(request.reviewSummary["avgScore"])
-
-    campaign.total_copies = sum(len(r.get("copies", [r])) for r in (request.copyResults or []))
+    campaign.copy_candidates = request.copyCandidates
+    campaign.current_step = request.currentStep
+    campaign.target_countries = derived["target_countries"]
+    campaign.brand_fit_score = derived["brand_fit_score"]
+    campaign.review_avg_score = derived["review_avg_score"]
+    campaign.total_copies = derived["total_copies"]
+    campaign.status = derived["status"]
 
     await db.commit()
     await db.refresh(campaign)
@@ -988,4 +1084,108 @@ async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: As
         "id": str(campaign.id),
         "projectName": campaign.project_name,
         "status": "updated",
+        "currentStep": campaign.current_step,
     }
+
+
+# =============================================================
+# Message Matrix — upload & parse
+# =============================================================
+
+def _product_info_to_dict(product) -> dict:
+    """tools.message_matrix_parsing.ProductInfo dataclass → serializable dict."""
+    return {
+        "product_name": product.product_name,
+        "sub_name": product.sub_name,
+        "head_message": product.head_message,
+        "description": product.description,
+        "categories": [
+            {
+                "number": cat.number,
+                "name": cat.name,
+                "key_message": cat.key_message,
+                "usps": [
+                    {
+                        "usp_no": u.usp_no,
+                        "feature_name": u.feature_name,
+                        "key_message_full": u.key_message_full,
+                        "key_message_short": u.key_message_short,
+                        "benefit_description": u.benefit_description,
+                        "rtb": u.rtb,
+                        "disclaimer": u.disclaimer,
+                        "certification": u.certification,
+                        "remark": u.remark,
+                    }
+                    for u in cat.usps
+                ],
+            }
+            for cat in product.categories
+        ],
+    }
+
+
+@app.post("/api/v1/message-matrix/sheets", response_model=MessageMatrixSheetsResponse)
+async def message_matrix_sheets(file: UploadFile = File(...)):
+    """xlsx 파일을 받아 시트 이름 목록을 반환."""
+    import sys, pathlib
+    tools_dir = str(pathlib.Path(__file__).resolve().parent.parent / "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    from message_matrix_parsing import get_sheet_names
+
+    suffix = pathlib.Path(file.filename or "upload.xlsx").suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        sheets = get_sheet_names(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+    return {"sheets": sheets}
+
+
+@app.post("/api/v1/message-matrix/parse", response_model=MessageMatrixParseResponse)
+async def message_matrix_parse(
+    file: UploadFile = File(...),
+    sheets: str = Form(""),  # comma-separated sheet names, empty = all
+):
+    """xlsx 파일 + 선택 시트를 받아 파싱 결과를 반환."""
+    import sys, pathlib
+    tools_dir = str(pathlib.Path(__file__).resolve().parent.parent / "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    from message_matrix_parsing import parse_excel
+
+    suffix = pathlib.Path(file.filename or "upload.xlsx").suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        sheet_list = [s.strip() for s in sheets.split(",") if s.strip()] or None
+        products = parse_excel(tmp_path, sheet_names=sheet_list)
+    finally:
+        os.unlink(tmp_path)
+
+    results = {name: _product_info_to_dict(p) for name, p in products.items()}
+    return {"results": results}
+
+
+@app.get("/api/v1/message-matrix/sample", response_model=MessageMatrixParseResponse)
+async def message_matrix_sample():
+    """테스트용: backend/tools/ 의 샘플 xlsx 를 파싱해 반환."""
+    import sys, pathlib
+    tools_dir = str(pathlib.Path(__file__).resolve().parent.parent / "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    from message_matrix_parsing import parse_excel
+
+    sample_path = pathlib.Path(tools_dir) / "SAMPLE_(RAC)DUALCOOL AI Air_Message Matrix_v1.1 1.xlsx"
+    if not sample_path.exists():
+        raise HTTPException(status_code=404, detail="Sample file not found")
+
+    products = parse_excel(str(sample_path))
+    results = {name: _product_info_to_dict(p) for name, p in products.items()}
+    return {"results": results}

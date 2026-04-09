@@ -44,6 +44,7 @@ class AnalysisReport(BaseModel):
 # ============================================================
 class AgentState(TypedDict):
     brief: dict
+    message_matrix: dict  # Optional: parsed Message Matrix data
     search_queries: list
     web_results: list
     rag_results: list
@@ -65,9 +66,40 @@ def _get_llm(temperature=0):
 # ============================================================
 # NODE 1: Query Planner — generates targeted search queries
 # ============================================================
+def _format_message_matrix(matrix: dict) -> str:
+    """Message Matrix 딕셔너리를 프롬프트용 텍스트로 변환."""
+    if not matrix:
+        return ""
+    parts = []
+    for sheet_name, product in matrix.items():
+        if not isinstance(product, dict):
+            continue
+        header = f"### {product.get('product_name', '')} {product.get('sub_name', '')}".strip()
+        parts.append(header)
+        if product.get("head_message"):
+            parts.append(f"Head Message: {product['head_message']}")
+        if product.get("description"):
+            parts.append(f"Description: {product['description']}")
+        for cat in product.get("categories", []):
+            parts.append(f"\n**Category {cat.get('number', '')}: {cat.get('name', '')}**")
+            if cat.get("key_message"):
+                parts.append(f"  Category Message: {cat['key_message']}")
+            for usp in cat.get("usps", []):
+                parts.append(f"  - [{usp.get('usp_no', '')}] {usp.get('feature_name', '')}")
+                if usp.get("key_message_full"):
+                    parts.append(f"    Key Message: {usp['key_message_full']}")
+                if usp.get("benefit_description"):
+                    parts.append(f"    Benefit: {usp['benefit_description']}")
+                if usp.get("rtb"):
+                    parts.append(f"    RTB: {usp['rtb'][:300]}")
+    return "\n".join(parts)
+
+
 async def query_planner(state: AgentState):
     print("--- NODE 1: QUERY PLANNER ---")
     brief = state.get("brief", {})
+    matrix = state.get("message_matrix") or {}
+    matrix_context = _format_message_matrix(matrix)
 
     llm = _get_llm(temperature=0)
     prompt = ChatPromptTemplate.from_template("""You are a market research strategist for LG Electronics.
@@ -87,10 +119,15 @@ Focus on:
 - Market: {marketNeeds}
 - Proof Points: {proofPoints}
 
+{matrix_section}
+
 Return ONLY a JSON array of 4 query strings. Example: ["query 1", "query 2", "query 3", "query 4"]""")
 
     chain = prompt | llm | StrOutputParser()
-    raw = await chain.ainvoke(brief)
+    raw = await chain.ainvoke({
+        **brief,
+        "matrix_section": f"**Product Message Matrix:**\n{matrix_context}" if matrix_context else "",
+    })
 
     # Parse the JSON array from LLM response
     import json
@@ -208,6 +245,8 @@ async def synthesizer(state: AgentState):
     brief = state.get("brief", {})
     web_results = state.get("web_results", [])
     rag_results = state.get("rag_results", [])
+    matrix = state.get("message_matrix") or {}
+    matrix_context = _format_message_matrix(matrix)
 
     # Format web search results
     if web_results:
@@ -239,6 +278,9 @@ Principle:
 
 ## HISTORICAL LG CAMPAIGN REFERENCES (from knowledge base)
 {rag_context}
+
+## PRODUCT MESSAGE MATRIX (USP / Feature Details from Message Matrix)
+{matrix_context}
 
 ## CAMPAIGN BRIEF (LG Standard Format)
 - Project Name: {projectName}
@@ -350,6 +392,7 @@ CRITICAL RULES:
     report = await chain.ainvoke({
         "web_context": web_context,
         "rag_context": rag_context,
+        "matrix_context": matrix_context if matrix_context else "(No Message Matrix provided.)",
         **brief,
     })
 

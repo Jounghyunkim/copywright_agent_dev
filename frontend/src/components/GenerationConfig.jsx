@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Globe, Users, UserCheck, Cpu, ArrowRight, Loader } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Globe, Users, UserCheck, Cpu, ArrowRight, Loader, Sparkles } from 'lucide-react';
 import { COLORS } from '../styles/theme';
+import { useT } from '../shared/i18n/useTranslation';
 
 const COUNTRIES = [
     { code: 'US', label: 'USA', flag: '🇺🇸' },
@@ -9,12 +10,20 @@ const COUNTRIES = [
     { code: 'FR', label: 'France', flag: '🇫🇷' },
     { code: 'IT', label: 'Italy', flag: '🇮🇹' },
     { code: 'ES', label: 'Spain', flag: '🇪🇸' },
+    { code: 'JP', label: 'Japan', flag: '🇯🇵' },
+    { code: 'CN', label: 'China', flag: '🇨🇳' },
     { code: 'IN', label: 'India', flag: '🇮🇳' },
     { code: 'BR', label: 'Brazil', flag: '🇧🇷' },
     { code: 'KR', label: 'Korea', flag: '🇰🇷' },
     { code: 'AU', label: 'Australia', flag: '🇦🇺' },
     { code: 'ID', label: 'Indonesia', flag: '🇮🇩' },
+    { code: 'TH', label: 'Thailand', flag: '🇹🇭' },
     { code: 'SA', label: 'Saudi Arabia', flag: '🇸🇦' },
+    { code: 'NL', label: 'Netherlands', flag: '🇳🇱' },
+    { code: 'SE', label: 'Sweden', flag: '🇸🇪' },
+    { code: 'PL', label: 'Poland', flag: '🇵🇱' },
+    { code: 'MX', label: 'Mexico', flag: '🇲🇽' },
+    { code: 'CA', label: 'Canada', flag: '🇨🇦' },
 ];
 
 const AGE_GROUPS = [
@@ -25,7 +34,8 @@ const AGE_GROUPS = [
     { id: '55+', label: '55+' },
 ];
 
-const PERSONAS = [
+// 타겟 페르소나 (소비자 유형) — 기존 호환
+const TARGET_PERSONAS = [
     { id: 'tech-enthusiast', label: 'Tech Enthusiast', desc: '최신 기술에 민감한 얼리어답터' },
     { id: 'premium-lifestyle', label: 'Premium Lifestyle', desc: '프리미엄 라이프스타일 지향' },
     { id: 'value-seeker', label: 'Value Seeker', desc: '가성비를 중시하는 합리적 소비자' },
@@ -33,20 +43,64 @@ const PERSONAS = [
     { id: 'eco-conscious', label: 'Eco Conscious', desc: '환경과 지속가능성에 관심' },
 ];
 
-export const SKILLSETS = [
-    { id: 'ai-washing-risk-check', label: 'AI Washing Risk Check', desc: 'AI 관련 과장/오해 소지 표현 감지' },
-    { id: 'brand-lexicon-check', label: 'Brand Lexicon Check', desc: 'LG 브랜드 용어 가이드라인 준수 검증' },
-    { id: 'campaign-brief-normalizer', label: 'Campaign Brief Normalizer', desc: '브리프 항목 표준화 및 일관성 검증' },
-    { id: 'channel-variant-generator', label: 'Channel Variant Generator', desc: '채널별(SNS, 배너, 영상 등) 카피 변형 생성' },
-    { id: 'cultural-sensitivity-check', label: 'Cultural Sensitivity Check', desc: '문화적 민감성 및 현지화 적합성 검증' },
-    { id: 'tone-consistency-guard', label: 'Tone Consistency Guard', desc: '톤 앤 매너 일관성 유지 검증' },
-];
+// 아바타 키워드 → 이모지 매핑 (SKILL.md의 Persona Config에서 키워드로 저장됨)
+const AVATAR_EMOJI_MAP = {
+    'exclamation': '🔥', 'glasses': '🔬', 'wink': '😄', 'beret': '🎨',
+    'pen': '✒️', 'crown': '👑', 'star': '⭐', 'book': '📖',
+    'clock': '⏰', 'lightning': '⚡', 'heart': '❤️', 'rocket': '🚀',
+    'mic': '🎤', 'trophy': '🏆', 'palette': '🎨', 'megaphone': '📢',
+};
 
-const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
+function resolveAvatar(avatar) {
+    if (!avatar) return '✍️';
+    // 이미 이모지면 그대로 반환
+    if (/\p{Emoji}/u.test(avatar) && avatar.length <= 4) return avatar;
+    // 키워드 매핑
+    return AVATAR_EMOJI_MAP[avatar.toLowerCase()] || '✍️';
+}
+
+// SKILLSETS removed — all skills now loaded from SKILL.md via API
+
+const GenerationConfig = ({ onSubmit, isGenerating = false, aiPersonas = null }) => {
     const [selectedCountries, setSelectedCountries] = useState([]);
     const [selectedAges, setSelectedAges] = useState([]);
     const [selectedPersonas, setSelectedPersonas] = useState([]);
+    const [selectedWriters, setSelectedWriters] = useState([]);
     const [copyCount, setCopyCount] = useState(3);
+    const [usePersonaMode, setUsePersonaMode] = useState(false);
+    const t = useT();
+
+    // AI Writer 페르소나 목록 (API에서 전달받거나 직접 fetch)
+    const [writerPersonas, setWriterPersonas] = useState(aiPersonas || []);
+
+    useEffect(() => {
+        if (aiPersonas && aiPersonas.length > 0) {
+            setWriterPersonas(aiPersonas);
+            return;
+        }
+        if (aiPersonas && aiPersonas.length === 0) {
+            setWriterPersonas([]);
+            setUsePersonaMode(false);
+            return;
+        }
+        // fallback: 직접 API 호출
+        const fetchPersonas = async () => {
+            try {
+                const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+                const res = await fetch(`${apiBase}/api/v1/personas`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const personas = data.data || [];
+                    setWriterPersonas(personas);
+                    if (personas.length === 0) setUsePersonaMode(false);
+                }
+            } catch (e) {
+                console.error('Failed to load AI personas:', e);
+                setUsePersonaMode(false);
+            }
+        };
+        fetchPersonas();
+    }, [aiPersonas]);
 
     const toggleItem = (list, setList, id) => {
         setList(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -56,7 +110,7 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
         setSelectedCountries(prev => prev.length === COUNTRIES.length ? [] : COUNTRIES.map(c => c.code));
     };
 
-    const canSubmit = selectedCountries.length > 0 && selectedAges.length > 0 && selectedPersonas.length > 0 && !isGenerating;
+    const canSubmit = selectedCountries.length > 0 && selectedAges.length > 0 && selectedPersonas.length > 0 && (!usePersonaMode || selectedWriters.length > 0) && !isGenerating;
 
     const handleSubmit = () => {
         if (!canSubmit) return;
@@ -66,6 +120,9 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
             personas: selectedPersonas,
             skillsets: [],
             copyCount,
+            // 새로운 필드: AI Writer 페르소나 모드
+            usePersonaMode,
+            selectedWriters: usePersonaMode ? selectedWriters : [],
         });
     };
 
@@ -97,7 +154,7 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
             marginBottom: '0.75rem', marginTop: 0,
         },
         countryGrid: {
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px',
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
         },
         checkbox: (checked) => ({
             display: 'flex', alignItems: 'center', gap: '8px',
@@ -134,6 +191,34 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
         personaDesc: {
             fontSize: '0.78rem', color: COLORS.TEXT_SUB, margin: '2px 0 0 0',
         },
+        writerCard: (checked, color) => ({
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
+            border: `1.5px solid ${checked ? (color || COLORS.LG_RED) : COLORS.BORDER}`,
+            backgroundColor: checked ? `${color || COLORS.LG_RED}10` : COLORS.WHITE,
+            transition: 'all 0.15s ease',
+            minHeight: '56px',
+        }),
+        writerAvatar: {
+            fontSize: '1.3rem', width: '32px', height: '32px', borderRadius: '8px',
+            backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', flexShrink: 0,
+        },
+        writerInfo: {
+            flex: 1, minWidth: 0, overflow: 'hidden',
+        },
+        writerName: (checked, color) => ({
+            fontSize: '0.82rem', fontWeight: 600,
+            color: checked ? (color || COLORS.LG_RED) : COLORS.TEXT_MAIN,
+            margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }),
+        writerTags: {
+            display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '3px',
+        },
+        writerTag: {
+            fontSize: '0.6rem', fontWeight: 600, padding: '1px 5px', borderRadius: '4px',
+            backgroundColor: '#F3F4F6', color: COLORS.TEXT_SUB,
+        },
         submitRow: {
             display: 'flex', alignItems: 'center', gap: '12px', marginTop: '1.5rem',
         },
@@ -166,22 +251,29 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
         divider: {
             borderTop: `1px solid ${COLORS.BORDER}`, margin: '1.5rem 0 0 0',
         },
+        modeToggle: (active) => ({
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 16px', borderRadius: '12px', cursor: 'pointer',
+            border: `1.5px solid ${active ? '#7C3AED' : COLORS.BORDER}`,
+            backgroundColor: active ? '#F5F3FF' : COLORS.WHITE,
+            transition: 'all 0.15s ease', marginBottom: '12px',
+        }),
     };
 
     return (
         <div style={styles.container}>
             <h3 style={styles.header}>
-                <Cpu size={22} color={COLORS.LG_RED} />Copy Generation Settings
+                <Cpu size={22} color={COLORS.LG_RED} />{t('gen.title')}
             </h3>
             <p style={styles.subheader}>
-                맞춤형 카피 생성을 위한 타겟 설정을 구성해주세요. 선택한 옵션에 따라 각 국가/페르소나별 최적화된 카피가 생성됩니다.
+                {t('gen.desc')}
             </p>
 
             {/* Countries */}
             <div style={styles.sectionTitleFirst}>
-                <Globe size={14} />Target Countries
+                <Globe size={14} />{t('gen.targetCountries')}
                 <button style={styles.selectAll} onClick={toggleAllCountries}>
-                    {selectedCountries.length === COUNTRIES.length ? 'Deselect All' : 'Select All'}
+                    {selectedCountries.length === COUNTRIES.length ? t('gen.deselectAll') : t('gen.selectAll')}
                 </button>
             </div>
             <div style={styles.countryGrid}>
@@ -204,7 +296,7 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
 
             {/* Age Groups */}
             <div style={styles.sectionTitle}>
-                <Users size={14} />Target Age Groups
+                <Users size={14} />{t('gen.targetAgeGroups')}
             </div>
             <div style={styles.ageGrid}>
                 {AGE_GROUPS.map(a => (
@@ -223,12 +315,12 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
 
             <div style={styles.divider} />
 
-            {/* Personas */}
+            {/* Target Personas */}
             <div style={styles.sectionTitle}>
-                <UserCheck size={14} />Personas
+                <UserCheck size={14} />{t('gen.targetPersonas')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {PERSONAS.map(p => (
+                {TARGET_PERSONAS.map(p => (
                     <div
                         key={p.id}
                         style={styles.personaCard(selectedPersonas.includes(p.id))}
@@ -245,10 +337,79 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
                 ))}
             </div>
 
+            <div style={styles.divider} />
+
+            {/* AI Writer Personas */}
+            {writerPersonas.length > 0 && (
+                <>
+                    <div style={styles.sectionTitle}>
+                        <Sparkles size={14} />{t('gen.aiWriterPersonas')}
+                        <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                            {t('gen.aiWriterDesc')}
+                        </span>
+                    </div>
+
+                    {/* Persona mode toggle */}
+                    <div
+                        style={styles.modeToggle(usePersonaMode)}
+                        onClick={() => setUsePersonaMode(!usePersonaMode)}
+                    >
+                        <div style={{
+                            width: '40px', height: '22px', borderRadius: '11px',
+                            backgroundColor: usePersonaMode ? '#7C3AED' : '#D1D5DB',
+                            position: 'relative', transition: 'background-color 0.2s ease',
+                            flexShrink: 0,
+                        }}>
+                            <div style={{
+                                width: '18px', height: '18px', borderRadius: '50%',
+                                backgroundColor: '#FFF', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                position: 'absolute', top: '2px',
+                                left: usePersonaMode ? '20px' : '2px', transition: 'left 0.2s ease',
+                            }} />
+                        </div>
+                        <div>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: usePersonaMode ? '#7C3AED' : COLORS.TEXT_MAIN }}>
+                                {t('gen.personaMode')}
+                            </span>
+                            <p style={{ fontSize: '0.75rem', color: COLORS.TEXT_SUB, margin: '2px 0 0 0' }}>
+                                {t('gen.personaModeDesc')}
+                            </p>
+                        </div>
+                    </div>
+
+                    {usePersonaMode && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                            {writerPersonas.map(w => (
+                                <div
+                                    key={w.id}
+                                    style={styles.writerCard(selectedWriters.includes(w.id), w.color)}
+                                    onClick={() => toggleItem(selectedWriters, setSelectedWriters, w.id)}
+                                >
+                                    <div style={styles.writerAvatar}>{resolveAvatar(w.avatar)}</div>
+                                    <div style={styles.writerInfo}>
+                                        <p style={styles.writerName(selectedWriters.includes(w.id), w.color)}>
+                                            {w.name || w.id}
+                                        </p>
+                                        <div style={styles.writerTags}>
+                                            {(w.tags || []).map(tag => (
+                                                <span key={tag} style={styles.writerTag}>{tag}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div style={{ ...styles.checkMark(selectedWriters.includes(w.id)), marginTop: '2px' }}>
+                                        {selectedWriters.includes(w.id) && '✓'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
             {/* Submit */}
             <div style={styles.submitRow}>
                 <div style={styles.copyCountGroup}>
-                    <span style={styles.copyCountLabel}>생성 개수</span>
+                    <span style={styles.copyCountLabel}>{t('gen.copyCount')}</span>
                     <input
                         type="number"
                         min={1}
@@ -265,19 +426,26 @@ const GenerationConfig = ({ onSubmit, isGenerating = false }) => {
                     {isGenerating ? (
                         <>
                             <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                            Generating...
+                            {t('gen.generating')}
+                        </>
+                    ) : usePersonaMode && selectedWriters.length > 0 ? (
+                        <>
+                            <Sparkles size={18} />
+                            {t('gen.generateWithWriters', { n: selectedWriters.length })}
                         </>
                     ) : (
                         <>
                             <ArrowRight size={18} />
-                            Generate Copy
+                            {t('gen.generateCopy')}
                         </>
                     )}
                 </button>
             </div>
-            {!canSubmit && (
+            {!canSubmit && !isGenerating && (
                 <p style={{ fontSize: '0.78rem', color: '#B45309', textAlign: 'center', marginTop: '8px' }}>
-                    국가, 연령대, 페르소나를 각각 1개 이상 선택해주세요.
+                    {usePersonaMode && selectedWriters.length === 0
+                        ? t('gen.validationMsgWriter')
+                        : t('gen.validationMsg')}
                 </p>
             )}
         </div>

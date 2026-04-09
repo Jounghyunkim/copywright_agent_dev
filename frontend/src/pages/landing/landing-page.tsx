@@ -7,7 +7,7 @@ import {
 
 /* ─── Data ─── */
 const WORKFLOW_STEPS = [
-  { num: 1, label: 'Briefing', desc: '캠페인 브리프를 작성하거나 AI가 자동으로 생성합니다.', icon: FileText, color: '#A50034' },
+  { num: 1, label: 'Research', desc: 'Message Matrix 업로드 또는 캠페인 리서치 정보를 입력합니다.', icon: FileText, color: '#A50034' },
   { num: 2, label: 'Analysis', desc: '웹 검색 + RAG를 통해 10개 항목의 시장 분석 리포트를 생성합니다.', icon: Search, color: '#2563EB' },
   { num: 3, label: 'Strategic Message', desc: '감성/행동 기반 전략 메시지를 추출하고 마케터가 승인합니다.', icon: MessageSquareText, color: '#7C3AED' },
   { num: 4, label: 'Generation', desc: '국가/페르소나별로 최적화된 카피 변형을 생성합니다.', icon: Zap, color: '#D97706' },
@@ -18,7 +18,7 @@ const FEATURES = [
   { icon: Globe, color: '#2563EB', title: 'Localization-Centric', desc: '단순 번역이 아닌 국가별 소비자 감성, 문화적 뉘앙스, 언어적 스타일을 반영한 최적화된 카피 생성' },
   { icon: Users, color: '#7C3AED', title: 'Human-in-the-Loop', desc: 'AI 자동화 워크플로우 중간에 마케터의 참여와 승인 단계를 배치하여 사람과 AI의 협업 실현' },
   { icon: Sparkles, color: '#D97706', title: 'Multi-Agent Pipeline', desc: 'LangGraph 기반 query_planner → web_search ∥ RAG → synthesizer 파이프라인으로 깊이 있는 분석' },
-  { icon: Shield, color: '#059669', title: 'Skill-based Review', desc: 'AI Washing, 브랜드 용어, 문화적 민감성 등 6개 빌트인 + 사용자 정의 Custom Skill로 품질 보장' },
+  { icon: Shield, color: '#059669', title: 'Skill-based Review', desc: 'AI Washing, 브랜드 용어, 컴플라이언스 등 60+ SKILL.md 빌트인 + AI Writer 페르소나 + 문화 프로필로 품질 보장' },
 ]
 
 const TECH_STACK = [
@@ -28,13 +28,13 @@ const TECH_STACK = [
   { label: 'Infra', items: 'PostgreSQL · SSE Streaming · uv' },
 ]
 
-const BUILTIN_SKILLS = [
-  { name: 'AI Washing Risk Check', desc: 'AI 관련 과장/오해 소지 표현 감지', icon: Shield },
-  { name: 'Brand Lexicon Check', desc: 'LG 브랜드 용어 가이드라인 준수 검증', icon: CheckCircle },
-  { name: 'Cultural Sensitivity', desc: '문화적 민감성 및 현지화 적합성 검증', icon: Globe },
-  { name: 'Tone Consistency Guard', desc: '톤 앤 매너 일관성 유지 검증', icon: MessageSquareText },
-  { name: 'Channel Variant Generator', desc: '채널별 카피 변형 생성', icon: Zap },
-  { name: 'Brief Normalizer', desc: '브리프 항목 표준화 및 일관성 검증', icon: FileText },
+const FEATURED_SKILLS = [
+  { name: 'Regulatory Copy Validation', desc: '광고 카피의 법적 규정 준수 여부 종합 검증', icon: Shield },
+  { name: 'Brand Lexicon Check', desc: '브랜드 용어집 기반 금지어/필수어/톤 일관성 검증', icon: CheckCircle },
+  { name: 'LG Brand Fit Check', desc: 'LG 브랜드 5대 원칙별 카피 적합도 평가', icon: Globe },
+  { name: 'Compliance Redflag Detector', desc: '법적/규정 위반 가능성 레드플래그 탐지', icon: MessageSquareText },
+  { name: 'Copy Scorecard Generator', desc: '카피 품질 다차원 평가 스코어카드', icon: Zap },
+  { name: 'Creative Impact Scorer', desc: '주목도/의외성/감정/기억/독창성 정량 평가', icon: FileText },
 ]
 
 /* ─── Page ─── */
@@ -75,7 +75,7 @@ export function LandingPage() {
             fontSize: '1rem', lineHeight: 1.7, opacity: 0.8,
             margin: '0 0 32px', maxWidth: 560,
           }}>
-            캠페인 브리프부터 시장 분석, 전략 메시지, 카피 생성, 품질 검증까지.<br />
+            캠페인 리서치부터 시장 분석, 전략 메시지, 카피 생성, 품질 검증까지.<br />
             AI Native Workflow를 통해 각국 법인의 마케팅 카피를 완성하고 검수하세요.
           </p>
 
@@ -117,8 +117,8 @@ export function LandingPage() {
           }}>
             {[
               { val: '5-Step', label: 'End-to-End Workflow' },
-              { val: '6+', label: 'Builtin Review Skills' },
-              { val: '12+', label: 'Target Countries' },
+              { val: '60+', label: 'SKILL.md Skills' },
+              { val: '20+', label: 'Target Countries' },
             ].map((s, i) => (
               <div key={i} style={{
                 background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)',
@@ -146,7 +146,7 @@ export function LandingPage() {
             5단계 AI 카피라이팅 파이프라인
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
-            브리프 작성부터 최종 검증까지, AI와 마케터가 함께 완성하는 워크플로우
+            리서치 입력부터 최종 검증까지, AI와 마케터가 함께 완성하는 워크플로우
           </p>
         </div>
 
@@ -261,12 +261,12 @@ export function LandingPage() {
             Builtin Review Skills
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
-            6개 빌트인 스킬로 카피 품질을 자동 검증하고, Custom Skill을 직접 만들어 확장할 수 있습니다
+            60개 이상의 SKILL.md 기반 스킬과 AI Writer 페르소나로 카피 품질을 자동 검증하고, Custom Skill을 직접 만들어 확장할 수 있습니다
           </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {BUILTIN_SKILLS.map((skill, i) => {
+          {FEATURED_SKILLS.map((skill, i) => {
             const Icon = skill.icon
             return (
               <div key={i} style={{

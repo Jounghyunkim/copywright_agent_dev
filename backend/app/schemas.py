@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 
 class CampaignBrief(BaseModel):
@@ -35,6 +35,23 @@ class CampaignBrief(BaseModel):
     # 9. TIMING
     timing: str
 
+class AnalyzeRequest(BaseModel):
+    """Analysis 요청 — Campaign Brief + optional Message Matrix."""
+    projectName: str
+    date: str
+    projectContext: str
+    objectiveCommercial: str
+    objectiveBehavior: str
+    objectiveAttitudinal: str
+    audience: str
+    keyMessage: str
+    proofPoints: str
+    mandatories: Optional[str] = ""
+    budget: Optional[str] = ""
+    marketNeeds: str
+    timing: str
+    message_matrix: Optional[dict] = None  # {sheetName: ProductInfo}
+
 class AnalysisResponse(BaseModel):
     status: str
     message: str
@@ -43,6 +60,29 @@ class AnalysisResponse(BaseModel):
 class GenerateBriefRequest(BaseModel):
     projectName: str
     projectContext: str
+
+    @field_validator("projectName")
+    @classmethod
+    def validate_project_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Project Name must be at least 3 characters.")
+        # 의미 없는 입력 거부: 동일 문자 반복, 숫자만, 알파벳 1~2자 패턴
+        stripped = v.replace(" ", "")
+        if len(set(stripped)) <= 1:
+            raise ValueError("Project Name is not meaningful. Please provide a descriptive name.")
+        return v
+
+    @field_validator("projectContext")
+    @classmethod
+    def validate_project_context(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 20:
+            raise ValueError("Project Context must be at least 20 characters. Please describe the campaign background.")
+        words = v.split()
+        if len(words) < 5:
+            raise ValueError("Project Context must contain at least 5 words. Please provide sufficient context.")
+        return v
 
 class GenerateBriefResponse(BaseModel):
     status: str
@@ -100,6 +140,21 @@ class ReviewRequest(BaseModel):
     selectedCopies: List[SelectedCopy]
     enabledSkills: List[str]
 
+class CorrectionImprovement(BaseModel):
+    skillId: str
+    text: str
+
+class CorrectionRequest(BaseModel):
+    copyKey: str
+    copyData: dict           # {headline, subheadline, bodyCopy, cta, ...}
+    improvements: List[CorrectionImprovement]
+
+class CorrectionResponse(BaseModel):
+    headline: str = ""
+    subheadline: str = ""
+    bodyCopy: str = ""
+    cta: str = ""
+
 class ReviewSessionResponse(BaseModel):
     id: str
     project_name: str
@@ -156,8 +211,43 @@ class SkillDraftRequest(BaseModel):
 
 class CampaignSaveRequest(BaseModel):
     brief: dict
-    analysisReport: dict
-    strategicMessage: dict
-    copyResults: list
+    analysisReport: Optional[dict] = None
+    strategicMessage: Optional[dict] = None
+    copyResults: Optional[list] = None
     reviewSummary: Optional[dict] = None
     reviewResults: Optional[list] = None
+    copyCandidates: Optional[dict] = None
+    currentStep: int = 1
+
+
+# --- Message Matrix ---
+
+class MessageMatrixUSP(BaseModel):
+    usp_no: str
+    feature_name: str
+    key_message_full: str = ""
+    key_message_short: str = ""
+    benefit_description: str = ""
+    rtb: str = ""
+    disclaimer: str = ""
+    certification: str = ""
+    remark: str = ""
+
+class MessageMatrixCategory(BaseModel):
+    number: str
+    name: str
+    key_message: str = ""
+    usps: List[MessageMatrixUSP] = []
+
+class MessageMatrixProduct(BaseModel):
+    product_name: str
+    sub_name: str = ""
+    head_message: str = ""
+    description: str = ""
+    categories: List[MessageMatrixCategory] = []
+
+class MessageMatrixSheetsResponse(BaseModel):
+    sheets: List[str]
+
+class MessageMatrixParseResponse(BaseModel):
+    results: dict  # {sheet_name: MessageMatrixProduct}

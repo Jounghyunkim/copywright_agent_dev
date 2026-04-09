@@ -5,24 +5,26 @@ import {
   ChevronLeft, ChevronRight, Info,
 } from 'lucide-react'
 import { useUIStore } from '@/shared/state/ui-store'
-
-const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: LayoutDashboard },
-  { to: '/new', label: 'New Campaign', icon: Plus },
-  { to: '/workflows', label: 'Campaigns', icon: List },
-  { to: '/about', label: 'About', icon: Info },
-]
-
-const GEAR_ITEMS = [
-  { label: 'Skill Authoring', icon: PenTool, path: '/settings?tab=skill-builder' },
-  { label: 'Skill Management', icon: ListChecks, path: '/settings?tab=skill-manager' },
-  { label: 'General Settings', icon: Settings, path: '/settings' },
-]
+import { useT } from '@/shared/i18n/useTranslation'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const sseConnected = useUIStore((s) => s.sseConnected)
+  const t = useT()
+
+  const NAV_ITEMS = [
+    { to: '/', label: t('nav.home'), icon: LayoutDashboard },
+    { to: '/new', label: t('nav.newCampaign'), icon: Plus },
+    { to: '/workflows', label: t('nav.campaigns'), icon: List },
+    { to: '/about', label: t('nav.about'), icon: Info },
+  ]
+
+  const GEAR_ITEMS = [
+    { label: t('nav.skillAuthoring'), icon: PenTool, path: '/settings?tab=skill-builder' },
+    { label: t('nav.skillManagement'), icon: ListChecks, path: '/settings?tab=skill-manager' },
+    { label: t('nav.generalSettings'), icon: Settings, path: '/settings' },
+  ]
   const [gearOpen, setGearOpen] = useState(false)
   const gearRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -82,9 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             const Icon = item.icon
             const active = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
             return (
-              <NavLink key={item.to} to={item.to} style={{
+              <NavLink key={item.to} to={item.to} onClick={() => { if (collapsed) toggleSidebar() }} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: collapsed ? '10px 16px' : '10px 16px',
+                padding: '10px 16px',
                 borderRadius: 'var(--radius-md)',
                 fontSize: '0.85rem', fontWeight: active ? 700 : 500,
                 color: active ? 'var(--color-primary)' : 'var(--color-text)',
@@ -115,11 +117,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               background: sseConnected ? 'var(--color-success)' : 'var(--color-error)',
               boxShadow: `0 0 6px ${sseConnected ? 'var(--color-success)' : 'var(--color-error)'}`,
             }} />
-            {!collapsed && (sseConnected ? 'Connected' : 'Disconnected')}
+            {!collapsed && (sseConnected ? t('nav.sseConnected') : t('nav.sseDisconnected'))}
           </div>
 
           <button
-            onClick={() => setGearOpen(!gearOpen)}
+            onClick={() => { if (collapsed) { toggleSidebar(); setGearOpen(true); } else { setGearOpen(!gearOpen); } }}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               width: '100%', padding: '10px 16px',
@@ -133,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               transition: 'transform 0.3s',
               transform: gearOpen ? 'rotate(90deg)' : 'none',
             }} />
-            {!collapsed && 'Settings'}
+            {!collapsed && t('nav.generalSettings')}
           </button>
 
           {gearOpen && (
@@ -197,7 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           flexShrink: 0,
         }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-            AI Copywriting Platform
+            {t('nav.appTitle')}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>

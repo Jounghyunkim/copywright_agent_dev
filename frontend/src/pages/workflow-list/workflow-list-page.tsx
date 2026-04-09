@@ -60,11 +60,19 @@ export function WorkflowListPage() {
             <Card key={c.id} hover onClick={() => navigate(`/workflows/${c.id}`)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c.title}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    {c.status === 'draft' && (
+                      <Badge variant="warning">Step {c.currentStep || 1}/5</Badge>
+                    )}
+                    {c.status === 'completed' && (
+                      <Badge variant="info">Completed</Badge>
+                    )}
                     {(c.countries || []).map((cc) => (
                       <Badge key={cc}>{COUNTRY_FLAGS[cc] || '\u{1F310}'} {cc}</Badge>
                     ))}
+                  </div>
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c.title}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
                     {c.summary || '\u2014'}

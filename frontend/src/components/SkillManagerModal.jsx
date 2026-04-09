@@ -109,7 +109,7 @@ const SkillManagerModal = ({ onClose }) => {
             </div>
           ) : (
             skills.map(skill => {
-              const isBuiltin = skill.type === 'builtin';
+              const isBuiltin = skill.type === 'skillmd';
               const catColor = categoryColor[skill.category] || COLORS.TEXT_SUB;
               return (
                 <div

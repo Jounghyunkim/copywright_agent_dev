@@ -4,7 +4,7 @@ import { COLORS } from '../styles/theme';
 
 const WorkflowStepper = ({ currentStep, reviewCompleted = false }) => {
   const steps = [
-    { id: 1, label: 'Briefing', desc: 'Campaign brief', icon: FileText },
+    { id: 1, label: 'Research', desc: 'Research input', icon: FileText },
     { id: 2, label: 'Analysis', desc: 'Market research', icon: Search },
     { id: 3, label: 'Strategic Message', desc: 'Message strategy', icon: MessageSquareText },
     { id: 4, label: 'Generation', desc: 'Copy creation', icon: Zap },

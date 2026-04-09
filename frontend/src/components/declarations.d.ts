@@ -23,7 +23,6 @@ declare module '@/components/CopyResults' {
 
 declare module '@/components/GenerationConfig' {
   const GenerationConfig: React.FC<any>
-  export const SKILLSETS: any[]
   export default GenerationConfig
 }
 
@@ -35,6 +34,21 @@ declare module '@/components/EditorViews' {
   export const CopyResultsView: React.FC<any>
   export const ReviewView: React.FC<any>
   export const ReviewResultsView: React.FC<any>
+}
+
+declare module '@/components/MessageMatrixUpload' {
+  const MessageMatrixUpload: React.FC<any>
+  export default MessageMatrixUpload
+}
+
+declare module '@/components/MessageMatrixEditor' {
+  const MessageMatrixEditor: React.FC<any>
+  export default MessageMatrixEditor
+}
+
+declare module '@/components/MessageMatrixPreviewModal' {
+  const MessageMatrixPreviewModal: React.FC<any>
+  export default MessageMatrixPreviewModal
 }
 
 declare module '@/styles/theme' {

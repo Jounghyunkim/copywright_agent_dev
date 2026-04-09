@@ -1,461 +1,201 @@
-# Backend Architecture Overview — Copywrite Agent v3.0
+# Backend Architecture Overview
 
-> 최종 업데이트: 2026-03-20
-
----
-
-## 1. 기술 스택
-
-| 항목 | 상세 |
-|---|---|
-| Framework | FastAPI (비동기 REST API) |
-| LLM Orchestration | LangGraph (StateGraph 기반 멀티노드 워크플로우) |
-| LLM | Azure OpenAI (Chat: GPT-4, Embedding: text-embedding-ada-002) |
-| Vector Store | FAISS (로컬 인덱스) |
-| Web Search | Tavily API (실시간 시장 정보 수집) |
-| Database | PostgreSQL 16.13 + SQLAlchemy 2.0 (async, asyncpg 드라이버) |
-| LangChain | langchain, langchain-openai, langchain-community |
-| 서버 | Uvicorn (기본 포트 5000) |
-| 가상환경 | 프로젝트 루트 `.venv/` (Python 3.14.3, uv 패키지 관리) |
+> Last updated: 2026-04-08
 
 ---
 
-## 2. 프로젝트 구조
+## 1. Tech Stack
+
+| Item | Detail |
+|------|--------|
+| Framework | FastAPI (async REST API + SSE streaming) |
+| LLM Orchestration | LangGraph (StateGraph-based multi-node workflow) |
+| LLM | Azure OpenAI (Chat: GPT-4o, Embedding: text-embedding-ada-002) |
+| Vector Store | FAISS (local index at `backend/data/faiss_index/`) |
+| Web Search | Tavily API |
+| Database | PostgreSQL 16 + SQLAlchemy 2.0 async (asyncpg driver) |
+| Skill System | 3-tier: Python builtin (6) + SKILL.md (57) + Custom (N) |
+| Server | Uvicorn (port 5000) |
+| Package Manager | uv (Python 3.14) |
+
+---
+
+## 2. Project Structure
 
 ```
 backend/
 ├── app/
-│   ├── main.py              # FastAPI 앱, 라우터, 미들웨어, Review/Skill 엔드포인트
-│   ├── graph.py             # LangGraph 워크플로우 (멀티노드 파이프라인)
-│   ├── schemas.py           # Pydantic 요청/응답 모델
-│   ├── database.py          # PostgreSQL + SQLAlchemy async 연결
-│   ├── models.py            # ORM 모델 (ReviewSession, ReviewResult, CustomSkill)
-│   └── skills/              # Skillset 검증/생성 시스템
-│       ├── __init__.py
-│       ├── runner.py        # 스킬 병렬 실행 + 빌트인/커스텀 라우팅
-│       ├── custom_runner.py # 커스텀 스킬 prompt_template 기반 실행
-│       ├── catalog.py       # 빌트인 메타데이터 + DB 커스텀 병합
-│       └── builtin/         # 빌트인 6개 스킬
-│           ├── __init__.py          # BUILTIN_REGISTRY
-│           ├── ai_washing.py        # AI 과장 표현 감지
-│           ├── brand_lexicon.py     # LG 브랜드 용어 검증
-│           ├── brief_normalizer.py  # 브리프-카피 일관성
-│           ├── channel_variant.py   # 채널별 카피 변형 생성
-│           ├── cultural_sensitivity.py # 문화적 민감성 검증
-│           └── tone_consistency.py  # 톤 일관성 검증
-├── scripts/
-│   └── ingest_data.py       # Knowledge Base → FAISS 인덱스 생성 스크립트
+│   ├── main.py              # FastAPI app — 28 endpoints
+│   ├── graph.py             # LangGraph 4-node DAG pipeline
+│   ├── schemas.py           # Pydantic request/response models
+│   ├── models.py            # SQLAlchemy ORM (4 models)
+│   ├── database.py          # DB engine + session + auto-migration
+│   └── skills/
+│       ├── catalog.py       # 3-tier skill catalog (builtin + skillmd + custom)
+│       ├── loader.py        # SKILL.md file discovery & loading
+│       ├── parser.py        # YAML frontmatter + Markdown body parser
+│       ├── routing_policy.py # Auto skill selection (must-have + conditional trigger)
+│       ├── deep_agent.py    # DeepAgent executor (skill-aware copy generation)
+│       ├── creative_personas.py # AI Writer persona system (10 personas)
+│       ├── runner.py        # Parallel skill execution orchestrator
+│       ├── skillmd_runner.py # SKILL.md-based review executor
+│       ├── custom_runner.py # Template-based custom skill executor
+│       ├── builtin/         # 6 Python-coded review functions
+│       └── custom/          # User-created custom skills (file-based)
+├── skills/                  # 57 SKILL.md files (evaluation, generation, persona, culture)
 ├── data/
-│   ├── knowledge_base.txt   # LG 광고 카피 샘플 데이터 (7건)
-│   ├── faiss_index/         # 벡터 인덱스 (index.faiss, index.pkl)
-│   └── market_analyst_report_guide.md  # 리포트 작성 가이드
-├── requirements.txt         # Python 의존성
-├── .env                     # 환경 변수 (git 제외)
-└── .env.template            # 환경 변수 템플릿
+│   ├── faiss_index/         # FAISS vector store
+│   ├── knowledge_base.txt   # Sample copy examples
+│   └── *.md                 # Prompt engineering guides
+├── tools/
+│   └── message_matrix_parsing.py  # Excel Message Matrix parser
+└── .env                     # Azure OpenAI + Tavily API keys
 ```
 
 ---
 
-## 3. 환경 변수 (.env)
+## 3. Database Models (4 tables)
 
-```bash
-# Azure OpenAI — Chat/Completion LLM
-AZURE_OPENAI_API_KEY=your_api_key
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_API_VERSION=2024-12-01-preview
-AZURE_OPENAI_DEPLOYMENT=your_chat_deployment_name
+### Campaign
+| Column | Type | Note |
+|--------|------|------|
+| id | UUID (PK) | auto-generated |
+| project_name | String(255) | NOT NULL |
+| brief | JSONB | NOT NULL |
+| analysis_report | JSONB | nullable (partial save) |
+| strategic_message | JSONB | nullable |
+| copy_results | JSONB (list) | nullable |
+| review_summary | JSONB | nullable |
+| review_results | JSONB (list) | nullable |
+| copy_candidates | JSONB | nullable (persona candidates) |
+| target_countries | JSONB (list) | derived on save |
+| brand_fit_score | SmallInt | 0-100 |
+| review_avg_score | SmallInt | 0-100 |
+| total_copies | Int | count |
+| current_step | SmallInt | 1-5, default 1 |
+| status | String(20) | "draft" or "completed" |
+| created_at | Timestamp(tz) | auto |
+| updated_at | Timestamp(tz) | auto on update |
 
-# Azure OpenAI — Embedding LLM
-EMBEDDING_DEPLOYMENT=your_embedding_deployment_name
-EMBEDDING_ENDPOINT=https://your-resource.openai.azure.com/
+### ReviewSession / ReviewResult
+- Session tracks a review execution (status: pending/running/completed/failed)
+- Result stores per-skill evaluation (skill_id, target_copy_key, passed, score, findings, suggestions)
 
-# Tavily — Web Search API
-TAVILY_API_KEY=tvly-your_tavily_api_key
-
-# PostgreSQL Database
-DATABASE_URL=postgresql+asyncpg://copywriting:agent@localhost:5432/copywriting_agent_db
-```
-
----
-
-## 4. API 엔드포인트 (main.py)
-
-### CORS 설정
-- 허용 Origin: `http://localhost`, `http://localhost:5173`, `http://localhost:5001`
-- 전체 메서드/헤더 허용, 자격증명 포함
-
-### 엔드포인트 목록
-
-| 메서드 | 경로 | 요청 모델 | 응답 모델 | 설명 |
-|---|---|---|---|---|
-| GET | `/` | — | JSON | 서버 상태 메시지 |
-| GET | `/health` | — | `{status: "healthy"}` | 헬스체크 (프론트엔드 15초 주기 폴링) |
-| POST | `/api/v1/campaigns/analyze` | `CampaignBrief` | SSE Stream | 브리프 → LangGraph 분석 파이프라인 실행 |
-| POST | `/api/v1/campaigns/strategic-message` | `StrategicMessageRequest` | `StrategicMessageResponse` | 분석 결과 → 전략 메시지 추출 |
-| POST | `/api/v1/campaigns/generate-copy` | `GenerateCopyRequest` | `GenerateCopyResponse` | 국가/페르소나별 카피 생성 |
-| POST | `/api/v1/campaigns/generate-brief` | `GenerateBriefRequest` | `GenerateBriefResponse` | 프로젝트명 → AI 브리프 초안 생성 |
-| POST | `/api/v1/campaigns/chat` | `ChatRequest` | `ChatResponse` | 대화형 Q&A (브리프 작성 도우미) |
-| **POST** | **`/api/v1/campaigns/review`** | `ReviewRequest` | SSE Stream | **Review 실행 — 스킬별 병렬 검증 + DB 저장** |
-| **GET** | **`/api/v1/campaigns/review/history`** | query: `project_name` | JSON | **프로젝트별 리뷰 이력 조회** |
-| **GET** | **`/api/v1/campaigns/review/{session_id}`** | path: UUID | JSON | **리뷰 세션 상세 결과 조회** |
-| **GET** | **`/api/v1/skills`** | — | JSON | **전체 스킬 목록 (빌트인 + 커스텀)** |
-| **POST** | **`/api/v1/skills`** | `CustomSkillCreate` | JSON | **커스텀 스킬 등록** |
-| **GET** | **`/api/v1/skills/{skill_id}`** | path: string | JSON | **스킬 상세 조회** |
-| **PUT** | **`/api/v1/skills/{skill_id}`** | `CustomSkillUpdate` | JSON | **커스텀 스킬 수정 (빌트인 불가)** |
-| **DELETE** | **`/api/v1/skills/{skill_id}`** | path: string | JSON | **커스텀 스킬 삭제 (빌트인 불가)** |
+### CustomSkill
+- File-based custom skills with prompt_template and output_schema
 
 ---
 
-## 5. Pydantic 스키마 (schemas.py)
-
-### CampaignBrief (분석 요청)
+## 4. LangGraph Pipeline (`graph.py`)
 
 ```
-projectName: str              # 프로젝트명
-date: str                     # 날짜
-projectContext: str            # 1. 프로젝트 배경
-objectiveCommercial: str       # 2. 비즈니스 목표
-objectiveBehavior: str         # 2. 행동 목표
-objectiveAttitudinal: str      # 2. 인식 목표
-audience: str                  # 3. 타겟 오디언스
-keyMessage: str                # 4. 핵심 메시지
-proofPoints: str               # 5. 근거
-mandatories: Optional[str]     # 6. 필수 요건 (선택)
-budget: Optional[str]          # 7. 예산 (선택)
-marketNeeds: str               # 8. 시장 정보
-timing: str                    # 9. 타이밍
+query_planner → [web_search ∥ enhanced_rag] → synthesizer → END
 ```
 
-### 기타 모델
+| Node | Input | Output | Integration |
+|------|-------|--------|-------------|
+| query_planner | brief + message_matrix | 4 search queries | Azure OpenAI |
+| web_search | search_queries | up to 12 web results | Tavily API (async) |
+| enhanced_rag | brief + queries | retrieved docs | FAISS + Azure Embeddings |
+| synthesizer | all above | AnalysisReport (10 fields) | Azure OpenAI (JSON output) |
 
-| 모델 | 용도 | 필드 |
-|---|---|---|
-| `AnalysisResponse` | 분석 결과 응답 | status, message, data(dict) |
-| `GenerateBriefRequest` | 초안 생성 요청 | projectName |
-| `GenerateBriefResponse` | 초안 생성 응답 | status, data(dict) |
-| `ChatMessage` | 채팅 메시지 단위 | role ('user'/'assistant'), content |
-| `ChatRequest` | 채팅 요청 | messages: List[ChatMessage] |
-| `ChatResponse` | 채팅 응답 | reply: str |
+**AnalysisReport fields**: briefSummary, persona, brandFit (score 0-100), marketAnalysis, competitiveKeywords, categoryNarrative, emotionalJTBD, culturalTension, copyImplications, recommendedKeywords
 
 ---
 
-## 6. LangGraph 워크플로우 (graph.py) — 핵심
+## 5. Skill System (3-Tier)
 
-### 6.1 아키텍처 다이어그램
+### Tier 1: Python Builtin (6)
+Hardcoded functions in `skills/builtin/`:
+`ai-washing-risk-check`, `brand-lexicon-check`, `campaign-brief-normalizer`, `channel-variant-generator`, `cultural-sensitivity-check`, `tone-consistency-guard`
 
-```
-                    ┌──────────────────┐
-                    │  query_planner   │  LLM: 검색 쿼리 4개 생성
-                    └────────┬─────────┘
-                             │
-                    ┌────────┴─────────┐
-                    ▼                  ▼
-           ┌──────────────┐   ┌───────────────┐
-           │  web_search   │   │ enhanced_rag  │  ← 병렬 실행
-           │  (Tavily API) │   │ (FAISS k=5)   │
-           └──────┬───────┘   └──────┬────────┘
-                  │                  │
-                  └────────┬─────────┘
-                           ▼
-                  ┌──────────────────┐
-                  │   synthesizer    │  LLM: 모든 정보 합성 → 리포트 JSON
-                  └────────┬─────────┘
-                           ▼
-                          END
-```
+### Tier 2: SKILL.md (57 files in `backend/skills/`)
+YAML frontmatter + Markdown body, loaded by `SkillLoader`:
 
-### 6.2 AgentState
+| Category | Count | Examples |
+|----------|-------|---------|
+| Evaluation | 18 | compliance-redflag-detector, lg-brand-fit-check, copy-scorecard-generator |
+| Generation | 4 | global-core-copy-generation, headline-body-cta-composer, tone-and-voice-enforcer |
+| Localization | 4 | language-transcreation, regional-copy-adaptation, localization-base |
+| AI Writer Personas | 11 | writer-metaphor-master, writer-viral-specialist, writer-storyteller |
+| Culture Profiles | 20 | culture-usa, culture-japan, culture-germany, culture-india ... |
 
-```python
-class AgentState(TypedDict):
-    brief: dict              # 입력: 캠페인 브리프 전체
-    search_queries: list     # query_planner 출력
-    web_results: list        # web_search 출력
-    rag_results: list        # enhanced_rag 출력
-    analysis_report: dict    # synthesizer 출력 (최종 결과)
-```
+### Tier 3: Custom (User-created)
+Template-based skills stored in DB with `{{variable}}` placeholders.
 
-### 6.3 NODE 1: query_planner
+### Routing Policy
+- **Must-have** (always ON): `brand-lexicon-check`, `compliance-redflag-detector`, `lg-brand-fit-check`
+- **Conditional triggers**: `ai-washing-risk-check` (AI keywords), `environmental-claim-risk-check` (eco keywords), `comparative-ad-risk-check` (comparison keywords)
+- **Generation skills**: auto-selects culture profile by market code (JP → culture-japan)
 
-| 항목 | 상세 |
-|---|---|
-| 입력 | `brief` |
-| 출력 | `search_queries` (문자열 배열 4개) |
-| LLM | AzureChatOpenAI (temperature=0) |
-| 역할 | Brief를 분석하여 4개의 영어 웹 검색 쿼리 생성 |
-
-**쿼리 포커스 영역**:
-1. 경쟁사 현황 및 포지셔닝
-2. 소비자 트렌드 및 행동 패턴
-3. 시장 규모, 성장률, 업계 트렌드
-4. 경쟁사 광고/메시징 트렌드
-
-**Fallback**: JSON 파싱 실패 시 Brief 필드에서 기본 쿼리 4개 자동 생성
-
-### 6.4 NODE 2a: web_search (병렬)
-
-| 항목 | 상세 |
-|---|---|
-| 입력 | `search_queries` |
-| 출력 | `web_results` (배열: {title, url, content}) |
-| 도구 | Tavily AsyncClient |
-| 설정 | 쿼리당 max 3결과, search_depth="basic" |
-
-- URL 기준 중복 제거
-- content는 500자로 제한
-- **Graceful fallback**: `TAVILY_API_KEY` 미설정 또는 검색 실패 시 빈 배열 반환
-
-### 6.5 NODE 2b: enhanced_rag (병렬)
-
-| 항목 | 상세 |
-|---|---|
-| 입력 | `brief`, `search_queries` |
-| 출력 | `rag_results` (문서 내용 문자열 배열) |
-| 벡터스토어 | FAISS (로컬 인덱스) |
-| 임베딩 | AzureOpenAIEmbeddings |
-
-**멀티쿼리 전략**:
-- Brief 기반 쿼리 2개 + search_queries에서 2개 = 총 4개 쿼리
-- 쿼리당 k=5 문서 검색
-- 문서 content hash 기반 중복 제거
-- **Graceful fallback**: FAISS 인덱스 미존재 또는 오류 시 빈 배열 반환
-
-### 6.6 NODE 3: synthesizer
-
-| 항목 | 상세 |
-|---|---|
-| 입력 | `brief`, `web_results`, `rag_results` |
-| 출력 | `analysis_report` (JSON) |
-| LLM | AzureChatOpenAI (temperature=0) |
-| 파서 | JsonOutputParser(pydantic_object=AnalysisReport) |
-
-**프롬프트 구조**:
-
-```
-시스템 역할 선언
-  → "카피라이팅 디렉터이자 마케팅 전략가"
-  → "Report는 '말이 작동하는 맥락'을 정의하는 문서"
-
-컨텍스트 섹션
-  1. Real-Time Market Intelligence (web_results 포맷팅)
-  2. Historical LG Campaign References (rag_results 포맷팅)
-  3. Campaign Brief 전체 필드
-
-출력 지시 (10개 필드 상세 가이드라인)
-```
+### DeepAgent Executor
+1. `_plan_skills()` — LLM selects relevant skills from catalog
+2. `_build_skill_context()` — Concatenates SKILL.md bodies (max 3500 chars each)
+3. `generate_copy()` — Injects skill context into LLM system prompt
+4. `generate_copy_with_personas()` — Parallel generation per AI Writer persona
 
 ---
 
-## 7. AnalysisReport 출력 스키마 (10개 필드)
+## 6. API Endpoints (28 total)
 
-`market_analyst_report_guide.md` 기반으로 설계된 카피라이팅 전용 리포트:
+### Campaign Workflow
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/campaigns/analyze` | LangGraph analysis (SSE streaming) |
+| POST | `/api/v1/campaigns/strategic-message` | Strategic message extraction |
+| POST | `/api/v1/campaigns/generate-copy` | DeepAgent copy generation |
+| POST | `/api/v1/campaigns/generate-copy-candidates` | Persona-based multi-candidate generation |
+| POST | `/api/v1/campaigns/generate-brief` | AI auto-generates brief fields |
+| POST | `/api/v1/campaigns/chat` | Step-aware Q&A assistant |
+| POST | `/api/v1/campaigns/review` | Skill-based review (SSE streaming) |
+| POST | `/api/v1/campaigns/correct` | LLM-based copy correction |
 
-### 기존 6개 항목 (심화)
+### Campaign CRUD
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/campaigns/save` | Create campaign (partial save at any step) |
+| PUT | `/api/v1/campaigns/{id}` | Update existing campaign |
+| GET | `/api/v1/campaigns/dashboard` | Stats + campaign list |
+| GET | `/api/v1/campaigns/{id}` | Full campaign detail |
+| DELETE | `/api/v1/campaigns/{id}` | Delete campaign |
+| GET | `/api/v1/campaigns/review/history` | Review session history |
+| GET | `/api/v1/campaigns/review/{session_id}` | Review session detail |
 
-| # | 필드 | 키 | 카피라이팅 관점 |
-|---|---|---|---|
-| 1 | **Brief Summary & AI Direction** | `briefSummary` | Brief 요약 ❌ → Copywriting Direction 변환 ✅ |
-| | | `.objective` | 3개 목표를 커뮤니케이션 미션으로 재프레이밍 |
-| | | `.coreChallenge` | 경쟁 환경 기반 최대 커뮤니케이션 장벽 |
-| | | `.aiDirection` | 카피라이터를 위한 크리에이티브 방향 선언 |
-| | | `.toneRole` | 카피의 톤과 역할 선언 |
-| 2 | **Deep-dive Persona** | `persona` | 인구통계 ❌ → 심리적 초상화 ✅ |
-| | | `.avatar` | DiceBear URL 자동 생성 |
-| | | `.name` | 아키타입 이름 ("The Experience Seeker") |
-| | | `.belief` | 카테고리에 대한 현재 믿음 |
-| | | `.frustration` | 숨겨진 불만 |
-| | | `.purchaseTrigger` | 구매 행동을 촉발하는 순간 |
-| | | `.emotionalTriggerWords` | 감정적으로 반응하는 단어 4-6개 |
-| 3 | **Brand Fit Score** | `brandFit` | 점수에 따라 선언형 vs 설명형 카피 결정 |
-| | | `.score` | 0-100 (높으면 선언형, 낮으면 설명형) |
-| | | `.functionalFit` | 기술/제품 적합성 |
-| | | `.emotionalFit` | "Life's Good" 감정 자산 정합 |
-| | | `.culturalFit` | 시대적 흐름 연결 |
-| 4 | **Market Opportunity & Risk** | `marketAnalysis` | "이 메시지가 먹힐 공간" + "실패할 공간" |
-| | | `.opportunityGap` | 경쟁사가 미점유한 메시징 각도 |
-| | | `.riskKeyword` | 피해야 할 표현/프레이밍 |
-| | | `.untappedKeywords` | 감각/감정/경험 키워드 5-8개 (스펙 ❌) |
-| 5 | **Competitive Keywords** | `competitiveKeywords[]` | "의미가 소진된 언어" (쓰면 안 되는 단어) |
-| | | `.word` | 경쟁사가 점유한 키워드 |
-| | | `.count` | 포화도 0-100 |
+### Skills
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/skills` | All skills (builtin + skillmd + custom) |
+| GET | `/api/v1/skills/catalog` | Skills by category |
+| POST | `/api/v1/skills` | Create custom skill |
+| GET/PUT/DELETE | `/api/v1/skills/{id}` | Skill CRUD |
+| POST | `/api/v1/skills/generate-draft` | AI generates skill template |
 
-### 신규 4개 항목 (가이드 기반)
+### Personas & Culture
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/v1/personas` | AI Writer persona list (10) |
+| GET | `/api/v1/culture-profiles` | Culture profile list (20 countries) |
 
-| # | 필드 | 키 | 설명 |
-|---|---|---|---|
-| 6 | **Category Narrative Shift** | `categoryNarrative` | 시장의 기존 언어 → 우리의 새로운 언어 |
-| | | `.oldNarrative` | "Better TV = Brighter, Bigger, More Numbers" |
-| | | `.newNarrative` | "Better TV = Deeper feelings, quieter moments" |
-| 7 | **Emotional JTBD** | `emotionalJTBD` | 소비자가 감정적으로 해결하고 싶은 일 — 카피의 뿌리 문장 |
-| 8 | **Cultural Tension Map** | `culturalTension.tensions[]` | 시대적 감정 긴장 2-4개 (예: "시끄러운 세상 vs 고요한 깊이에 대한 갈망") |
-| 9 | **Copy Implications & Guardrails** | `copyImplications` | 카피라이터를 위한 실행 가드레일 |
-| | | `.doList[]` | 3-5개 "이렇게 써라" (예: "천천히, 시각적으로, 감정적으로 써라") |
-| | | `.dontList[]` | 3-5개 "이건 하지 마라" (예: "스펙 시트처럼 OLED를 설명하지 마라") |
-| 10 | **Recommended Keywords** | `recommendedKeywords[]` | untapped + new narrative + JTBD 기반 추천 키워드 5-8개 |
+### Message Matrix
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/message-matrix/sheets` | Parse Excel sheet names |
+| POST | `/api/v1/message-matrix/parse` | Parse matrix from Excel |
+| GET | `/api/v1/message-matrix/sample` | Sample matrix data |
 
----
-
-## 8. 브리프 초안 생성 (/generate-brief)
-
-- **입력**: `projectName` (문자열)
-- **LLM**: AzureChatOpenAI (temperature=0.7)
-- **시스템 프롬프트**: LG 시니어 마케팅 전략가 역할, brief_guide.txt 기반 항목별 지시
-- **출력**: 11개 필드 JSON (projectContext ~ timing, 모두 한국어)
-- **프론트엔드 연동**: 응답 JSON으로 formData 업데이트 (projectName, date는 유지)
+### Health
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/` | Root status |
+| GET | `/health` | Health check |
 
 ---
 
-## 9. 채팅 Q&A (/chat)
+## 7. Key Architectural Patterns
 
-- **시스템 프롬프트**: LG 마케팅 카피라이팅 전문가 역할
-- **대화 이력**: 프론트엔드가 전체 messages 배열 전송 → LangChain HumanMessage/AIMessage 변환
-- **용도**: 브리프 작성 도우미 + 가이드 설명 보충
-
----
-
-## 10. 데이터 파이프라인 (ingest_data.py)
-
-```
-knowledge_base.txt
-    ↓  RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
-    ↓  AzureOpenAIEmbeddings
-    ↓  FAISS.from_documents()
-    ↓  save_local("../data/faiss_index")
-faiss_index/
-    ├── index.faiss
-    └── index.pkl
-```
-
-**실행**: `python scripts/ingest_data.py --index-path ../data/faiss_index`
-
-### Knowledge Base 현황 (7건)
-
-| 제품 | 국가 | 톤 |
-|---|---|---|
-| LG OLED TV | USA | Emotional |
-| LG Gram Laptop | Germany | Rational |
-| LG InstaView Refrigerator | USA | Human |
-| LG CordZero Vacuum | Korea | Technical |
-| LG PuriCare AeroTower | India | Emotional |
-| LG Objet Collection | Global | Aspirational |
-| LG Soundbar | USA | Technical |
-
----
-
-## 11. 의존성 (requirements.txt)
-
-```
-fastapi              # REST API 프레임워크
-uvicorn              # ASGI 서버
-pydantic             # 데이터 검증/스키마
-python-dotenv        # .env 파일 로드
-langgraph            # 멀티노드 에이전트 오케스트레이션
-langchain            # LLM 체인/프롬프트
-langchain-openai     # Azure OpenAI 통합
-langchain-community  # FAISS 벡터스토어 통합
-openai               # OpenAI 클라이언트
-faiss-cpu            # 벡터 유사도 검색
-tiktoken             # 토크나이저
-langchain-text-splitters  # 텍스트 청킹
-tavily-python        # 웹 검색 API
-sqlalchemy[asyncio]  # ORM + 비동기 지원 (v3.0 추가)
-asyncpg              # PostgreSQL 비동기 드라이버 (v3.0 추가)
-```
-
----
-
-## 12. 데이터베이스 (v3.0 추가)
-
-### 접속 정보
-
-| 항목 | 값 |
-|------|-----|
-| DBMS | PostgreSQL 16.13 |
-| Host | localhost:5432 |
-| Database | copywriting_agent_db |
-| User/PW | copywriting / agent |
-| Driver | asyncpg (SQLAlchemy 2.0 async) |
-| Pool | pool_size=10, max_overflow=20 |
-| 확장 | uuid-ossp |
-
-### 테이블 (3개)
-
-| 테이블 | PK | 주요 컬럼 | 인덱스 |
-|--------|-----|----------|--------|
-| `review_sessions` | UUID | project_name, status(CHECK), *_snapshot(JSONB) | project_name, status |
-| `review_results` | UUID | session_id(FK CASCADE), skill_id, passed, score(CHECK 0-100), findings/suggestions(JSONB) | session_id |
-| `custom_skills` | VARCHAR | label, category(CHECK), prompt_template(NOT NULL), reference_docs(JSONB) | — |
-
-### 초기화
-
-앱 시작 시 `lifespan` 핸들러 → `Base.metadata.create_all()` 자동 테이블 생성
-
----
-
-## 13. Skillset Review System (v3.0 추가)
-
-### 빌트인 6개 스킬
-
-| Skill ID | 카테고리 | 설명 |
-|---|---|---|
-| `ai-washing-risk-check` | validation | AI 과장/오해 소지 표현 감지 |
-| `brand-lexicon-check` | validation | LG 브랜드 용어 가이드라인 준수 |
-| `campaign-brief-normalizer` | validation | 브리프-카피 일관성 검증 |
-| `channel-variant-generator` | generation | 채널별(SNS/배너/영상/이메일) 카피 변형 |
-| `cultural-sensitivity-check` | validation | 문화적 민감성 및 현지화 적합성 |
-| `tone-consistency-guard` | validation | 톤 앤 매너 일관성 유지 |
-
-### 실행 아키텍처
-
-```
-enabledSkills × selectedCopies → asyncio.gather()
-    ├─ builtin: BUILTIN_REGISTRY[skill_id](copy_text, context)
-    └─ custom:  DB prompt_template → custom_runner.run_custom_skill()
-         ↓
-    통일된 결과: { passed, score, findings[], suggestions[] }
-         ↓
-    DB INSERT (review_results) + SSE 전송
-```
-
-### Review SSE 이벤트 시퀀스
-
-```
-→ review_started   { sessionId, skills }
-→ skill_completed  { skillId, passed, score, findings, suggestions }  × N
-→ review_done      { sessionId, summary: { total, passed, failed, avgScore } }
-→ [DONE]
-```
-
----
-
-## 14. 에러 처리 및 Graceful Degradation
-
-| 상황 | 처리 |
-|---|---|
-| FAISS 인덱스 미존재 | 503 에러 + "Please run the data ingestion script" 메시지 |
-| TAVILY_API_KEY 미설정 | 경고 로그 후 web_results 빈 배열로 진행 |
-| 웹 검색 API 실패 | 개별 쿼리 실패 skip, 나머지 결과로 진행 |
-| RAG 검색 실패 | 경고 로그 후 rag_results 빈 배열로 진행 |
-| LLM 호출 실패 (분석) | 500 에러 + 상세 에러 메시지 반환 |
-| LLM 호출 실패 (채팅) | 500 에러 + 에러 detail 반환 |
-| JSON 파싱 실패 (query_planner) | Brief 필드 기반 기본 쿼리 4개로 fallback |
-
-**핵심 원칙**: Web Search와 RAG 모두 실패해도 LLM의 내재 지식으로 리포트 생성 가능. 모든 외부 데이터 소스는 보강(augmentation) 역할.
-
----
-
-## 13. 실행 방법
-
-```bash
-# 1. 가상환경 활성화
-source .venv/bin/activate
-
-# 2. 의존성 설치 (최초 1회)
-uv pip install -r backend/requirements.txt
-
-# 3. FAISS 인덱스 생성 (최초 1회)
-cd backend/scripts && python ingest_data.py
-
-# 4. 백엔드 서버 실행
-cd backend && uvicorn app.main:app --reload --port 5000
-```
+- **SSE Streaming**: Analysis and Review endpoints stream progress events in real-time
+- **Parallel Execution**: LangGraph DAG (web_search ∥ rag), asyncio.gather for skill × copy review
+- **Partial Save**: Campaign can be saved at any step (1-5) with nullable fields
+- **Auto-migration**: `init_db()` adds missing columns to existing tables via ALTER TABLE
+- **Skill Context Injection**: SKILL.md body loaded and injected into LLM system prompt
+- **Persona Divergence**: Multiple AI Writer personas generate competing copy candidates

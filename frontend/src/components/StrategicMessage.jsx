@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquareText, Target, Lightbulb, Quote, Loader, SmilePlus, Pencil, Check, X } from 'lucide-react';
 import { COLORS } from '../styles/theme';
+import { useT } from '../shared/i18n/useTranslation';
 
 const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onApprove, onUpdate, readOnly = false }) => {
+    const t = useT();
     const [editingCard, setEditingCard] = useState(null);
     const [editData, setEditData] = useState({});
     const [localData, setLocalData] = useState(null);
@@ -139,10 +141,10 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
             <h4 style={styles.cardTitle}>{icon} {title}</h4>
             {!readOnly && (editingCard === cardId ? (
                 <div style={styles.editActions}>
-                    <button style={styles.cancelBtn} onClick={cancelEdit} title="취소">
+                    <button style={styles.cancelBtn} onClick={cancelEdit} title={t('common.cancel')}>
                         <X size={14} />
                     </button>
-                    <button style={styles.saveBtn} onClick={() => saveEdit(cardId)} title="저장">
+                    <button style={styles.saveBtn} onClick={() => saveEdit(cardId)} title={t('common.save')}>
                         <Check size={14} />
                     </button>
                 </div>
@@ -150,7 +152,7 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
                 <button
                     style={styles.editBtn}
                     onClick={() => startEdit(cardId, editValue)}
-                    title="수정"
+                    title={t('common.edit')}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.LG_RED; e.currentTarget.style.color = COLORS.LG_RED; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.BORDER; e.currentTarget.style.color = COLORS.TEXT_SUB; }}
                 >
@@ -169,7 +171,7 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
                 <div style={styles.loadingContainer}>
                     <Loader size={28} style={{ animation: 'spin 1s linear infinite', color: COLORS.LG_RED }} />
                     <p style={{ ...styles.bodyText, textAlign: 'center' }}>
-                        Market Analyst Report를 기반으로 전략 메시지를 추출하고 있습니다...
+                        {t('strategic.loading')}
                     </p>
                 </div>
             </div>
@@ -336,7 +338,7 @@ const StrategicMessage = ({ strategicData, isLoading, isApproved, onModify, onAp
                                         <button
                                             style={{ ...styles.cancelBtn, width: '26px', height: '26px', flexShrink: 0 }}
                                             onClick={() => setEditData(editData.filter((_, j) => j !== i))}
-                                            title="삭제"
+                                            title={t('common.delete')}
                                         >
                                             <X size={12} />
                                         </button>

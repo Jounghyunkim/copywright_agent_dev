@@ -1,42 +1,41 @@
 import React, { useState } from 'react';
-import { Bot, Zap, Cpu, ArrowRight, Loader, Globe, CheckCircle, XCircle, AlertTriangle, Lock, Pencil, Trash2, Save, LogOut, FileText as FileTextIcon, Search as SearchIcon, MessageSquareText as MsgIcon, ClipboardCheck } from 'lucide-react';
+import { Bot, Zap, Cpu, ArrowRight, Loader, Globe, CheckCircle, XCircle, AlertTriangle, Lock, Pencil, Trash2, Save, LogOut, FileText as FileTextIcon, Search as SearchIcon, MessageSquareText as MsgIcon, ClipboardCheck, ChevronDown, ChevronRight } from 'lucide-react';
 import { COLORS } from '../styles/theme';
 import AnalysisReport from './AnalysisReport';
 import StrategicMessage from './StrategicMessage';
-import GenerationConfig, { SKILLSETS } from './GenerationConfig';
+import GenerationConfig from './GenerationConfig';
 import CopyResults from './CopyResults';
+import { useT } from '../shared/i18n/useTranslation';
 
-const WORKFLOW_STEPS = [
-  {
-    num: 1, label: 'Briefing', icon: FileTextIcon, color: COLORS.LG_RED, active: true,
-    title: '캠페인 브리프 작성',
-    desc: '좌측 패널에서 프로젝트명, 컨텍스트, 목표, 타겟 오디언스 등 캠페인의 핵심 정보를 입력합니다. "AI 자동생성" 버튼을 활용하면 프로젝트명과 컨텍스트만으로 나머지 항목을 자동 완성할 수 있습니다.',
-  },
-  {
-    num: 2, label: 'Analysis', icon: SearchIcon, color: '#2563EB',
-    title: 'Market Analyst Report',
-    desc: 'Multi-Agent가 웹 검색과 RAG를 병렬 수행하여 타겟 시장, 경쟁 키워드, 페르소나, 문화적 인사이트 등 10개 항목의 분석 리포트를 생성합니다.',
-  },
-  {
-    num: 3, label: 'Strategic Message', icon: MsgIcon, color: '#7C3AED',
-    title: '핵심 메시지 도출',
-    desc: '분석 리포트를 기반으로 Core Message, Message Pillars, Emotional Hook, Tone Direction 등 카피 생성의 전략적 방향을 자동 추출합니다.',
-  },
-  {
-    num: 4, label: 'Generation', icon: Zap, color: '#D97706',
-    title: '글로벌 카피 생성',
-    desc: '타겟 국가, 연령대, 페르소나를 설정하면 각 시장에 맞는 현지화된 카피를 자동 생성합니다. 국가별 문화 적합성과 톤이 자동으로 조정됩니다.',
-  },
-  {
-    num: 5, label: 'Review', icon: ClipboardCheck, color: '#059669',
-    title: 'Skillset 품질 검증',
-    desc: '생성된 카피를 AI Washing, 브랜드 용어, 문화 감수성 등 다양한 스킬셋으로 자동 검증합니다. 점수와 개선 제안을 확인한 뒤 최종 저장합니다.',
-  },
-];
+// 아바타 키워드 → 이모지 매핑
+const AVATAR_EMOJI = {
+    'exclamation': '🔥', 'glasses': '🔬', 'wink': '😄', 'beret': '🎨',
+    'pen': '✒️', 'crown': '👑', 'star': '⭐', 'book': '📖',
+    'clock': '⏰', 'lightning': '⚡',
+};
+const resolveAvatar = (a) => {
+    if (!a) return '✍️';
+    if (/\p{Emoji}/u.test(a) && a.length <= 4) return a;
+    return AVATAR_EMOJI[a.toLowerCase()] || '✍️';
+};
 
-const InitialView = () => (
+function useWorkflowSteps() {
+  const t = useT();
+  return [
+    { num: 1, label: t('step.research'), icon: FileTextIcon, color: COLORS.LG_RED, active: true, title: t('wf.step1.title'), desc: t('wf.step1.desc') },
+    { num: 2, label: t('step.analysis'), icon: SearchIcon, color: '#2563EB', title: 'Market Analyst Report', desc: t('wf.step2.desc') },
+    { num: 3, label: t('step.strategicMessage'), icon: MsgIcon, color: '#7C3AED', title: t('wf.step3.title'), desc: t('wf.step3.desc') },
+    { num: 4, label: t('step.generation'), icon: Zap, color: '#D97706', title: t('wf.step4.title'), desc: t('wf.step4.desc') },
+    { num: 5, label: t('step.review'), icon: ClipboardCheck, color: '#059669', title: t('wf.step5.title'), desc: t('wf.step5.desc') },
+  ];
+}
+
+const InitialView = () => {
+  const t = useT();
+  const WORKFLOW_STEPS = useWorkflowSteps();
+  return (
   <>
-    {/* 인사 메시지 */}
+    {/* Greeting */}
     <div style={{ display: 'flex', gap: '16px', maxWidth: '85%' }}>
       <div style={{
         width: '40px', height: '40px', borderRadius: '14px', backgroundColor: COLORS.LG_RED,
@@ -52,11 +51,10 @@ const InitialView = () => (
           lineHeight: 1.7, fontSize: '1rem',
         }}>
           <p style={{ margin: 0, fontWeight: 600, fontSize: '1.05rem' }}>
-            안녕하세요! 저는 AI Copywriting Agent 입니다. 반가워요~
+            {t('chat.greeting')}
           </p>
           <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-            AI Copywriting Agent와 함께 글로벌 캠페인 카피를 만들어 보세요.
-            아래 워크플로우를 따라 5단계로 진행됩니다.
+            {t('chat.greetingDesc')}
           </p>
         </div>
       </div>
@@ -75,7 +73,7 @@ const InitialView = () => (
         <Zap size={18} color={COLORS.LG_RED} /> Workflow Guide
       </h4>
       <p style={{ margin: '0 0 16px', fontSize: '0.78rem', color: COLORS.TEXT_SUB }}>
-        각 단계는 이전 단계의 승인 후 자동으로 진행됩니다. 언제든 수정하거나 되돌릴 수 있습니다.
+        {t('chat.workflowGuide')}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -123,13 +121,14 @@ const InitialView = () => (
                     {s.label}
                   </span>
                 </div>
-                <p style={{
+                <div style={{
                   margin: '2px 0 0', fontSize: '0.8rem', lineHeight: 1.6,
                   color: isFirst ? COLORS.TEXT_MAIN : COLORS.TEXT_SUB,
+                  whiteSpace: 'pre-line',
                 }}>
                   <strong style={{ color: isFirst ? s.color : COLORS.TEXT_MAIN }}>{s.title}</strong>
                   {' — '}{s.desc}
-                </p>
+                </div>
               </div>
             </div>
           );
@@ -153,16 +152,16 @@ const InitialView = () => (
       </div>
       <div>
         <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: COLORS.LG_RED }}>
-          좌측 패널에서 캠페인 브리프를 작성해 주세요
+          {t('chat.startInstruction')}
         </p>
         <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: COLORS.TEXT_SUB }}>
-          프로젝트명과 Project Context를 입력한 뒤 "AI 자동생성"을 누르면 나머지 항목이 자동으로 채워집니다.
-          모든 항목을 확인한 후 "분석 시작" 버튼을 클릭하세요.
+          {t('chat.startDetail')}
         </p>
       </div>
     </div>
   </>
-);
+  );
+};
 
 const ResultView = ({ onApprove, onModify, isApproved, analysisResult }) => (
     <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
@@ -195,7 +194,9 @@ const ResultView = ({ onApprove, onModify, isApproved, analysisResult }) => (
     </div>
 );
 
-const StrategicMessageView = ({ strategicData, isStrategicLoading, isStrategicApproved, onModifyStrategic, onApproveStrategic, onUpdateStrategic }) => (
+const StrategicMessageView = ({ strategicData, isStrategicLoading, isStrategicApproved, onModifyStrategic, onApproveStrategic, onUpdateStrategic }) => {
+    const t = useT();
+    return (
     <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
       <div style={{
         width: '40px', height: '40px', borderRadius: '14px', backgroundColor: COLORS.LG_RED,
@@ -210,10 +211,9 @@ const StrategicMessageView = ({ strategicData, isStrategicLoading, isStrategicAp
           backgroundColor: COLORS.WHITE, boxShadow: `0 4px 15px ${'rgba(0, 0, 0, 0.08)'}`,
           lineHeight: 1.6, fontSize: '1rem'
         }}>
-          <p style={{ margin: 0, fontWeight: 500 }}>분석 결과가 승인되었습니다! ✅</p>
+          <p style={{ margin: 0, fontWeight: 500 }}>{t('chat.analysisApproved')}</p>
           <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-            Market Analyst Report를 기반으로 <strong>Strategic Message</strong>를 추출했습니다.
-            아래 결과를 확인해주세요.
+            {t('chat.analysisApprovedDesc')}
           </p>
         </div>
         <StrategicMessage
@@ -226,9 +226,12 @@ const StrategicMessageView = ({ strategicData, isStrategicLoading, isStrategicAp
         />
       </div>
     </div>
-);
+    );
+};
 
-const GenerationConfigView = ({ onSubmitGeneration, isGenerating }) => (
+const GenerationConfigView = ({ onSubmitGeneration, isGenerating, aiPersonas = null }) => {
+    const t = useT();
+    return (
     <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
       <div style={{
         width: '40px', height: '40px', borderRadius: '14px', backgroundColor: COLORS.LG_RED,
@@ -243,40 +246,119 @@ const GenerationConfigView = ({ onSubmitGeneration, isGenerating }) => (
           backgroundColor: COLORS.WHITE, boxShadow: `0 4px 15px ${'rgba(0, 0, 0, 0.08)'}`,
           lineHeight: 1.6, fontSize: '1rem'
         }}>
-          <p style={{ margin: 0, fontWeight: 500 }}>Strategic Message가 확정되었습니다! ✅</p>
+          <p style={{ margin: 0, fontWeight: 500 }}>{t('chat.strategicApproved')}</p>
           <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-            맞춤형 카피 생성을 위해 <strong>타겟 국가, 연령대, 페르소나, 스킬셋</strong>을 설정해주세요.
+            {t('chat.strategicApprovedDesc')}
           </p>
         </div>
-        <GenerationConfig onSubmit={onSubmitGeneration} isGenerating={isGenerating} />
+        <GenerationConfig onSubmit={onSubmitGeneration} isGenerating={isGenerating} aiPersonas={aiPersonas} />
       </div>
     </div>
-);
+    );
+};
 
-const CopyResultsView = ({ copyResults, isGenerating, onUpdateCopyResults, onReview }) => (
-    <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
-      <div style={{
-        width: '40px', height: '40px', borderRadius: '14px', backgroundColor: '#D97706',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.WHITE,
-        boxShadow: '0 4px 10px rgba(217, 119, 6, 0.2)', flexShrink: 0
-      }}>
-        <Bot size={22} />
-      </div>
-      <div style={{flex: 1}}>
-        <div style={{
-          padding: '1.2rem 1.5rem', borderRadius: '20px', borderTopLeftRadius: '4px',
-          backgroundColor: COLORS.WHITE, boxShadow: `0 4px 15px ${'rgba(0, 0, 0, 0.08)'}`,
-          lineHeight: 1.6, fontSize: '1rem'
-        }}>
-          <p style={{ margin: 0, fontWeight: 500 }}>카피 생성이 완료되었습니다! ✅</p>
-          <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-            아래에서 생성된 카피를 확인하고, <strong>Review</strong> 버튼을 눌러 품질 검증을 진행해주세요.
-          </p>
+const CopyResultsView = ({ copyResults, isGenerating, onUpdateCopyResults, onReview, copyCandidates = null, selectedCandidateIdx = 0, onSelectCandidate = null }) => {
+    const t = useT();
+    const candidates = copyCandidates?.candidates || [];
+    const hasCandidates = candidates.length > 1;
+    const [skillReviewOpen, setSkillReviewOpen] = useState(false);
+
+    return (
+        <div style={{ display: 'flex', gap: '16px', maxWidth: '100%' }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '14px', backgroundColor: '#D97706',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.WHITE,
+            boxShadow: '0 4px 10px rgba(217, 119, 6, 0.2)', flexShrink: 0
+          }}>
+            <Bot size={22} />
+          </div>
+          <div style={{flex: 1}}>
+            <div style={{
+              padding: '1.2rem 1.5rem', borderRadius: '20px', borderTopLeftRadius: '4px',
+              backgroundColor: COLORS.WHITE, boxShadow: `0 4px 15px ${'rgba(0, 0, 0, 0.08)'}`,
+              lineHeight: 1.6, fontSize: '1rem'
+            }}>
+              <p style={{ margin: 0, fontWeight: 500 }}>{t('copy.completed')} ✅</p>
+              {hasCandidates ? (
+                <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
+                  {t('copy.candidatesMsg', { n: candidates.length })}
+                </p>
+              ) : (
+                <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
+                  {t('copy.standardMsg')}
+                </p>
+              )}
+            </div>
+
+            {/* Persona candidate tabs */}
+            {hasCandidates && (
+              <div style={{
+                display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap',
+              }}>
+                {candidates.map((c, idx) => (
+                  <button
+                    key={c.persona_id}
+                    onClick={() => onSelectCandidate?.(idx)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '8px 16px', borderRadius: '12px',
+                      border: `1.5px solid ${idx === selectedCandidateIdx ? '#7C3AED' : COLORS.BORDER}`,
+                      backgroundColor: idx === selectedCandidateIdx ? '#F5F3FF' : COLORS.WHITE,
+                      color: idx === selectedCandidateIdx ? '#7C3AED' : COLORS.TEXT_MAIN,
+                      fontWeight: idx === selectedCandidateIdx ? 700 : 500,
+                      fontSize: '0.85rem', cursor: 'pointer',
+                      fontFamily: 'inherit', transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{resolveAvatar(c.persona_avatar)}</span>
+                    <span>{c.persona_name || c.persona_id}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Skill reviews for current candidate — collapsed by default */}
+            {hasCandidates && candidates[selectedCandidateIdx]?.skill_reviews && Object.keys(candidates[selectedCandidateIdx]?.skill_reviews || {}).length > 0 && (
+              <div style={{
+                marginTop: '10px', borderRadius: '12px',
+                backgroundColor: '#FAFAFA', border: `1px solid ${COLORS.BORDER}`,
+                overflow: 'hidden',
+              }}>
+                <div
+                  onClick={() => setSkillReviewOpen(p => !p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '10px 16px', cursor: 'pointer', userSelect: 'none',
+                  }}
+                >
+                  {skillReviewOpen
+                    ? <ChevronDown size={14} color={COLORS.TEXT_SUB} />
+                    : <ChevronRight size={14} color={COLORS.TEXT_SUB} />}
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: COLORS.TEXT_SUB, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {t('copy.skillReviews')}
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: COLORS.TEXT_SUB, marginLeft: 'auto' }}>
+                    {Object.keys(candidates[selectedCandidateIdx]?.skill_reviews || {}).length} skills
+                  </span>
+                </div>
+                {skillReviewOpen && (
+                  <div style={{ padding: '0 16px 12px' }}>
+                    {Object.entries(candidates[selectedCandidateIdx]?.skill_reviews || {}).map(([skill, review]) => (
+                      <div key={skill} style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontSize: '0.8rem' }}>
+                        <span style={{ fontWeight: 600, color: COLORS.TEXT_MAIN, minWidth: '180px' }}>{skill}</span>
+                        <span style={{ color: COLORS.TEXT_SUB }}>{review}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <CopyResults results={copyResults} isGenerating={isGenerating} onUpdate={onUpdateCopyResults} onReview={onReview} />
+          </div>
         </div>
-        <CopyResults results={copyResults} isGenerating={isGenerating} onUpdate={onUpdateCopyResults} onReview={onReview} />
-      </div>
-    </div>
-);
+    );
+};
 
 
 const COUNTRY_META = {
@@ -286,11 +368,17 @@ const COUNTRY_META = {
     IN: { label: 'India', flag: '🇮🇳' }, BR: { label: 'Brazil', flag: '🇧🇷' },
     KR: { label: 'Korea', flag: '🇰🇷' }, AU: { label: 'Australia', flag: '🇦🇺' },
     ID: { label: 'Indonesia', flag: '🇮🇩' }, SA: { label: 'Saudi Arabia', flag: '🇸🇦' },
+    JP: { label: 'Japan', flag: '🇯🇵' }, CN: { label: 'China', flag: '🇨🇳' },
+    NL: { label: 'Netherlands', flag: '🇳🇱' }, PL: { label: 'Poland', flag: '🇵🇱' },
+    SE: { label: 'Sweden', flag: '🇸🇪' }, TH: { label: 'Thailand', flag: '🇹🇭' },
+    CA: { label: 'Canada', flag: '🇨🇦' }, MX: { label: 'Mexico', flag: '🇲🇽' },
+    AR: { label: 'Argentina', flag: '🇦🇷' }, AE: { label: 'UAE', flag: '🇦🇪' },
+    ZA: { label: 'South Africa', flag: '🇿🇦' },
 };
 
 /* ─── Review Results: 국가별 → 카피별 → 스킬별 (접기/펼치기) ─── */
 
-const ReviewBadgeList = ({ icon, label, color, bg, border, items }) => {
+const ReviewBadgeList = ({ icon, label, color, bg, border, items, selectable = false, selectedItems, onToggle }) => {
     if (!items || items.length === 0) return null;
     return (
         <div style={{ marginBottom: '10px' }}>
@@ -303,12 +391,32 @@ const ReviewBadgeList = ({ icon, label, color, bg, border, items }) => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {items.map((text, i) => (
-                    <div key={i} style={{
-                        padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem',
-                        lineHeight: 1.6, color: COLORS.TEXT_MAIN,
-                        backgroundColor: bg, borderLeft: `3px solid ${border}`,
-                    }}>
-                        {text}
+                    <div
+                        key={i}
+                        onClick={selectable ? () => onToggle?.(i) : undefined}
+                        style={{
+                            padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem',
+                            lineHeight: 1.6, color: COLORS.TEXT_MAIN,
+                            backgroundColor: selectable && selectedItems?.has(i) ? '#DBEAFE' : bg,
+                            borderLeft: `3px solid ${selectable && selectedItems?.has(i) ? '#2563EB' : border}`,
+                            cursor: selectable ? 'pointer' : 'default',
+                            display: 'flex', alignItems: 'flex-start', gap: '8px',
+                            transition: 'all 0.15s ease',
+                        }}
+                    >
+                        {selectable && (
+                            <span style={{
+                                width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, marginTop: '2px',
+                                border: selectedItems?.has(i) ? '2px solid #2563EB' : `2px solid ${COLORS.BORDER}`,
+                                backgroundColor: selectedItems?.has(i) ? '#2563EB' : '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '10px', fontWeight: 800, color: '#fff',
+                                transition: 'all 0.15s ease',
+                            }}>
+                                {selectedItems?.has(i) ? '✓' : ''}
+                            </span>
+                        )}
+                        <span style={{ flex: 1 }}>{text}</span>
                     </div>
                 ))}
             </div>
@@ -316,7 +424,8 @@ const ReviewBadgeList = ({ icon, label, color, bg, border, items }) => {
     );
 };
 
-const SkillDetailRow = ({ skillId, score, passed, strengths = [], weaknesses = [], improvements = [] }) => {
+const SkillDetailRow = ({ skillId, score, passed, strengths = [], weaknesses = [], improvements = [], selectedImprovements, onToggleImprovement, t: _t }) => {
+    const t = _t || useT();
     const [open, setOpen] = useState(false);
     const scoreColor = score >= 70 ? '#16A34A' : score >= 40 ? '#A16207' : '#DC2626';
     const scoreBg = score >= 70 ? '#DCFCE7' : score >= 40 ? '#FEF9C3' : '#FEE2E2';
@@ -357,11 +466,11 @@ const SkillDetailRow = ({ skillId, score, passed, strengths = [], weaknesses = [
                     padding: '12px 16px 8px', backgroundColor: '#FAFBFC',
                     borderTop: `1px solid ${COLORS.BORDER}`,
                 }}>
-                    <ReviewBadgeList icon="✦" label="강점" color="#16A34A" bg="#F0FDF4" border="#16A34A" items={strengths} />
-                    <ReviewBadgeList icon="▲" label="약점" color="#DC2626" bg="#FEF2F2" border="#DC2626" items={weaknesses} />
-                    <ReviewBadgeList icon="→" label="보완" color="#2563EB" bg="#EFF6FF" border="#2563EB" items={improvements} />
+                    <ReviewBadgeList icon="✦" label={t('review.strengths')} color="#16A34A" bg="#F0FDF4" border="#16A34A" items={strengths} />
+                    <ReviewBadgeList icon="▲" label={t('review.weaknesses')} color="#DC2626" bg="#FEF2F2" border="#DC2626" items={weaknesses} />
+                    <ReviewBadgeList icon="→" label={t('review.improvements')} color="#2563EB" bg="#EFF6FF" border="#2563EB" items={improvements} selectable selectedItems={selectedImprovements} onToggle={onToggleImprovement} />
                     {strengths.length === 0 && weaknesses.length === 0 && improvements.length === 0 && (
-                        <div style={{ color: COLORS.TEXT_SUB, fontStyle: 'italic', fontSize: '0.8rem', padding: '4px 0' }}>리뷰 상세 내용 없음</div>
+                        <div style={{ color: COLORS.TEXT_SUB, fontStyle: 'italic', fontSize: '0.8rem', padding: '4px 0' }}>{t('review.noDetail')}</div>
                     )}
                 </div>
             )}
@@ -369,9 +478,37 @@ const SkillDetailRow = ({ skillId, score, passed, strengths = [], weaknesses = [
     );
 };
 
-const CopyReviewItem = ({ data }) => {
+const CopyReviewItem = ({ data, onCorrect, isCorrectLoading, correctedCopy, onUpdate, isUpdateLoading }) => {
     const [open, setOpen] = useState(false);
+    // selectedImprovements: { skillIndex: Set<itemIndex> }
+    const [selectedImprovements, setSelectedImprovements] = useState({});
     const { copyKey, skills, avgScore, allPassed, lowestSkill, copyInfo } = data;
+
+    const toggleImprovement = (skillIdx, itemIdx) => {
+        setSelectedImprovements(prev => {
+            const next = { ...prev };
+            if (!next[skillIdx]) next[skillIdx] = new Set();
+            else next[skillIdx] = new Set(next[skillIdx]);
+            if (next[skillIdx].has(itemIdx)) next[skillIdx].delete(itemIdx);
+            else next[skillIdx].add(itemIdx);
+            return next;
+        });
+    };
+
+    const getSelectedImprovementTexts = () => {
+        const texts = [];
+        Object.entries(selectedImprovements).forEach(([sIdx, items]) => {
+            const skill = skills[Number(sIdx)];
+            if (!skill) return;
+            items.forEach(itemIdx => {
+                const text = (skill.improvements || [])[itemIdx];
+                if (text) texts.push({ skillId: skill.skillId, text });
+            });
+        });
+        return texts;
+    };
+
+    const totalSelected = Object.values(selectedImprovements).reduce((s, set) => s + set.size, 0);
     return (
         <div style={{ marginLeft: '16px', marginBottom: '8px' }}>
             {/* 카피 헤더 — 클릭으로 접기/펼치기 */}
@@ -461,8 +598,105 @@ const CopyReviewItem = ({ data }) => {
                             strengths={r.strengths}
                             weaknesses={r.weaknesses}
                             improvements={r.improvements}
+                            selectedImprovements={selectedImprovements[si]}
+                            onToggleImprovement={(itemIdx) => toggleImprovement(si, itemIdx)}
                         />
                     ))}
+
+                    {/* Correct 버튼 + 보정 결과 */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                        <button
+                            onClick={() => onCorrect?.(copyKey, copyInfo, getSelectedImprovementTexts())}
+                            disabled={totalSelected === 0 || isCorrectLoading}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                padding: '7px 16px', borderRadius: '10px', border: 'none',
+                                fontWeight: 700, fontSize: '0.8rem', fontFamily: 'inherit',
+                                cursor: totalSelected === 0 || isCorrectLoading ? 'not-allowed' : 'pointer',
+                                background: totalSelected > 0 ? 'linear-gradient(135deg, #2563EB, #1D4ED8)' : '#E2E8F0',
+                                color: totalSelected > 0 ? '#fff' : '#94A3B8',
+                                boxShadow: totalSelected > 0 ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none',
+                                opacity: isCorrectLoading ? 0.7 : 1,
+                                transition: 'all 0.2s ease',
+                            }}
+                        >
+                            {isCorrectLoading ? (
+                                <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Correcting...</>
+                            ) : (
+                                <><Pencil size={14} /> Correct{totalSelected > 0 ? ` (${totalSelected})` : ''}</>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* 보정 결과 표시 — 원본과 다른 필드 하이라이트 */}
+                    {correctedCopy && (() => {
+                        const changed = (field) => correctedCopy[field] && correctedCopy[field] !== (copyInfo[field] || '');
+                        const changedBadge = <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px', backgroundColor: '#DBEAFE', color: '#1E40AF', marginLeft: '6px' }}>CHANGED</span>;
+                        return (
+                        <div style={{
+                            marginTop: '10px', padding: '14px 16px', borderRadius: '12px',
+                            background: 'linear-gradient(135deg, #EFF6FF, #F0F9FF)',
+                            border: '1px solid #93C5FD',
+                        }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px',
+                                fontSize: '0.75rem', fontWeight: 800, color: '#1D4ED8',
+                                textTransform: 'uppercase', letterSpacing: '0.5px',
+                            }}>
+                                <Pencil size={13} /> Corrected Copy
+                            </div>
+                            {correctedCopy.headline && (
+                                <div style={{ marginBottom: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: COLORS.TEXT_SUB, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Headline{changed('headline') && changedBadge}</span>
+                                    <div style={{ fontWeight: 700, fontSize: '0.92rem', color: changed('headline') ? '#1D4ED8' : COLORS.TEXT_MAIN }}>{correctedCopy.headline}</div>
+                                </div>
+                            )}
+                            {correctedCopy.subheadline && (
+                                <div style={{ marginBottom: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: COLORS.TEXT_SUB, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Subheadline{changed('subheadline') && changedBadge}</span>
+                                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: changed('subheadline') ? '#1D4ED8' : COLORS.LG_RED }}>{correctedCopy.subheadline}</div>
+                                </div>
+                            )}
+                            {correctedCopy.bodyCopy && (
+                                <div style={{ marginBottom: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: COLORS.TEXT_SUB, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Body Copy{changed('bodyCopy') && changedBadge}</span>
+                                    <div style={{ fontSize: '0.85rem', lineHeight: 1.7, color: COLORS.TEXT_MAIN, whiteSpace: 'pre-wrap' }}>{correctedCopy.bodyCopy}</div>
+                                </div>
+                            )}
+                            {correctedCopy.cta && (
+                                <div>
+                                    <span style={{ fontWeight: 700, color: COLORS.TEXT_SUB, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Call to Action{changed('cta') && changedBadge}</span>
+                                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1D4ED8' }}>{correctedCopy.cta}</div>
+                                </div>
+                            )}
+
+                            {/* Update 버튼 */}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #BFDBFE' }}>
+                                <button
+                                    onClick={() => { setSelectedImprovements({}); onUpdate?.(copyKey, correctedCopy); }}
+                                    disabled={isUpdateLoading}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                        padding: '8px 18px', borderRadius: '10px', border: 'none',
+                                        fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit',
+                                        cursor: isUpdateLoading ? 'not-allowed' : 'pointer',
+                                        background: 'linear-gradient(135deg, #059669, #047857)',
+                                        color: '#fff',
+                                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)',
+                                        opacity: isUpdateLoading ? 0.7 : 1,
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                >
+                                    {isUpdateLoading ? (
+                                        <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Re-evaluating...</>
+                                    ) : (
+                                        <><CheckCircle size={14} /> Update &amp; Re-evaluate</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                        );
+                    })()}
                 </div>
             )}
         </div>
@@ -518,8 +752,106 @@ const buildReviewTree = (reviewResults, copyResults) => {
     return countries;
 };
 
+// ─── Review 스킬 그룹 정의 (Skill_List.md 기준) ───
+const REVIEW_SKILL_GROUPS = [
+    {
+        id: 'must-have',
+        label: 'Must-Have Evaluation',
+        labelKey: 'review.group.mustHave',
+        color: '#DC2626',
+        bg: '#FEF2F2',
+        skills: ['regulatory-copy-validation', 'brand-lexicon-check', 'copy-scorecard-generator', 'compliance-redflag-detector', 'lg-brand-fit-check'],
+    },
+    {
+        id: 'compliance',
+        label: 'Compliance',
+        labelKey: 'review.group.compliance',
+        color: '#D97706',
+        bg: '#FFFBEB',
+        skills: ['ai-washing-risk-check', 'environmental-claim-risk-check', 'comparative-ad-risk-check'],
+    },
+    {
+        id: 'quality',
+        label: 'Quality Review',
+        labelKey: 'review.group.quality',
+        color: '#2563EB',
+        bg: '#EFF6FF',
+        skills: ['claim-extractor', 'proof-point-checker', 'creative-impact-scorer'],
+    },
+    {
+        id: 'differentiation',
+        label: 'Differentiation',
+        labelKey: 'review.group.differentiation',
+        color: '#7C3AED',
+        bg: '#F5F3FF',
+        skills: ['competitive-differentiation-review', 'competitor-copy-contrast-check'],
+    },
+    {
+        id: 'localization',
+        label: 'Localization',
+        labelKey: 'review.group.localization',
+        color: '#059669',
+        bg: '#ECFDF5',
+        skills: ['regional-culture-fit-check', 'seasonality-fit-check', 'customer-segment-fit-check'],
+    },
+];
+
+// 그룹에 속하지 않는 스킬을 모으는 함수
+function groupSkillsForReview(allSkills) {
+    const grouped = [];
+    const usedIds = new Set();
+
+    for (const group of REVIEW_SKILL_GROUPS) {
+        const items = group.skills
+            .map(id => allSkills.find(s => s.id === id))
+            .filter(Boolean);
+        if (items.length > 0) {
+            grouped.push({ ...group, items });
+            items.forEach(s => usedIds.add(s.id));
+        }
+    }
+
+    // 그룹에 속하지 않은 나머지 스킬 (커스텀 등)
+    const others = allSkills.filter(s =>
+        !usedIds.has(s.id)
+        && !s.id?.startsWith('writer-')
+        && !s.id?.startsWith('culture-')
+        && s.id !== 'workflow-adcopy-production'
+        && s.id !== 'localization-base'
+        && s.id !== 'lg-brand-voice'
+        && s.id !== 'SKILLMD-generator'
+    );
+    if (others.length > 0) {
+        grouped.push({
+            id: 'other',
+            label: 'Other Skills',
+            labelKey: 'review.group.other',
+            color: COLORS.TEXT_SUB,
+            bg: '#F9FAFB',
+            items: others,
+        });
+    }
+
+    return grouped;
+}
+
 const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing = false, copyResults = [], selectedCopies, onToggleCopy, availableSkills }) => {
-    const skillsList = availableSkills || SKILLSETS.map(s => ({ ...s, type: 'builtin', editable: false }));
+    const t = useT();
+    const skillsList = availableSkills || [];
+    const allGroups = groupSkillsForReview(skillsList);
+    const [skillSearch, setSkillSearch] = useState('');
+
+    // 검색 필터 적용
+    const skillGroups = skillSearch.trim()
+        ? allGroups.map(g => ({
+            ...g,
+            items: g.items.filter(s =>
+                (s.id || '').toLowerCase().includes(skillSearch.toLowerCase())
+                || (s.label || '').toLowerCase().includes(skillSearch.toLowerCase())
+                || (s.description || s.desc || '').toLowerCase().includes(skillSearch.toLowerCase())
+            ),
+        })).filter(g => g.items.length > 0)
+        : allGroups;
 
     const styles = {
         container: {
@@ -598,8 +930,14 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
         }),
         typeBadge: (type) => ({
             fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: '4px',
-            backgroundColor: type === 'builtin' ? '#EFF6FF' : '#FFF7ED',
-            color: type === 'builtin' ? '#2563EB' : '#C2410C',
+            backgroundColor: type === 'skillmd' ? '#F0FDF4' : '#FFF7ED',
+            color: type === 'skillmd' ? '#15803D' : '#C2410C',
+        }),
+        categoryBadge: (cat) => ({
+            fontSize: '0.6rem', fontWeight: 600, padding: '1px 5px', borderRadius: '3px',
+            backgroundColor: cat === 'validation' ? '#FEF3C7' : cat === 'generation' ? '#DBEAFE' : '#E0E7FF',
+            color: cat === 'validation' ? '#92400E' : cat === 'generation' ? '#1E40AF' : '#3730A3',
+            marginLeft: '4px',
         }),
     };
 
@@ -618,22 +956,22 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
                     backgroundColor: COLORS.WHITE, boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
                     lineHeight: 1.6, fontSize: '1rem'
                 }}>
-                    <p style={{ margin: 0, fontWeight: 500 }}>카피가 생성되었습니다! ✅</p>
+                    <p style={{ margin: 0, fontWeight: 500 }}>{t('chat.copyGenerated')}</p>
                     <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-                        좌측 패널에서 생성된 카피를 확인하고, 아래 <strong>Review Settings</strong>에서 리뷰 대상 카피와 검증 스킬셋을 선택해주세요.
+                        {t('chat.copyGeneratedDesc')}
                     </p>
                 </div>
                 <div style={styles.container}>
                     <h3 style={styles.header}>
-                        <Cpu size={22} color={COLORS.LG_RED} />Review Settings
+                        <Cpu size={22} color={COLORS.LG_RED} />{t('review.settings')}
                     </h3>
                     <p style={styles.subheader}>
-                        리뷰할 카피를 선택하고 검증 스킬셋을 설정해주세요. 선택한 카피에 대해 품질과 적합성을 검토합니다.
+                        {t('review.desc')}
                     </p>
 
                     {/* Target Copy */}
                     <div style={styles.sectionTitle}>
-                        <Globe size={14} />Target Copy
+                        <Globe size={14} />{t('review.targetCopy')}
                     </div>
                     <div>
                         {(copyResults || []).map(r => {
@@ -676,31 +1014,88 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
 
                     <div style={styles.divider} />
 
-                    {/* Use Skillsets — from API */}
-                    <div style={styles.sectionTitle}>
-                        <Cpu size={14} />Use Skillsets
+                    {/* Use Skillsets — grouped by category */}
+                    <div style={{ ...styles.sectionTitle, flexWrap: 'wrap' }}>
+                        <Cpu size={14} />{t('review.useSkillsets')}
                         <span style={{ fontSize: '0.7rem', color: COLORS.TEXT_SUB, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                            ({skillsList.length} available)
+                            ({t('review.available', { n: skillsList.length })})
                         </span>
+                        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+                            <input
+                                type="text"
+                                value={skillSearch}
+                                onChange={e => setSkillSearch(e.target.value)}
+                                placeholder="Search skills..."
+                                style={{
+                                    width: '180px', padding: '5px 10px 5px 28px',
+                                    borderRadius: '8px', border: `1px solid ${COLORS.BORDER}`,
+                                    fontSize: '0.75rem', fontWeight: 400, fontFamily: 'inherit',
+                                    outline: 'none', backgroundColor: COLORS.WHITE,
+                                    textTransform: 'none', letterSpacing: 0,
+                                }}
+                            />
+                            <Globe size={12} style={{ position: 'absolute', left: '9px', top: '7px', color: COLORS.TEXT_SUB }} />
+                            {skillSearch && (
+                                <button
+                                    onClick={() => setSkillSearch('')}
+                                    style={{
+                                        position: 'absolute', right: '6px', top: '4px',
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        padding: 0, color: COLORS.TEXT_SUB, fontSize: '0.7rem',
+                                    }}
+                                >✕</button>
+                            )}
+                        </div>
                     </div>
                     <div>
-                        {skillsList.map(s => (
-                            <div key={s.id} style={styles.skillRow}>
-                                <div style={styles.skillInfo}>
-                                    <p style={styles.skillLabel}>
-                                        {s.label}
-                                        <span style={styles.typeBadge(s.type)}>{s.type}</span>
-                                    </p>
-                                    <p style={styles.skillDesc}>{s.description || s.desc}</p>
+                        {skillGroups.map(group => {
+                            const enabledInGroup = group.items.filter(s => enabledSkills.includes(s.id)).length;
+                            return (
+                                <div key={group.id} style={{ marginBottom: '16px' }}>
+                                    {/* Group header */}
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '8px 12px', borderRadius: '10px',
+                                        backgroundColor: group.bg, marginBottom: '8px',
+                                    }}>
+                                        <span style={{
+                                            width: '8px', height: '8px', borderRadius: '50%',
+                                            backgroundColor: group.color, flexShrink: 0,
+                                        }} />
+                                        <span style={{
+                                            fontSize: '0.78rem', fontWeight: 700, color: group.color,
+                                            textTransform: 'uppercase', letterSpacing: '0.3px',
+                                        }}>
+                                            {group.label}
+                                        </span>
+                                        <span style={{
+                                            fontSize: '0.68rem', fontWeight: 600, color: COLORS.TEXT_SUB,
+                                            marginLeft: 'auto',
+                                        }}>
+                                            {enabledInGroup}/{group.items.length} ON
+                                        </span>
+                                    </div>
+                                    {/* Skills in group */}
+                                    {group.items.map(s => (
+                                        <div key={s.id} style={styles.skillRow}>
+                                            <div style={styles.skillInfo}>
+                                                <p style={styles.skillLabel}>
+                                                    {s.label || s.id}
+                                                    <span style={styles.typeBadge(s.type)}>{s.type}</span>
+                                                </p>
+                                                <p style={styles.skillDesc}>{s.description || s.desc}</p>
+                                            </div>
+                                            <button
+                                                style={styles.toggle(enabledSkills.includes(s.id))}
+                                                onClick={() => onToggleSkill(s.id)}
+                                            >
+                                                <div style={styles.toggleKnob(enabledSkills.includes(s.id))} />
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                                <button
-                                    style={styles.toggle(enabledSkills.includes(s.id))}
-                                    onClick={() => onToggleSkill(s.id)}
-                                >
-                                    <div style={styles.toggleKnob(enabledSkills.includes(s.id))} />
-                                </button>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
@@ -721,12 +1116,12 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
                             {isReviewing ? (
                                 <>
                                     <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                                    Reviewing...
+                                    {t('review.reviewing')}
                                 </>
                             ) : (
                                 <>
                                     <ArrowRight size={16} />
-                                    Submit Review
+                                    {t('review.submitReview')}
                                 </>
                             )}
                         </button>
@@ -738,8 +1133,35 @@ const ReviewView = ({ enabledSkills, onToggleSkill, onSubmitReview, isReviewing 
     );
 };
 
-const ReviewResultsView = ({ reviewResults, reviewSummary, copyResults, isReviewing, onSaveExit, onExitWithoutSave, isSaving = false }) => {
+const ReviewResultsView = ({ reviewResults, reviewSummary, copyResults, isReviewing, onSaveExit, onExitWithoutSave, isSaving = false, onCorrectCopy, onUpdateAndReReview }) => {
+    const t = useT();
     const [showExitConfirm, setShowExitConfirm] = useState(false);
+    const [correctingKey, setCorrectingKey] = useState(null);
+    const [correctedCopies, setCorrectedCopies] = useState({});
+    const [updatingKey, setUpdatingKey] = useState(null);
+
+    const handleCorrect = async (copyKey, copyInfo, improvements) => {
+        if (!onCorrectCopy) return;
+        setCorrectingKey(copyKey);
+        try {
+            const result = await onCorrectCopy(copyKey, copyInfo, improvements);
+            if (result) setCorrectedCopies(prev => ({ ...prev, [copyKey]: result }));
+        } finally {
+            setCorrectingKey(null);
+        }
+    };
+
+    const handleUpdate = async (copyKey, correctedCopy) => {
+        if (!onUpdateAndReReview) return;
+        setUpdatingKey(copyKey);
+        try {
+            await onUpdateAndReReview(copyKey, correctedCopy);
+            // 완료 후: corrected copy 카드 제거
+            setCorrectedCopies(prev => { const next = { ...prev }; delete next[copyKey]; return next; });
+        } finally {
+            setUpdatingKey(null);
+        }
+    };
     const tree = buildReviewTree(reviewResults, copyResults);
     const totalCountries = tree.length;
     const totalCopies = tree.reduce((s, c) => s + c.copies.length, 0);
@@ -765,13 +1187,10 @@ const ReviewResultsView = ({ reviewResults, reviewSummary, copyResults, isReview
                     lineHeight: 1.6, fontSize: '1rem',
                 }}>
                     <p style={{ margin: 0, fontWeight: 500 }}>
-                        {isReviewing ? 'Skillset Review를 실행하고 있습니다...' : 'Skillset Review가 완료되었습니다! ✅'}
+                        {isReviewing ? t('chat.reviewRunning') : t('chat.reviewDone')}
                     </p>
                     <p style={{ margin: '8px 0 0 0', color: COLORS.TEXT_SUB, fontSize: '0.9rem' }}>
-                        {isReviewing
-                            ? '각 스킬별 검증 결과가 실시간으로 표시됩니다.'
-                            : '아래에서 국가별 · 카피별 리뷰 결과를 확인하세요. 카피를 클릭하면 스킬별 상세 판정을 볼 수 있습니다.'
-                        }
+                        {isReviewing ? t('review.runningDesc') : t('review.doneDesc')}
                     </p>
                 </div>
 
@@ -784,9 +1203,16 @@ const ReviewResultsView = ({ reviewResults, reviewSummary, copyResults, isReview
                         fontSize: '1.1rem', fontWeight: 800, color: COLORS.TEXT_MAIN,
                         marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '10px',
                     }}>
-                        <CheckCircle size={22} color={COLORS.LG_RED} />Review 결과
-                        {isReviewing && (
-                            <Loader size={16} color={COLORS.LG_RED} style={{ animation: 'spin 1s linear infinite' }} />
+                        {isReviewing
+                            ? <Loader size={22} color={COLORS.LG_RED} style={{ animation: 'spin 1s linear infinite' }} />
+                            : <CheckCircle size={22} color="#22C55E" />
+                        }
+                        {t('review.resultTitle')}
+                        {!isReviewing && reviewSummary && (
+                            <span style={{
+                                fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', borderRadius: '6px',
+                                backgroundColor: '#DCFCE7', color: '#16A34A', marginLeft: '4px',
+                            }}>COMPLETED</span>
                         )}
                     </h3>
 
@@ -830,7 +1256,15 @@ const ReviewResultsView = ({ reviewResults, reviewSummary, copyResults, isReview
                                     }}>Avg {country.avgScore}</span>
                                 </div>
                                 {country.copies.map((copyData) => (
-                                    <CopyReviewItem key={copyData.copyKey} data={copyData} />
+                                    <CopyReviewItem
+                                        key={copyData.copyKey}
+                                        data={copyData}
+                                        onCorrect={handleCorrect}
+                                        isCorrectLoading={correctingKey === copyData.copyKey}
+                                        correctedCopy={correctedCopies[copyData.copyKey]}
+                                        onUpdate={handleUpdate}
+                                        isUpdateLoading={updatingKey === copyData.copyKey}
+                                    />
                                 ))}
                             </div>
                         );

@@ -1,26 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, PenTool, ListChecks, Trash2, Loader, Wand2, Save, ArrowLeft, AlertCircle, Shield, Puzzle, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Settings, PenTool, ListChecks, Trash2, Loader, Wand2, Save, ArrowLeft, AlertCircle, Shield, Puzzle, CheckCircle2, ChevronDown, ChevronRight, Globe } from 'lucide-react'
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { useSkills, useSkillDetail, useDeleteSkill } from '@/features/skill-registry/api'
 import { useGenerateSkillDraft, useSaveSkill } from '@/features/skill-authoring/api'
 import { useUIStore } from '@/shared/state/ui-store'
+import { useT } from '@/shared/i18n/useTranslation'
+import { LOCALE_OPTIONS } from '@/shared/i18n/locales'
+import type { Locale } from '@/shared/i18n/locales'
 
 type Tab = 'general' | 'skill-builder' | 'skill-manager'
-
-const TABS: { id: Tab; label: string; icon: typeof Settings }[] = [
-  { id: 'general', label: 'General', icon: Settings },
-  { id: 'skill-builder', label: 'Skill Authoring', icon: PenTool },
-  { id: 'skill-manager', label: 'Skill Management', icon: ListChecks },
-]
 
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = (searchParams.get('tab') || 'general') as Tab
   const [activeTab, setActiveTab] = useState<Tab>(tabParam)
   const addToast = useUIStore((s) => s.addToast)
+  const t = useT()
 
   useEffect(() => { setActiveTab(tabParam) }, [tabParam])
 
@@ -29,9 +27,15 @@ export function SettingsPage() {
     setSearchParams({ tab })
   }
 
+  const TABS: { id: Tab; label: string; icon: typeof Settings }[] = [
+    { id: 'general', label: t('settings.general'), icon: Settings },
+    { id: 'skill-builder', label: t('settings.skillBuilder'), icon: PenTool },
+    { id: 'skill-manager', label: t('settings.skillManager'), icon: ListChecks },
+  ]
+
   return (
     <div style={{ padding: '2rem 6%', maxWidth: 1000 }}>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Settings</h2>
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>{t('settings.title')}</h2>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: 0 }}>
@@ -61,14 +65,50 @@ export function SettingsPage() {
   )
 }
 
-/* General */
+/* General — Language selector */
 function GeneralTab() {
+  const t = useT()
+  const locale = useUIStore((s) => s.locale)
+  const setLocale = useUIStore((s) => s.setLocale)
+
   return (
     <Card>
-      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 12 }}>General Settings</h3>
-      <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-        Application settings will appear here. Currently no configurable options.
-      </p>
+      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16 }}>{t('settings.generalTitle')}</h3>
+
+      {/* Language */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Globe size={16} color="var(--color-text-secondary)" />
+          {t('settings.language')}
+        </label>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', margin: '0 0 12px 0' }}>
+          {t('settings.languageDesc')}
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {LOCALE_OPTIONS.map((opt) => {
+            const active = locale === opt.code
+            return (
+              <button
+                key={opt.code}
+                onClick={() => setLocale(opt.code as Locale)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 20px', borderRadius: 'var(--radius-md)',
+                  border: `1.5px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                  background: active ? 'var(--color-primary)' : 'var(--color-surface)',
+                  color: active ? '#fff' : 'var(--color-text)',
+                  fontWeight: active ? 700 : 500, fontSize: '0.85rem',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>{opt.flag}</span>
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </Card>
   )
 }
@@ -231,7 +271,8 @@ function SkillBuilderTab({ addToast }: { addToast: (msg: string, type?: 'info' |
 
 /* Skill Manager */
 function SkillManagerTab({ addToast }: { addToast: (msg: string, type?: 'info' | 'success' | 'error') => void }) {
-  const { data: skills, isLoading } = useSkills()
+  const { data: allSkills, isLoading } = useSkills()
+  const skills = allSkills?.filter((s: Record<string, unknown>) => s.type === 'custom') ?? []
   const deleteMutation = useDeleteSkill()
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -280,13 +321,13 @@ function SkillManagerTab({ addToast }: { addToast: (msg: string, type?: 'info' |
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {isExpanded ? <ChevronDown size={14} color="var(--color-text-secondary)" /> : <ChevronRight size={14} color="var(--color-text-secondary)" />}
-                  {skill.type === 'builtin' ? <Shield size={14} color="var(--color-info-text)" /> : <Puzzle size={14} color="var(--color-purple)" />}
+                  {skill.type === 'skillmd' ? <Shield size={14} color="var(--color-info-text)" /> : <Puzzle size={14} color="var(--color-purple)" />}
                   <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{skill.label || skill.name}</span>
-                  <Badge variant={skill.type === 'builtin' ? 'info' : 'purple'}>{skill.type}</Badge>
+                  <Badge variant={skill.type === 'skillmd' ? 'info' : 'purple'}>{skill.type}</Badge>
                   {skill.category && <Badge variant="default">{skill.category}</Badge>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {skill.type !== 'builtin' && (
+                  {skill.type === 'custom' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(skill.id) }}
                       disabled={deleteMutation.isPending}

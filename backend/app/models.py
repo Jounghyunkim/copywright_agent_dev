@@ -75,18 +75,24 @@ class Campaign(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False)
     brief: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    analysis_report: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    strategic_message: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    copy_results: Mapped[list] = mapped_column(JSONB, nullable=False)
+    analysis_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    strategic_message: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    copy_results: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     review_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     review_results: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    copy_candidates: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     target_countries: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     brand_fit_score: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     review_avg_score: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     total_copies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="completed")
+    current_step: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     __table_args__ = (

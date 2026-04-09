@@ -1,72 +1,64 @@
-"""스킬 카탈로그 — 빌트인 메타데이터 + 파일 기반 커스텀 스킬 병합"""
+"""스킬 카탈로그 — SKILL.md 기반 + 파일 기반 커스텀 스킬 통합"""
+from __future__ import annotations
+
 from .custom import list_custom_skills
+from .loader import SkillLoader
 
-BUILTIN_SKILLS = [
-    {
-        "id": "ai-washing-risk-check",
-        "label": "AI Washing Risk Check",
-        "description": "AI 관련 과장/오해 소지 표현 감지",
-        "category": "validation",
-        "type": "builtin",
-        "editable": False,
-    },
-    {
-        "id": "brand-lexicon-check",
-        "label": "Brand Lexicon Check",
-        "description": "LG 브랜드 용어 가이드라인 준수 검증",
-        "category": "validation",
-        "type": "builtin",
-        "editable": False,
-    },
-    {
-        "id": "campaign-brief-normalizer",
-        "label": "Campaign Brief Normalizer",
-        "description": "브리프 항목 표준화 및 일관성 검증",
-        "category": "validation",
-        "type": "builtin",
-        "editable": False,
-    },
-    {
-        "id": "channel-variant-generator",
-        "label": "Channel Variant Generator",
-        "description": "채널별(SNS, 배너, 영상 등) 카피 변형 생성",
-        "category": "generation",
-        "type": "builtin",
-        "editable": False,
-    },
-    {
-        "id": "cultural-sensitivity-check",
-        "label": "Cultural Sensitivity Check",
-        "description": "문화적 민감성 및 현지화 적합성 검증",
-        "category": "validation",
-        "type": "builtin",
-        "editable": False,
-    },
-    {
-        "id": "tone-consistency-guard",
-        "label": "Tone Consistency Guard",
-        "description": "톤 앤 매너 일관성 유지 검증",
-        "category": "validation",
-        "type": "builtin",
-        "editable": False,
-    },
-]
+# ---------------------------------------------------------------------------
+# action_tag → 카테고리 매핑
+# ---------------------------------------------------------------------------
+_TAG_TO_CATEGORY = {
+    "generation": "generation",
+    "evaluation": "validation",
+    "localization": "localization",
+}
 
-BUILTIN_IDS = {s["id"] for s in BUILTIN_SKILLS}
+
+def _skillmd_to_catalog_entry(skill: dict) -> dict:
+    """SKILL.md 스킬을 카탈로그 엔트리로 변환"""
+    fm = skill.get("frontmatter", {})
+    action_tags = fm.get("action_tags", [])
+    category = "validation"
+    for tag in action_tags:
+        if tag in _TAG_TO_CATEGORY:
+            category = _TAG_TO_CATEGORY[tag]
+            break
+    return {
+        "id": skill["name"],
+        "label": skill["name"],
+        "description": skill.get("description", ""),
+        "category": category,
+        "type": "skillmd",
+        "editable": False,
+        "skill_type": fm.get("skill_type", "capability"),
+        "action_tags": action_tags,
+        "role_tags": fm.get("role_tags", []),
+        "risk_level": fm.get("risk_level", "medium"),
+    }
+
+
+def get_skillmd_skills() -> list[dict]:
+    """SKILL.md 기반 스킬 목록 반환"""
+    loader = SkillLoader()
+    return [_skillmd_to_catalog_entry(skill) for skill in loader.list_skills()]
 
 
 def get_all_skills() -> list[dict]:
-    """빌트인 + 커스텀 스킬 통합 목록 반환"""
+    """SKILL.md + 커스텀 스킬 통합 목록 반환"""
+    all_skills = get_skillmd_skills()
+
+    # 파일 기반 커스텀 스킬
     custom_rows = list_custom_skills()
-    custom_skills = [
-        {
-            "id": row["id"],
-            "label": row["label"],
-            "description": row["description"],
-            "category": row["category"],
-            "type": "custom",
-            "editable": True,
-        }
-        for row in custom_rows
-    ]
-    return BUILTIN_SKILLS + custom_skills
+    seen_ids = {s["id"] for s in all_skills}
+    for row in custom_rows:
+        if row["id"] not in seen_ids:
+            all_skills.append({
+                "id": row["id"],
+                "label": row["label"],
+                "description": row["description"],
+                "category": row["category"],
+                "type": "custom",
+                "editable": True,
+            })
+
+    return all_skills
