@@ -75,8 +75,8 @@ async def analyze_campaign(req: AnalyzeRequest):
     async def event_stream():
         yield _sse({"type": "progress", "message": f"Received analysis request for: {req.projectName}"})
 
-        brief_dict = req.dict(exclude={"message_matrix"})
-        inputs = {"brief": brief_dict, "message_matrix": req.message_matrix or {}}
+        brief_dict = req.dict(exclude={"message_matrix", "locale"})
+        inputs = {"brief": brief_dict, "message_matrix": req.message_matrix or {}, "locale": req.locale or "ko"}
         completed_parallel = set()
         final_report = None
 
@@ -169,7 +169,11 @@ IMPORTANT:
 - messagePillars should be 2-4 items, each grounded in the analysis report findings
 - keyPhrases should include both recommended keywords and newly synthesized phrases
 - Everything must be aligned with the brand fit assessment and copy implications
-- Write in the same language context as the brief (if Korean brief, Korean output; if English brief, English output)"""
+- Write ALL output in {output_language}. This is the user's chosen display language."""
+
+    locale = request.locale or "ko"
+    output_language = {"en": "English", "ko": "Korean", "de": "German"}.get(locale, "Korean")
+    system_prompt = system_prompt.replace("{output_language}", output_language)
 
     try:
         parser = JsonOutputParser()

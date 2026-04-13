@@ -291,6 +291,7 @@ interface NewWorkflowPageProps {
 export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPageProps) {
   const navigate = useNavigate()
   const addToast = useUIStore((s) => s.addToast)
+  const locale = useUIStore((s) => s.locale)
   const t = useT()
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
 
@@ -510,8 +511,8 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
     addAction('submit-brief', 'started', `Project: ${formData.projectName}`)
 
     const payload = matrixData
-      ? { ...formData, message_matrix: matrixData }
-      : formData
+      ? { ...formData, message_matrix: matrixData, locale }
+      : { ...formData, locale }
 
     try {
       await readSSE('/api/v1/campaigns/analyze', payload, (event) => {
@@ -550,7 +551,7 @@ export function NewWorkflowPage({ campaignId, campaignData }: NewWorkflowPagePro
       const res = await fetch(`${apiBase}/api/v1/campaigns/strategic-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief: submittedBrief, analysisReport: analysisResult }),
+        body: JSON.stringify({ brief: submittedBrief, analysisReport: analysisResult, locale }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const result = await res.json()

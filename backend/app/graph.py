@@ -45,6 +45,7 @@ class AnalysisReport(BaseModel):
 class AgentState(TypedDict):
     brief: dict
     message_matrix: dict  # Optional: parsed Message Matrix data
+    locale: str  # UI language: en, ko, de
     search_queries: list
     web_results: list
     rag_results: list
@@ -240,6 +241,8 @@ async def enhanced_rag(state: AgentState):
 # ============================================================
 # NODE 3: Synthesizer — combines all intelligence into report
 # ============================================================
+LOCALE_TO_LANGUAGE = {"en": "English", "ko": "Korean", "de": "German"}
+
 async def synthesizer(state: AgentState):
     print("--- NODE 3: SYNTHESIZER ---")
     brief = state.get("brief", {})
@@ -247,6 +250,8 @@ async def synthesizer(state: AgentState):
     rag_results = state.get("rag_results", [])
     matrix = state.get("message_matrix") or {}
     matrix_context = _format_message_matrix(matrix)
+    locale = state.get("locale", "ko")
+    output_language = LOCALE_TO_LANGUAGE.get(locale, "Korean")
 
     # Format web search results
     if web_results:
@@ -378,7 +383,7 @@ This becomes the root sentence of all copy. Example: "I want my time at home to 
 
 CRITICAL RULES:
 1. Base competitive analysis on ACTUAL data from web search results. Cite specific competitors.
-2. All text in the SAME LANGUAGE as the brief (Korean if brief is Korean, English if English).
+2. ALL text in the report MUST be written in {output_language}. This is the user's chosen display language — do NOT use any other language regardless of the brief's language.
 3. Every field must serve COPYWRITING — if it doesn't help a copywriter write better copy, rewrite it until it does.
 4. Return ONLY valid JSON. No markdown, no explanation outside JSON."""
 
@@ -393,6 +398,7 @@ CRITICAL RULES:
         "web_context": web_context,
         "rag_context": rag_context,
         "matrix_context": matrix_context if matrix_context else "(No Message Matrix provided.)",
+        "output_language": output_language,
         **brief,
     })
 

@@ -51,6 +51,7 @@ class AnalyzeRequest(BaseModel):
     marketNeeds: str
     timing: str
     message_matrix: Optional[dict] = None  # {sheetName: ProductInfo}
+    locale: Optional[str] = "ko"  # UI display language: en, ko, de
 
 class AnalysisResponse(BaseModel):
     status: str
@@ -91,6 +92,7 @@ class GenerateBriefResponse(BaseModel):
 class StrategicMessageRequest(BaseModel):
     brief: dict
     analysisReport: dict
+    locale: Optional[str] = "ko"
 
 class StrategicMessageResponse(BaseModel):
     status: str
