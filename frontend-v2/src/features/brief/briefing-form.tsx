@@ -34,6 +34,8 @@ interface Props {
   onSubmit?: (brief: CampaignBrief) => void
   /** Message Matrix가 새로 파싱되었을 때 부모에 전달. 분석 호출 시 함께 전송하기 위함. */
   onMatrixParsed?: (matrix: Record<string, MessageMatrixProduct> | null) => void
+  /** 가이드 (?) 클릭 시 제목+내용을 부모에 전달 → 채팅 패널에 표시. */
+  onGuideRequest?: (title: string, guide: string) => void
   /** 상위에서 분석 중임을 표시. 버튼 비활성 및 로딩 문구 전환. */
   isAnalyzing?: boolean
   /** 전체 폼 비활성화. */
@@ -53,6 +55,7 @@ export function BriefingForm({
   onChange,
   onSubmit,
   onMatrixParsed,
+  onGuideRequest,
   isAnalyzing = false,
   isDisabled = false,
 }: Props) {
@@ -258,7 +261,11 @@ export function BriefingForm({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setGuideSection(section)
+                        if (onGuideRequest) {
+                          onGuideRequest(section.title, section.guide!)
+                        } else {
+                          setGuideSection(section)
+                        }
                       }}
                       style={guideBtn}
                       title="가이드 보기"

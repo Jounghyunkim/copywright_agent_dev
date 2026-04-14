@@ -1,6 +1,23 @@
-export function StepIndicator({ step, label, active, done }: { step: number; label: string; active: boolean; done: boolean }) {
+export function StepIndicator({ step, label, active, done, onClick }: {
+  step: number
+  label: string
+  active: boolean
+  done: boolean
+  onClick?: () => void
+}) {
+  const clickable = !!(onClick && (active || done))
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: 6,
+        alignItems: 'center',
+        cursor: clickable ? 'pointer' : 'default',
+      }}
+      onClick={clickable ? onClick : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+    >
       <span style={{
         width: 22, height: 22, borderRadius: '50%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',

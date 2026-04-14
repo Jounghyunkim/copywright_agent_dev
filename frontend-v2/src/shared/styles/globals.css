@@ -156,6 +156,29 @@ button, input, select, textarea { font: inherit; }
 .pen-btn { opacity: 0.25; transition: opacity 0.2s ease; }
 .card:hover > * .pen-btn, .card:hover > .pen-btn { opacity: 1; }
 
+/* ── Chat Markdown ── */
+.chat-markdown { font-size: 14px; line-height: 1.6; }
+.chat-markdown p { margin: 0 0 0.4em 0; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown strong { font-weight: 700; }
+.chat-markdown ul, .chat-markdown ol { margin: 0.3em 0; padding-left: 1.2em; }
+.chat-markdown li { margin-bottom: 0.15em; }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3, .chat-markdown h4 {
+  font-size: 1em; font-weight: 700; margin: 0.6em 0 0.3em 0;
+}
+.chat-markdown code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.88em;
+  background: rgba(0,0,0,0.06); padding: 0.1em 0.3em; border-radius: 4px;
+}
+.chat-markdown pre {
+  background: rgba(0,0,0,0.06); padding: 0.6em 0.8em; border-radius: 6px;
+  overflow-x: auto; font-size: 0.85em;
+}
+.chat-markdown blockquote {
+  margin: 0.4em 0; padding: 0.3em 0.8em;
+  border-left: 3px solid var(--neutral-200); color: var(--neutral-700);
+}
+
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 1fr; }

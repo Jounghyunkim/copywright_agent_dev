@@ -7,7 +7,7 @@ import { StepIndicator } from '@/shared/ui/step-indicator'
 import { SplitPane } from '@/shared/ui/split-pane'
 
 import { BriefingForm } from '@/features/brief'
-import { ChatPanel } from '@/features/chat'
+import { ChatPanel, type ChatPanelHandle } from '@/features/chat'
 import { AnalysisReport } from '@/features/analysis'
 import { StrategicMessageView } from '@/features/strategic-message'
 import { CopyResults, GenerationConfig } from '@/features/copy-generation'
@@ -46,6 +46,7 @@ export function EditorPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [reviewCompleted, setReviewCompleted] = useState(false)
   const leftPaneRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<ChatPanelHandle>(null)
 
   /** 왼쪽 패널을 부드럽게 맨 아래로 스크롤 */
   const scrollToBottom = useCallback(() => {
@@ -55,6 +56,19 @@ export function EditorPage() {
         behavior: 'smooth',
       })
     }, 100)
+  }, [])
+
+  /** 가이드 (?) 클릭 → 채팅에 어시스턴트 메시지로 표시 */
+  const handleGuideRequest = useCallback((title: string, guide: string) => {
+    chatRef.current?.addAssistantMessage(`📋 **${title}** 작성 가이드\n\n${guide}`)
+  }, [])
+
+  /** 워크플로우 단계 클릭 → 해당 섹션으로 스크롤 */
+  const scrollToStep = useCallback((step: number) => {
+    const el = leftPaneRef.current?.querySelector(`[data-step="${step}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   }, [])
 
   const campaignId = useWorkflowStore((s) => s.campaignId)
@@ -315,11 +329,13 @@ export function EditorPage() {
   const renderLeftPane = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Step 1: 브리프 입력 */}
+      <div data-step="1" />
       <BriefingForm
         initialBrief={brief}
         onChange={(b) => setBrief(b)}
         onSubmit={handleBriefSubmit}
         onMatrixParsed={(m) => setMessageMatrix(m)}
+        onGuideRequest={handleGuideRequest}
         isAnalyzing={analyze.isPending}
         isDisabled={currentStep > 1 && !!analysisReport}
       />
@@ -375,6 +391,7 @@ export function EditorPage() {
       )}
 
       {/* Step 2: 분석 리포트 */}
+      <div data-step="2" />
       {analysisReport && (
         <AnalysisReport
           report={analysisReport}
@@ -385,6 +402,7 @@ export function EditorPage() {
       )}
 
       {/* Step 3: 전략 메시지 (승인 시 자동 추출) */}
+      <div data-step="3" />
       {analysisApproved && currentStep >= 3 && strategic.isPending && (
         <LoadingCard text="Copywriting Strategy 추출 중…" />
       )}
@@ -400,6 +418,7 @@ export function EditorPage() {
       )}
 
       {/* Step 4: 카피 생성 조건 */}
+      <div data-step="4" />
       {currentStep >= 4 &&
         strategicMessageApproved &&
         !copyResults &&
@@ -426,6 +445,7 @@ export function EditorPage() {
       )}
 
       {/* Step 5: 리뷰 조건 */}
+      <div data-step="5" />
       {currentStep >= 5 &&
         selectedCopies.length > 0 &&
         !reviewResults && (
@@ -559,6 +579,7 @@ export function EditorPage() {
               label={s.label}
               active={currentStep === s.step && !(s.step === 5 && reviewCompleted)}
               done={currentStep > s.step || (s.step === 5 && reviewCompleted)}
+              onClick={() => scrollToStep(s.step)}
             />
             {idx < STEPS.length - 1 && (
               <span style={{ color: 'var(--neutral-500)' }}>&rarr;</span>
@@ -602,7 +623,7 @@ export function EditorPage() {
                 AI 어시스턴트
               </h4>
               <div style={{ flex: 1, minHeight: 0 }}>
-                <ChatPanel />
+                <ChatPanel ref={chatRef} />
               </div>
             </Card>
           }
