@@ -24,7 +24,7 @@ from .schemas import (
     MessageMatrixProduct, MessageMatrixCategory, MessageMatrixUSP,
 )
 from .graph import app_graph
-from .database import init_db, get_db
+from .database import init_db, get_db, async_session
 from .models import ReviewSession, ReviewResult, Campaign
 from sqlalchemy import func
 from .skills.runner import run_review
@@ -453,7 +453,7 @@ async def chat_with_agent(request: ChatRequest):
 # ============================================================
 
 @app.post("/api/v1/campaigns/review")
-async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_db)):
+async def submit_review(request: ReviewRequest):
     """Review 실행 — SSE 스트림으로 스킬별 진행률 + 최종 결과 반환"""
     project_name = request.brief.get("projectName", "unknown")
     print(f"Review requested for: {project_name}, skills: {request.enabledSkills}")
@@ -461,100 +461,139 @@ async def submit_review(request: ReviewRequest, db: AsyncSession = Depends(get_d
     def _sse(data: dict) -> str:
         return f"data: {json_module.dumps(data, ensure_ascii=False)}\n\n"
 
+    # run_review 는 asyncio.gather로 전체를 모아 반환하므로, 대기 중 SSE가 끊길 수 있음.
+    # 대신 asyncio.Queue를 사용해 태스크 완료 즉시 SSE로 스트리밍.
+    import asyncio as _aio
+    from .skills.runner import _get_skillmd_ids, _build_copy_text, _run_single
+    from .skills.custom import get_custom_skill
+
     async def event_stream():
-        # 1. 세션 생성
-        session = ReviewSession(
-            project_name=project_name,
-            brief_snapshot=request.brief,
-            analysis_snapshot=request.analysisReport,
-            strategic_message_snapshot=request.strategicMessage,
-            selected_copies=[c.model_dump() for c in request.selectedCopies],
-            enabled_skills=request.enabledSkills,
-            status="running",
-        )
-        db.add(session)
-        await db.commit()
-        await db.refresh(session)
-        session_id = str(session.id)
-
-        yield _sse({"type": "review_started", "sessionId": session_id, "skills": request.enabledSkills})
-
-        try:
-            # 2. 스킬 실행을 위한 카피 목록 준비
-            copies_for_runner = [c.model_dump() for c in request.selectedCopies]
-
-            # 3. 스킬 병렬 실행
-            completed_skills = set()
-
-            async def on_skill_start(skill_ids):
-                pass  # SSE는 이미 위에서 전송
-
-            async def on_skill_complete(result_entry):
-                completed_skills.add(result_entry["skill_id"])
-
-            results = await run_review(
+        async with async_session() as db:
+            # 1. 세션 생성
+            session = ReviewSession(
+                project_name=project_name,
+                brief_snapshot=request.brief,
+                analysis_snapshot=request.analysisReport,
+                strategic_message_snapshot=request.strategicMessage,
+                selected_copies=[c.model_dump() for c in request.selectedCopies],
                 enabled_skills=request.enabledSkills,
-                selected_copies=copies_for_runner,
-                brief=request.brief,
-                analysis_report=request.analysisReport,
-                strategic_message=request.strategicMessage,
-                on_skill_start=on_skill_start,
-                on_skill_complete=on_skill_complete,
+                status="running",
             )
+            db.add(session)
+            await db.commit()
+            await db.refresh(session)
+            session_id = str(session.id)
 
-            # 4. 결과를 DB에 저장 + SSE 전송
-            for r in results:
-                db_result = ReviewResult(
-                    session_id=session.id,
-                    skill_id=r["skill_id"],
-                    skill_type=r["skill_type"],
-                    target_copy_key=r["target_copy_key"],
-                    passed=r["passed"],
-                    score=r["score"],
-                    findings=r.get("weaknesses", r.get("findings", [])),
-                    suggestions=r.get("improvements", r.get("suggestions", [])),
-                    raw_llm_response=r.get("raw_llm_response"),
-                    execution_ms=r.get("execution_ms", 0),
-                )
-                db.add(db_result)
+            yield _sse({"type": "review_started", "sessionId": session_id, "skills": request.enabledSkills})
+
+            try:
+                # 2. 태스크 준비
+                copies_for_runner = [c.model_dump() for c in request.selectedCopies]
+                skillmd_ids = _get_skillmd_ids()
+                custom_templates = {}
+                for sid in request.enabledSkills:
+                    if sid not in skillmd_ids:
+                        skill_data = get_custom_skill(sid)
+                        if skill_data and skill_data.get("is_active", True):
+                            custom_templates[sid] = skill_data["prompt_template"]
+
+                # 3. Queue 기반 실시간 스트리밍
+                result_queue: _aio.Queue = _aio.Queue()
+                total_tasks = 0
+
+                async def _wrapped(skill_id, skill_type, copy_key, copy_text, context, prompt_template):
+                    raw = await _run_single(skill_id, skill_type, copy_text, context, prompt_template)
+                    entry = {"skill_id": skill_id, "skill_type": skill_type, "target_copy_key": copy_key, **raw}
+                    await result_queue.put(entry)
+
+                tasks = []
+                for skill_id in request.enabledSkills:
+                    if skill_id in skillmd_ids:
+                        skill_type, prompt_template = "skillmd", None
+                    elif skill_id in custom_templates:
+                        skill_type, prompt_template = "custom", custom_templates[skill_id]
+                    else:
+                        continue
+                    for copy_entry in copies_for_runner:
+                        copy_key = copy_entry["key"]
+                        copy_data = copy_entry.get("copyData") or copy_entry.get("copy", {})
+                        copy_text = _build_copy_text(copy_data)
+                        context = {
+                            "brief_summary": request.brief,
+                            "analysis_context": request.analysisReport,
+                            "strategic_message": request.strategicMessage,
+                            "country_code": copy_entry.get("countryCode", ""),
+                        }
+                        tasks.append(_wrapped(skill_id, skill_type, copy_key, copy_text, context, prompt_template))
+                        total_tasks += 1
+
+                # 모든 태스크를 백그라운드로 시작
+                gather_task = _aio.ensure_future(_aio.gather(*tasks, return_exceptions=True))
+
+                # 4. 완료되는 순서대로 SSE 전송
+                results_collected = []
+                for _ in range(total_tasks):
+                    r = await result_queue.get()
+                    results_collected.append(r)
+                    # DB에 저장
+                    db_result = ReviewResult(
+                        session_id=session.id,
+                        skill_id=r["skill_id"],
+                        skill_type=r["skill_type"],
+                        target_copy_key=r["target_copy_key"],
+                        passed=r["passed"],
+                        score=r["score"],
+                        findings=r.get("weaknesses", r.get("findings", [])),
+                        suggestions=r.get("improvements", r.get("suggestions", [])),
+                        raw_llm_response=r.get("raw_llm_response"),
+                        execution_ms=r.get("execution_ms", 0),
+                    )
+                    db.add(db_result)
+                    yield _sse({
+                        "type": "skill_completed",
+                        "skillId": r["skill_id"],
+                        "skillType": r["skill_type"],
+                        "targetCopyKey": r["target_copy_key"],
+                        "passed": r["passed"],
+                        "score": r["score"],
+                        "strengths": r.get("strengths", []),
+                        "weaknesses": r.get("weaknesses", r.get("findings", [])),
+                        "improvements": r.get("improvements", r.get("suggestions", [])),
+                        "executionMs": r.get("execution_ms", 0),
+                    })
+
+                # gather 대기 (이미 완료되었을 것이지만 예외 처리용)
+                await gather_task
+
+                # 5. 세션 완료
+                session.status = "completed"
+                session.completed_at = datetime.now(timezone.utc)
+                await db.commit()
+
+                # 6. 요약
+                total = len(results_collected)
+                passed = sum(1 for r in results_collected if r["passed"])
+                avg_score = round(sum(r["score"] for r in results_collected) / total, 1) if total else 0
                 yield _sse({
-                    "type": "skill_completed",
-                    "skillId": r["skill_id"],
-                    "skillType": r["skill_type"],
-                    "targetCopyKey": r["target_copy_key"],
-                    "passed": r["passed"],
-                    "score": r["score"],
-                    "strengths": r.get("strengths", []),
-                    "weaknesses": r.get("weaknesses", r.get("findings", [])),
-                    "improvements": r.get("improvements", r.get("suggestions", [])),
-                    "executionMs": r.get("execution_ms", 0),
+                    "type": "review_done",
+                    "sessionId": session_id,
+                    "summary": {
+                        "total": total,
+                        "passed": passed,
+                        "failed": total - passed,
+                        "avgScore": avg_score,
+                    },
                 })
 
-            # 5. 세션 완료 처리
-            session.status = "completed"
-            session.completed_at = datetime.now(timezone.utc)
-            await db.commit()
-
-            # 6. 요약 전송
-            total = len(results)
-            passed = sum(1 for r in results if r["passed"])
-            avg_score = round(sum(r["score"] for r in results) / total, 1) if total else 0
-            yield _sse({
-                "type": "review_done",
-                "sessionId": session_id,
-                "summary": {
-                    "total": total,
-                    "passed": passed,
-                    "failed": total - passed,
-                    "avgScore": avg_score,
-                },
-            })
-
-        except Exception as e:
-            print(f"Review failed: {e}")
-            session.status = "failed"
-            await db.commit()
-            yield _sse({"type": "error", "message": f"Review failed: {str(e)}"})
+            except Exception as e:
+                print(f"Review failed: {e}")
+                import traceback; traceback.print_exc()
+                session.status = "failed"
+                try:
+                    await db.commit()
+                except Exception:
+                    pass
+                yield _sse({"type": "error", "message": f"Review failed: {str(e)}"})
 
         yield "data: [DONE]\n\n"
 

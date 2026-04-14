@@ -1,0 +1,468 @@
+import { CSSProperties, useMemo, useState } from 'react'
+
+import { Card } from '@/shared/ui/card'
+import { Button } from '@/shared/ui/button'
+import { FieldLabel } from '@/shared/ui/field'
+import { useGenerateBrief } from '@/shared/api/hooks'
+import type {
+  CampaignBrief,
+  MessageMatrixProduct,
+} from '@/shared/api/types'
+import {
+  type BriefField,
+  type BriefSection,
+  INITIAL_BRIEF,
+  SECTIONS,
+  isBriefValid,
+  isSectionRequired,
+  sectionHasEmpty,
+} from '@/features/brief/sections'
+import {
+  MessageMatrixUpload,
+  matrixToBriefSeed,
+} from '@/features/message-matrix'
+
+import { GuideModal } from './guide-modal'
+import { PreviewModal } from './preview-modal'
+
+interface Props {
+  /** 부모가 이미 가지고 있는 초기 brief (옵션). */
+  initialBrief?: CampaignBrief
+  /** 폼 내용이 바뀔 때마다 부모에 통지. */
+  onChange?: (brief: CampaignBrief) => void
+  /** 제출(=분석 시작) 버튼 클릭 시 호출. */
+  onSubmit?: (brief: CampaignBrief) => void
+  /** Message Matrix가 새로 파싱되었을 때 부모에 전달. 분석 호출 시 함께 전송하기 위함. */
+  onMatrixParsed?: (matrix: Record<string, MessageMatrixProduct> | null) => void
+  /** 상위에서 분석 중임을 표시. 버튼 비활성 및 로딩 문구 전환. */
+  isAnalyzing?: boolean
+  /** 전체 폼 비활성화. */
+  isDisabled?: boolean
+}
+
+/**
+ * 9-섹션 접이식 Campaign Brief 입력 폼.
+ * - 섹션별 접기/펴기
+ * - required 필드 빈 값에 빨간 외곽선
+ * - Project Context 섹션 뒤에 AI 자동생성 버튼
+ * - 각 섹션 guide 아이콘 → GuideModal
+ * - 상단 Preview 버튼 → PreviewModal
+ */
+export function BriefingForm({
+  initialBrief,
+  onChange,
+  onSubmit,
+  onMatrixParsed,
+  isAnalyzing = false,
+  isDisabled = false,
+}: Props) {
+  const [brief, setBrief] = useState<CampaignBrief>(
+    () => initialBrief ?? INITIAL_BRIEF,
+  )
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [submitted, setSubmitted] = useState(false)
+  const [guideSection, setGuideSection] = useState<BriefSection | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+
+  const generateBrief = useGenerateBrief()
+
+  const valid = useMemo(() => isBriefValid(brief), [brief])
+
+  const updateField = (name: keyof CampaignBrief, value: string) => {
+    setBrief((prev) => {
+      const next = { ...prev, [name]: value }
+      onChange?.(next)
+      return next
+    })
+  }
+
+  const toggleSection = (id: string) =>
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
+
+  const handleAutoGenerate = async () => {
+    const name = brief.projectName.trim()
+    const context = brief.projectContext.trim()
+    if (!name || !context) {
+      alert('프로젝트명과 Project Context를 먼저 입력해 주세요.')
+      return
+    }
+    if (name.length < 3 || new Set(name.replace(/\s/g, '')).size <= 1) {
+      alert('프로젝트명은 3자 이상, 의미 있는 문자열이어야 합니다.')
+      return
+    }
+    if (context.length < 20 || context.split(/\s+/).filter(Boolean).length < 5) {
+      alert('Project Context는 20자 이상, 5단어 이상이어야 합니다.')
+      return
+    }
+    try {
+      const result = await generateBrief.mutateAsync({
+        projectName: name,
+        projectContext: context,
+      })
+      if (result.status === 'success' && result.data) {
+        setBrief((prev) => {
+          const next = {
+            ...prev,
+            ...result.data,
+            projectName: prev.projectName,
+            projectContext: prev.projectContext,
+            date: prev.date,
+          } as CampaignBrief
+          onChange?.(next)
+          return next
+        })
+        setCollapsed({})
+        setSubmitted(false)
+      }
+    } catch (err) {
+      console.error('[BriefingForm] auto-generate failed', err)
+      alert('AI 자동생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    }
+  }
+
+  const handleMatrixParsed = (
+    matrix: Record<string, MessageMatrixProduct>,
+  ) => {
+    onMatrixParsed?.(matrix)
+    const seed = matrixToBriefSeed(matrix)
+    if (!seed) return
+    setBrief((prev) => {
+      const next: CampaignBrief = {
+        ...prev,
+        // 기존 입력값이 있으면 보존, 비어 있을 때만 채움
+        projectName: prev.projectName.trim()
+          ? prev.projectName
+          : seed.projectName,
+        projectContext: prev.projectContext.trim()
+          ? prev.projectContext
+          : seed.projectContext,
+      }
+      onChange?.(next)
+      return next
+    })
+    setCollapsed({})
+    setSubmitted(false)
+  }
+
+  const handleSubmit = () => {
+    if (!valid) {
+      setSubmitted(true)
+      // 첫 번째 미완성 필수 섹션 자동 펼치기
+      for (const s of SECTIONS) {
+        if (sectionHasEmpty(s, brief)) {
+          setCollapsed((prev) => ({ ...prev, [s.id]: false }))
+          break
+        }
+      }
+      return
+    }
+    onSubmit?.(brief)
+  }
+
+  return (
+    <Card className="stack" style={{ padding: '1.2rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+        }}
+      >
+        <div>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+            LG Campaign Research
+          </h3>
+          <p style={{ fontSize: 12, color: 'var(--neutral-700)' }}>
+            캠페인 브리프 9개 항목을 입력하거나 AI로 자동생성하세요.
+          </p>
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
+          생성일: {brief.date.replace(/-/g, '.')}
+        </span>
+      </div>
+
+      {/* Message Matrix 업로드 영역 */}
+      <div>
+        <p
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--neutral-700)',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 6,
+          }}
+        >
+          Message Matrix (선택)
+        </p>
+        <p
+          style={{
+            fontSize: 12,
+            color: 'var(--neutral-500)',
+            marginBottom: 8,
+          }}
+        >
+          .xlsx 파일을 업로드하면 프로젝트명·컨텍스트를 자동으로 채우고
+          분석 단계에서 USP 정보를 함께 활용합니다.
+        </p>
+        <MessageMatrixUpload
+          onParsed={handleMatrixParsed}
+          isDisabled={isDisabled}
+        />
+      </div>
+
+      <div style={{ display: 'grid', gap: 4 }}>
+        {SECTIONS.map((section) => {
+          const isCollapsed = !!collapsed[section.id]
+          const hasEmpty = submitted && sectionHasEmpty(section, brief)
+          const required = isSectionRequired(section)
+
+          return (
+            <div key={section.id}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderBottom: '1px solid var(--color-border)',
+                  userSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    flex: 1,
+                  }}
+                  onClick={() => toggleSection(section.id)}
+                >
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: 'var(--neutral-900)',
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {section.title}
+                    {required && (
+                      <span style={{ color: 'var(--lg-red-600)', marginLeft: 2 }}>*</span>
+                    )}
+                  </p>
+                  {section.guide && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setGuideSection(section)
+                      }}
+                      style={guideBtn}
+                      title="가이드 보기"
+                    >
+                      ?
+                    </button>
+                  )}
+                  {hasEmpty && isCollapsed && <span style={dotStyle} />}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 4,
+                    color: 'var(--neutral-500)',
+                    fontSize: 12,
+                  }}
+                  aria-label={isCollapsed ? '펼치기' : '접기'}
+                >
+                  {isCollapsed ? '▸' : '▾'}
+                </button>
+              </div>
+
+              {!isCollapsed && (
+                <div style={{ padding: '6px 0 12px 0', display: 'grid', gap: 8 }}>
+                  {section.fields.map((f) => (
+                    <FieldRow
+                      key={f.name}
+                      field={f}
+                      value={brief[f.name] ?? ''}
+                      onChange={(v) => updateField(f.name, v)}
+                      invalid={submitted && !!f.required && (brief[f.name] ?? '').trim() === ''}
+                      disabled={isDisabled}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {section.id === 'context' && !isDisabled && (
+                <button
+                  type="button"
+                  onClick={handleAutoGenerate}
+                  disabled={generateBrief.isPending}
+                  style={autoGenBtn(generateBrief.isPending)}
+                >
+                  {generateBrief.isPending
+                    ? '✦ AI 자동생성 중…'
+                    : '✦ AI 자동생성 (9개 항목)'}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 8,
+          paddingTop: 12,
+          borderTop: '1px solid var(--color-border)',
+        }}
+      >
+        <Button
+          variant="ghost"
+          onClick={() => setShowPreview(true)}
+          type="button"
+        >
+          미리보기
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isDisabled || isAnalyzing}
+          type="button"
+        >
+          {isAnalyzing ? '분석 중…' : '② 분석 시작'}
+        </Button>
+      </div>
+
+      <GuideModal
+        section={guideSection}
+        onClose={() => setGuideSection(null)}
+      />
+      <PreviewModal
+        open={showPreview}
+        brief={brief}
+        onClose={() => setShowPreview(false)}
+      />
+    </Card>
+  )
+}
+
+/* ── Internal field renderer ── */
+
+function FieldRow({
+  field,
+  value,
+  onChange,
+  invalid,
+  disabled,
+}: {
+  field: BriefField
+  value: string
+  onChange: (v: string) => void
+  invalid: boolean
+  disabled: boolean
+}) {
+  const commonStyle: CSSProperties = {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: `1px solid ${invalid ? 'var(--lg-red-600)' : 'var(--color-border)'}`,
+    fontSize: 14,
+    outline: 'none',
+    background: disabled ? '#f8f9fa' : 'var(--white)',
+    color: 'var(--neutral-900)',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+    lineHeight: 1.5,
+    resize: field.type === 'textarea' ? 'vertical' : undefined,
+    minHeight: field.type === 'textarea' ? `${(field.rows ?? 4) * 26}px` : undefined,
+    transition: 'border-color 0.2s ease',
+  }
+
+  return (
+    <div>
+      {field.label && (
+        <FieldLabel>
+          {field.label}
+          {field.required && (
+            <span style={{ color: 'var(--lg-red-600)', marginLeft: 2 }}>*</span>
+          )}
+        </FieldLabel>
+      )}
+      {field.type === 'textarea' ? (
+        <textarea
+          value={value}
+          placeholder={field.placeholder}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          style={commonStyle}
+          rows={field.rows ?? 4}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          placeholder={field.placeholder}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          style={commonStyle}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ── Inline styles ── */
+
+const guideBtn: CSSProperties = {
+  width: 18,
+  height: 18,
+  borderRadius: '50%',
+  border: '1px solid var(--color-border)',
+  background: 'var(--white)',
+  color: 'var(--neutral-500)',
+  fontSize: 11,
+  fontWeight: 700,
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  lineHeight: 1,
+}
+
+const dotStyle: CSSProperties = {
+  width: 6,
+  height: 6,
+  borderRadius: '50%',
+  background: 'var(--lg-red-600)',
+  flexShrink: 0,
+}
+
+const autoGenBtn = (loading: boolean): CSSProperties => ({
+  width: '100%',
+  padding: '10px 16px',
+  marginTop: 8,
+  marginBottom: 4,
+  borderRadius: 10,
+  border: '1px dashed var(--lg-red-600)',
+  background: '#fff8fa',
+  color: 'var(--lg-red-700)',
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: loading ? 'not-allowed' : 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  opacity: loading ? 0.6 : 1,
+  transition: 'background-color 0.2s ease',
+})

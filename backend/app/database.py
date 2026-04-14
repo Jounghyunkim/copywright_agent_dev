@@ -7,7 +7,13 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://copywriting:agent@localhost:5432/copywriting_agent_db"
 )
 
-engine = create_async_engine(DATABASE_URL, pool_size=10, max_overflow=20)
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,     # 사용 전 커넥션 생존 여부 확인 (stale 커넥션 방지)
+    pool_recycle=300,        # 5분 이상 유휴 커넥션 자동 재생성
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
