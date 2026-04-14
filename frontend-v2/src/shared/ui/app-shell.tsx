@@ -10,7 +10,10 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { ReactNode, useEffect, useRef, useState } from 'react'
 
 import { Toast } from '@/shared/ui/toast'
+import { Badge } from '@/shared/ui/badge'
 import { useHealth } from '@/shared/api/hooks'
+import { apiClient } from '@/shared/api/client'
+import { useAuthStore } from '@/shared/state/auth-store'
 
 const BRAND_TITLE = 'Copywriting Agent'
 const BRAND_SUB = 'Marketing AX Platform'
@@ -147,11 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div>
             <strong>{BRAND_TITLE}</strong>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-700)' }}>
-              Marketing AX
-            </span>
-          </div>
+          <TopbarUser />
         </header>
         <main className="page-content">{children}</main>
       </div>
@@ -161,6 +160,51 @@ export function AppShell({ children }: { children: ReactNode }) {
         title="서버 연결 끊김"
         description="백엔드(:5000) 응답이 없습니다. 데이터가 자동 갱신되지 않을 수 있습니다."
       />
+    </div>
+  )
+}
+
+function TopbarUser() {
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const clearUser = useAuthStore((s) => s.clearUser)
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout')
+    } catch {
+      // best-effort
+    }
+    clearUser()
+    navigate('/login', { replace: true })
+  }
+
+  if (!user) return null
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-900)' }}>
+        {user.display_name}
+      </span>
+      {user.department && (
+        <Badge tone="neutral">{user.department}</Badge>
+      )}
+      <button
+        type="button"
+        onClick={handleLogout}
+        style={{
+          background: 'none',
+          border: '1px solid var(--color-border)',
+          borderRadius: 6,
+          padding: '4px 10px',
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--neutral-700)',
+          cursor: 'pointer',
+        }}
+      >
+        로그아웃
+      </button>
     </div>
   )
 }

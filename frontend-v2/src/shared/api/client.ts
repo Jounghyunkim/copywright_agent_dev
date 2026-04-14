@@ -21,6 +21,7 @@ async function request<T>(
   const opts: RequestInit = {
     method,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     signal,
   }
   if (body !== undefined) {
@@ -28,6 +29,11 @@ async function request<T>(
   }
   const res = await fetch(`${BASE}${path}`, opts)
   if (!res.ok) {
+    // 401 자동 리디렉트 (/auth/* 경로는 제외)
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      window.location.href = '/login'
+      return undefined as T
+    }
     let detail: unknown
     try {
       detail = await res.json()
@@ -63,6 +69,7 @@ export async function postFormData<T>(
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     body: formData,
+    credentials: 'include',
     signal,
   })
   if (!res.ok) {
@@ -92,6 +99,7 @@ export async function readSSE(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    credentials: 'include',
     signal,
   })
   if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`)

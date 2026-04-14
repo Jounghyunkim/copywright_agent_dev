@@ -14,6 +14,10 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 600000,       // 10분 — SSE 스트리밍(분석/리뷰) 대기
       },
+      '/auth': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
       '/health': {
         target: 'http://localhost:5000',
         changeOrigin: true,

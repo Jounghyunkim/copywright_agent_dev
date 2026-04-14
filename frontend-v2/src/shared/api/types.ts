@@ -429,3 +429,26 @@ export interface CampaignDeleteResponse {
 export interface HealthResponse {
   status: string
 }
+
+/* ---------- Auth ---------- */
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  status: string
+  user_id: string
+  display_name: string
+  department: string
+}
+
+export interface UserInfo {
+  user_id: string
+  display_name: string
+  department: string
+  email: string
+  roles: string[]
+  session_id: string
+}

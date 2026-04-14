@@ -29,6 +29,9 @@ from .models import ReviewSession, ReviewResult, Campaign
 from sqlalchemy import func
 from .skills.runner import run_review
 from .skills.catalog import get_all_skills, get_skillmd_skills
+from .auth.redis_store import get_redis, close_redis
+from .auth.middleware import AuthContextMiddleware
+from .auth.routes import router as auth_router
 
 load_dotenv(dotenv_path='.env')
 
@@ -37,7 +40,15 @@ load_dotenv(dotenv_path='.env')
 async def lifespan(app: FastAPI):
     await init_db()
     print("Database tables initialized.")
+    # Redis 연결 사전 검증
+    try:
+        redis = await get_redis()
+        await redis.ping()
+        print("Redis connected.")
+    except Exception as e:
+        print(f"WARNING: Redis not available — auth will fail: {e}")
     yield
+    await close_redis()
 
 
 app = FastAPI(title="Copywrite Agent API", lifespan=lifespan)
@@ -55,6 +66,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Auth Middleware (Redis session) ---
+# Note: must be added AFTER CORS middleware (starlette processes in reverse order)
+import asyncio as _auth_asyncio
+
+async def _get_redis_for_middleware():
+    return await get_redis()
+
+class _RedisSessionAdapter:
+    """Adapter to make Redis client compatible with middleware's get(key) interface."""
+    async def get(self, key: str):
+        redis = await get_redis()
+        return await redis.get(key)
+
+app.add_middleware(
+    AuthContextMiddleware,
+    session_store=_RedisSessionAdapter(),
+    system_name="copywriting-agent",
+    env=os.getenv("AUTH_ENV", "dev"),
+    public_paths={
+        "/",
+        "/health",
+        "/docs",
+        "/openapi.json",
+        "/auth/login",
+        "/auth/logout",
+    },
+)
+
+# --- Auth Routes ---
+app.include_router(auth_router)
 
 
 @app.get("/")
