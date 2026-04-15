@@ -147,7 +147,7 @@ export function StrategicMessageView({
         )}
 
         {/* HITL */}
-        {(onApprove || onModify) && (
+        {!isApproved && (onApprove || onModify) && (
           <div
             style={{
               gridColumn: 'span 12',
@@ -161,9 +161,7 @@ export function StrategicMessageView({
             <Button variant="ghost" onClick={onModify}>
               전략 재추출
             </Button>
-            {!isApproved && (
-              <Button onClick={onApprove}>④ 카피 후보 생성</Button>
-            )}
+            <Button onClick={onApprove}>④ 카피 후보 생성</Button>
           </div>
         )}
       </div>

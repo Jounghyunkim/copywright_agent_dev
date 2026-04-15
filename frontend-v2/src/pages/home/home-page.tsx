@@ -38,7 +38,7 @@ export function HomePage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Button onClick={handleNew}>새 카피라이트 생성</Button>
+          <Button onClick={handleNew}>+ 새 카피라이트 생성</Button>
         </div>
       </div>
 

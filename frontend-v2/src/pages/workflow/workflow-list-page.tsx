@@ -62,12 +62,12 @@ export function WorkflowListPage() {
         }}
       >
         <div>
-          <h2 className="page-title">워크플로우 목록</h2>
+          <h2 className="page-title">카피라이트 작업 목록</h2>
           <p className="page-subtitle">
             저장된 캠페인을 열어 이어서 작업하거나 삭제하세요.
           </p>
         </div>
-        <Button onClick={handleNew}>새 워크플로우</Button>
+        <Button onClick={handleNew}>새 카피라이트 생성</Button>
       </div>
 
       <Card>
@@ -113,7 +113,7 @@ export function WorkflowListPage() {
             >
               저장된 캠페인이 없습니다.
             </p>
-            <Button onClick={handleNew}>첫 워크플로우 시작</Button>
+            <Button onClick={handleNew}>새 카피라이트 생성</Button>
           </div>
         )}
         {campaigns.length > 0 && (

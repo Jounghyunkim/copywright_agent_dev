@@ -22,7 +22,7 @@ const mainNav = [
   { to: '/', label: '홈' },
   { to: '/workflow', label: '카피라이트 생성' },
   { to: '/copy-review', label: '카피라이트 검토' },
-  { to: '/workflow-list', label: '워크플로우 목록' },
+  { to: '/workflow-list', label: '카피라이트 목록' },
   { to: '/approvals', label: '승인 대기' },
   { to: '/skills', label: '스킬' },
 ]
@@ -208,3 +208,4 @@ function TopbarUser() {
     </div>
   )
 }
+

@@ -406,7 +406,7 @@ export function AnalysisReport({
         )}
 
         {/* HITL */}
-        {(onApprove || onModify) && (
+        {!isApproved && (onApprove || onModify) && (
           <div
             style={{
               gridColumn: 'span 12',
@@ -420,9 +420,7 @@ export function AnalysisReport({
             <Button variant="ghost" onClick={onModify}>
               이전 단계
             </Button>
-            {!isApproved && (
-              <Button onClick={onApprove}>③ 전략 메시지 생성</Button>
-            )}
+            <Button onClick={onApprove}>③ 전략 메시지 생성</Button>
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { useChat } from '@/shared/api/hooks'
 import type { ChatMessage } from '@/shared/api/types'
 import { useWorkflowStore } from '@/shared/state/workflow-store'
+import { useAuthStore } from '@/shared/state/auth-store'
 
 export interface ChatPanelHandle {
   /** 외부에서 어시스턴트 메시지를 주입 (가이드 도움말 등) */
@@ -16,11 +17,15 @@ export interface ChatPanelHandle {
  * 컨텍스트(brief/analysisReport/strategicMessage 등)를 자동으로 서버에 전달.
  */
 export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) {
+  const rawName = useAuthStore((s) => s.user?.display_name)
+  const userName = rawName?.split('/')[0]?.trim() || rawName
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content:
-        '안녕하세요! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.',
+      content: userName
+        ? `안녕하세요, **${userName}**님! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.`
+        : '안녕하세요! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.',
     },
   ])
   const [input, setInput] = useState('')

@@ -1,5 +1,7 @@
 # LDAP 로그인 구현 문서
 
+※ 참고로, ID/PASSWD : copywriting / 123*
+
 ## 개요
 
 Copywriting Agent 플랫폼에 LG 사내 LDAP 기반 인증 시스템을 구현한 내역입니다.
