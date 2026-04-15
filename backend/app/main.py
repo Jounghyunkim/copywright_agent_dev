@@ -25,13 +25,14 @@ from .schemas import (
 )
 from .graph import app_graph
 from .database import init_db, get_db, async_session
-from .models import ReviewSession, ReviewResult, Campaign
+from .models import ReviewSession, ReviewResult, Campaign, AdminUser
 from sqlalchemy import func
 from .skills.runner import run_review
 from .skills.catalog import get_all_skills, get_skillmd_skills
 from .auth.redis_store import get_redis, close_redis
 from .auth.middleware import AuthContextMiddleware
 from .auth.routes import router as auth_router
+from .auth.admin_routes import router as admin_router
 
 load_dotenv(dotenv_path='.env')
 
@@ -47,6 +48,22 @@ async def lifespan(app: FastAPI):
         print("Redis connected.")
     except Exception as e:
         print(f"WARNING: Redis not available — auth will fail: {e}")
+    # 초기 관리자 부트스트랩 (테이블 비어있을 때만)
+    initial_admins = os.getenv("INITIAL_ADMIN_USER_IDS", "")
+    if initial_admins:
+        async with async_session() as db:
+            count = (await db.execute(func.count(AdminUser.id))).scalar() or 0
+            if count == 0:
+                for uid in initial_admins.split(","):
+                    uid = uid.strip()
+                    if uid:
+                        db.add(AdminUser(
+                            user_id=uid,
+                            display_name=uid,
+                            added_by="system_bootstrap",
+                        ))
+                await db.commit()
+                print(f"Bootstrapped initial admins: {initial_admins}")
     yield
     await close_redis()
 
@@ -97,6 +114,7 @@ app.add_middleware(
 
 # --- Auth Routes ---
 app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 @app.get("/")

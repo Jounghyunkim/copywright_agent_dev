@@ -10,6 +10,7 @@ import { SkillsPage } from '@/pages/skills'
 import { ApprovalsPage } from '@/pages/approvals'
 import { CopyReviewPage } from '@/pages/copy-review'
 import { SettingsPage } from '@/pages/settings/settings-page'
+import { AdminUsersPage } from '@/pages/admin/admin-users-page'
 
 export const router = createBrowserRouter([
   // Public: 로그인 페이지
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: 'approvals', element: <ApprovalsPage /> },
           { path: 'skills', element: <SkillsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'admin/users', element: <AdminUsersPage /> },
         ],
       },
     ],

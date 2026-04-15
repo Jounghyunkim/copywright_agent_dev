@@ -40,7 +40,13 @@ function GearMenu() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const menuItems = [{ label: '설정', path: '/settings' }]
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.roles?.includes('admin')
+
+  const menuItems = [
+    ...(isAdmin ? [{ label: '관리자 관리', path: '/admin/users' }] : []),
+    { label: '설정', path: '/settings' },
+  ]
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>

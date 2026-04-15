@@ -49,14 +49,35 @@ async def login(body: LoginRequest, request: Request, response: Response):
             raise HTTPException(status_code=503, detail=e.message)
         raise HTTPException(status_code=401, detail=e.message)
 
-    # 2. Create Redis session
+    # 2. Admin role check + profile refresh
+    roles: list[str] = []
+    try:
+        from ..models import AdminUser
+        from ..database import async_session
+        from sqlalchemy import select
+        async with async_session() as db:
+            result = await db.execute(
+                select(AdminUser).where(AdminUser.user_id == user_info.user_id)
+            )
+            admin_record = result.scalar_one_or_none()
+            if admin_record:
+                roles.append("admin")
+                # Refresh profile from LDAP on every login
+                admin_record.display_name = user_info.display_name
+                admin_record.department = user_info.department
+                admin_record.email = user_info.email
+                await db.commit()
+    except Exception as e:
+        print(f"[auth] Admin role check failed (non-blocking): {e}")
+
+    # 3. Create Redis session
     try:
         session_id = await create_session(
             user_id=user_info.user_id,
             display_name=user_info.display_name,
             department=user_info.department,
             email=user_info.email,
-            roles=[],
+            roles=roles,
         )
     except Exception as e:
         print(f"[auth] Redis session creation failed: {e}")
