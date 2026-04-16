@@ -44,7 +44,12 @@ function GearMenu() {
   const isAdmin = user?.roles?.includes('admin')
 
   const menuItems = [
-    ...(isAdmin ? [{ label: '관리자 관리', path: '/admin/users' }] : []),
+    ...(isAdmin
+      ? [
+          { label: '관리자 설정', path: '/admin/users' },
+          { label: '사용 통계', path: '/admin/stats' },
+        ]
+      : []),
     { label: '설정', path: '/settings' },
   ]
 

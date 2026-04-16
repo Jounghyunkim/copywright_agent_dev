@@ -7,14 +7,23 @@ Based on skill reference: fastapi_auth_middleware.py
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
+logger = logging.getLogger(__name__)
+
 AUTH_COOKIE_NAME = "SESSION_ID"
+
+# Redis dedup key format: urn:{system_name}:{env}:dau:{YYYY-MM-DD}:{user_id}
+_DAU_KEY_FMT = "urn:{system_name}:{env}:dau:{day}:{user_id}"
+_DAU_TTL_SECONDS = 93600  # 26h — covers timezone edge cases
 
 
 @dataclass
@@ -87,7 +96,64 @@ class AuthContextMiddleware(BaseHTTPMiddleware):
                 content={"detail": "unauthorized"},
             )
 
+        # Fire-and-forget DAU recording — never blocks or fails the request
+        await self._record_daily_access(
+            user_id=data["user_id"],
+            session_id=session_id,
+            request=request,
+        )
+
         return await call_next(request)
+
+    async def _record_daily_access(
+        self, *, user_id: str, session_id: str, request: Request
+    ) -> None:
+        """Write one 'accessed' event per user per day to PostgreSQL.
+
+        Uses a Redis SET NX key as dedup flag (26h TTL) so we only hit DB
+        once per user per day. Fire-and-forget: never blocks the request,
+        never raises.
+        """
+        try:
+            # Lazy imports to avoid circular deps at module load
+            from .redis_store import get_redis
+            from ..database import async_session
+
+            dedup_key = _DAU_KEY_FMT.format(
+                system_name=self.system_name,
+                env=self.env,
+                day=date.today().isoformat(),
+                user_id=user_id,
+            )
+            redis = await get_redis()
+            was_set = await redis.set(dedup_key, "1", nx=True, ex=_DAU_TTL_SECONDS)
+            if not was_set:
+                return  # already recorded today
+
+            # First access today — persist to PostgreSQL
+            source_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            if not source_ip and request.client:
+                source_ip = request.client.host
+            user_agent = request.headers.get("User-Agent")
+
+            async with async_session() as db:
+                await db.execute(
+                    text("""
+                        INSERT INTO auth_session_events
+                            (session_id, user_id, event_type, source_ip, user_agent)
+                        VALUES
+                            (:session_id, :user_id, 'accessed', :source_ip, :user_agent)
+                    """),
+                    {
+                        "session_id": session_id,
+                        "user_id": user_id,
+                        "source_ip": source_ip or None,
+                        "user_agent": user_agent,
+                    },
+                )
+                await db.commit()
+        except Exception:  # noqa: BLE001 — never block request on audit failure
+            logger.debug("daily access recording failed", exc_info=True)
 
 
 def require_auth(request: Request) -> AuthContext:

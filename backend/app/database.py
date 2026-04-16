@@ -76,6 +76,16 @@ async def init_db():
                 )
             """)
         )
+        # Indexes for usage-stats queries (DAU/MAU aggregations)
+        for idx_sql in (
+            "CREATE INDEX IF NOT EXISTS idx_auth_login_events_occurred_at ON auth_login_events (occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_auth_login_events_user_time ON auth_login_events (user_id, occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_auth_login_events_success_time ON auth_login_events (success, occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_auth_session_events_user_time ON auth_session_events (user_id, occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_auth_session_events_type_time ON auth_session_events (event_type, occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_auth_session_events_session_time ON auth_session_events (session_id, occurred_at DESC)",
+        ):
+            await conn.execute(__import__('sqlalchemy').text(idx_sql))
 
 
 async def get_db() -> AsyncSession:

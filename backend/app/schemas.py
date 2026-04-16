@@ -115,9 +115,19 @@ class GenerateCopyResponse(BaseModel):
     status: str
     data: Optional[list] = None
 
+class ChatAttachment(BaseModel):
+    kind: str = "text"              # 'text' | 'image'
+    filename: str
+    text: Optional[str] = None      # populated for kind='text'
+    truncated: bool = False
+    image_url: Optional[str] = None  # data: URL (base64) for kind='image'
+
+
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'assistant'
     content: str
+    attachments: Optional[List[ChatAttachment]] = None  # only set on user messages
+
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
@@ -126,6 +136,18 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+class ExtractedFile(BaseModel):
+    filename: str
+    text: str
+    size: int          # original bytes on disk
+    truncated: bool
+    error: Optional[str] = None  # non-null when extraction failed
+
+
+class ExtractFilesResponse(BaseModel):
+    files: List[ExtractedFile]
 
 
 # --- Review ---

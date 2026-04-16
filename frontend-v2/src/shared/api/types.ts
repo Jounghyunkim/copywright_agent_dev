@@ -165,9 +165,20 @@ export interface GenerateCopyResponse {
 
 /* ---------- Chat ---------- */
 
+export type ChatAttachmentKind = 'text' | 'image'
+
+export interface ChatAttachment {
+  kind: ChatAttachmentKind
+  filename: string
+  text?: string       // populated for kind='text'
+  truncated?: boolean
+  image_url?: string  // data: URL (base64), populated for kind='image'
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  attachments?: ChatAttachment[]
 }
 
 export interface ChatRequest {
@@ -178,6 +189,18 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   reply: string
+}
+
+export interface ExtractedFile {
+  filename: string
+  text: string
+  size: number
+  truncated: boolean
+  error?: string | null
+}
+
+export interface ExtractFilesResponse {
+  files: ExtractedFile[]
 }
 
 /* ---------- Review / HITL ---------- */

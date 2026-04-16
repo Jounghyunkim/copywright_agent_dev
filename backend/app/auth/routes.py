@@ -83,9 +83,9 @@ async def login(body: LoginRequest, request: Request, response: Response):
         print(f"[auth] Redis session creation failed: {e}")
         raise HTTPException(status_code=503, detail="Session store unavailable.")
 
-    # 3. Log login event (async, best-effort)
+    # 3. Log login event + session 'created' event (async, best-effort)
     try:
-        from .audit import log_login_event
+        from .audit import log_login_event, log_session_event
         await log_login_event(
             user_id=user_info.user_id,
             username_input=body.username,
@@ -93,6 +93,13 @@ async def login(body: LoginRequest, request: Request, response: Response):
             source_ip=request.client.host if request.client else None,
             user_agent=request.headers.get("user-agent"),
             department_snapshot=user_info.department,
+        )
+        await log_session_event(
+            session_id=session_id,
+            user_id=user_info.user_id,
+            event_type="created",
+            source_ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
         )
     except Exception as e:
         print(f"[auth] Audit log failed (non-blocking): {e}")

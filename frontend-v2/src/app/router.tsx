@@ -11,6 +11,7 @@ import { ApprovalsPage } from '@/pages/approvals'
 import { CopyReviewPage } from '@/pages/copy-review'
 import { SettingsPage } from '@/pages/settings/settings-page'
 import { AdminUsersPage } from '@/pages/admin/admin-users-page'
+import { StatsPage } from '@/pages/admin/stats-page'
 
 export const router = createBrowserRouter([
   // Public: 로그인 페이지
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: 'skills', element: <SkillsPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'admin/users', element: <AdminUsersPage /> },
+          { path: 'admin/stats', element: <StatsPage /> },
         ],
       },
     ],

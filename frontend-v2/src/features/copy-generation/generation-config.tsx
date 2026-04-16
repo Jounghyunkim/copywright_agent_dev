@@ -1,10 +1,13 @@
-import { CSSProperties, useState } from 'react'
+import { CSSProperties, useMemo, useState } from 'react'
 
 import { Card } from '@/shared/ui/card'
+import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import type { GenerationConfig as GenerationConfigT } from '@/shared/api/types'
+import { useWorkflowStore } from '@/shared/state/workflow-store'
 
 import { AGE_GROUPS, COUNTRIES, TARGET_PERSONAS } from './constants'
+import { inferFromAudience } from './infer-audience'
 
 interface Props {
   onSubmit: (cfg: GenerationConfigT) => void
@@ -19,9 +22,12 @@ interface Props {
  * - 카피 변형 수 (1-10)
  */
 export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
+  const audience = useWorkflowStore((s) => s.brief.audience)
+  const inferred = useMemo(() => inferFromAudience(audience), [audience])
+
   const [countries, setCountries] = useState<string[]>([])
-  const [ages, setAges] = useState<string[]>([])
-  const [personas, setPersonas] = useState<string[]>([])
+  const [ages, setAges] = useState<string[]>(inferred.ageGroups)
+  const [personas, setPersonas] = useState<string[]>(inferred.personas)
   const [copyCount, setCopyCount] = useState(3)
 
   const toggle = (
@@ -92,7 +98,11 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
       </div>
 
       {/* Age Groups */}
-      <SectionTitle title="타겟 연령대" />
+      <SectionTitle title="타겟 연령대">
+        {inferred.ageGroups.length > 0 && (
+          <Badge tone="primary">Audience 기반 자동 선택</Badge>
+        )}
+      </SectionTitle>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {AGE_GROUPS.map((a) => (
           <CheckboxRow
@@ -106,7 +116,11 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
       </div>
 
       {/* Personas */}
-      <SectionTitle title="타겟 페르소나" />
+      <SectionTitle title="타겟 페르소나">
+        {inferred.personas.length > 0 && (
+          <Badge tone="primary">Audience 기반 자동 선택</Badge>
+        )}
+      </SectionTitle>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {TARGET_PERSONAS.map((p) => (
           <div

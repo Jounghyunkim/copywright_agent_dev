@@ -3,6 +3,7 @@ import uuid
 import json as json_module
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
+from typing import Optional
 from dotenv import load_dotenv
 import tempfile
 from fastapi import FastAPI, File, Form, HTTPException, Depends, UploadFile
@@ -22,6 +23,7 @@ from .schemas import (
     CampaignSaveRequest,
     MessageMatrixSheetsResponse, MessageMatrixParseResponse,
     MessageMatrixProduct, MessageMatrixCategory, MessageMatrixUSP,
+    ExtractFilesResponse, ExtractedFile,
 )
 from .graph import app_graph
 from .database import init_db, get_db, async_session
@@ -33,6 +35,7 @@ from .auth.redis_store import get_redis, close_redis
 from .auth.middleware import AuthContextMiddleware
 from .auth.routes import router as auth_router
 from .auth.admin_routes import router as admin_router
+from .auth.stats_routes import router as stats_router
 
 load_dotenv(dotenv_path='.env')
 
@@ -115,6 +118,7 @@ app.add_middleware(
 # --- Auth Routes ---
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(stats_router)
 
 
 @app.get("/")
@@ -497,7 +501,35 @@ async def chat_with_agent(request: ChatRequest):
     history = [system_prompt]
     for msg in request.messages:
         if msg.role == "user":
-            history.append(HumanMessage(content=msg.content))
+            # Partition attachments: text → inline into prompt body;
+            # image → separate content block for vision-capable models.
+            body = msg.content
+            image_blocks: list[dict] = []
+            if msg.attachments:
+                for att in msg.attachments:
+                    if att.kind == "image" and att.image_url:
+                        image_blocks.append({
+                            "type": "image_url",
+                            "image_url": {"url": att.image_url, "detail": "auto"},
+                        })
+                        # Add a brief text hint so the model knows the filename
+                        body += f"\n\n[첨부 이미지: {att.filename}]"
+                    else:
+                        att_text = att.text or ""
+                        trunc_note = " (truncated)" if att.truncated else ""
+                        body += (
+                            f"\n\n=== Attached File: {att.filename}{trunc_note} ===\n"
+                            f"{att_text}"
+                        )
+
+            if image_blocks:
+                # Multi-modal content list — requires a vision-capable deployment
+                # (e.g. gpt-4o, gpt-4-turbo with vision).
+                content_blocks: list[dict] = [{"type": "text", "text": body}]
+                content_blocks.extend(image_blocks)
+                history.append(HumanMessage(content=content_blocks))
+            else:
+                history.append(HumanMessage(content=body))
         elif msg.role == "assistant":
             history.append(AIMessage(content=msg.content))
 
@@ -506,6 +538,119 @@ async def chat_with_agent(request: ChatRequest):
         return {"reply": response.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Chat attachment text extraction ---
+
+MAX_CHAT_FILE_BYTES = 5 * 1024 * 1024      # 5 MB per file
+MAX_CHAT_FILE_TEXT_CHARS = 40_000          # truncate extracted text per file
+
+
+def _extract_file_text(filename: str, raw: bytes) -> tuple[str, bool, Optional[str]]:
+    """Return (text, truncated, error) for a single uploaded file.
+
+    Supported: txt, md, csv, json, log (decoded as UTF-8 with replacement),
+    xlsx (openpyxl), pdf (pypdf), docx (python-docx).
+    Unsupported types return error and empty text.
+    """
+    import pathlib as _pathlib
+    import io
+    import csv as _csv
+
+    ext = _pathlib.Path(filename).suffix.lower().lstrip(".")
+    text = ""
+    error: Optional[str] = None
+
+    try:
+        if ext in {"txt", "md", "markdown", "log", "json", "csv", "tsv", ""}:
+            text = raw.decode("utf-8", errors="replace")
+        elif ext == "pdf":
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(io.BytesIO(raw))
+                parts: list[str] = []
+                for page in reader.pages:
+                    try:
+                        parts.append(page.extract_text() or "")
+                    except Exception:
+                        parts.append("")
+                text = "\n".join(parts)
+            except Exception as e:
+                error = f"PDF parse failed: {e}"
+        elif ext == "docx":
+            try:
+                from docx import Document
+                doc = Document(io.BytesIO(raw))
+                lines = [p.text for p in doc.paragraphs if p.text]
+                for table in doc.tables:
+                    for row in table.rows:
+                        line = "\t".join(cell.text for cell in row.cells)
+                        if line.strip():
+                            lines.append(line)
+                text = "\n".join(lines)
+            except Exception as e:
+                error = f"DOCX parse failed: {e}"
+        elif ext in {"xlsx", "xlsm"}:
+            try:
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(raw), data_only=True, read_only=True)
+                blocks: list[str] = []
+                for ws in wb.worksheets:
+                    blocks.append(f"[sheet: {ws.title}]")
+                    for row in ws.iter_rows(values_only=True):
+                        cells = ["" if v is None else str(v) for v in row]
+                        if any(c.strip() for c in cells):
+                            blocks.append("\t".join(cells))
+                text = "\n".join(blocks)
+            except Exception as e:
+                error = f"XLSX parse failed: {e}"
+        else:
+            error = f"unsupported file type: .{ext or 'unknown'}"
+    except Exception as e:
+        error = f"extraction failed: {e}"
+
+    truncated = False
+    if len(text) > MAX_CHAT_FILE_TEXT_CHARS:
+        text = text[:MAX_CHAT_FILE_TEXT_CHARS]
+        truncated = True
+
+    return text, truncated, error
+
+
+@app.post("/api/v1/chat/extract-text", response_model=ExtractFilesResponse)
+async def extract_chat_attachments(files: list[UploadFile] = File(...)):
+    """Extract plain-text from one or more uploaded files for AI chat context.
+
+    Supported: txt/md/csv/json/log, pdf, docx, xlsx.
+    Files larger than 5 MB are rejected. Extracted text is capped at 40k chars.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="no files uploaded")
+
+    out: list[ExtractedFile] = []
+    for f in files:
+        raw = await f.read()
+        size = len(raw)
+        if size > MAX_CHAT_FILE_BYTES:
+            out.append(ExtractedFile(
+                filename=f.filename or "unknown",
+                text="",
+                size=size,
+                truncated=False,
+                error=f"file too large ({size} bytes, max {MAX_CHAT_FILE_BYTES})",
+            ))
+            continue
+
+        text, truncated, error = _extract_file_text(f.filename or "unknown", raw)
+        out.append(ExtractedFile(
+            filename=f.filename or "unknown",
+            text=text,
+            size=size,
+            truncated=truncated,
+            error=error,
+        ))
+
+    return {"files": out}
 
 
 # ============================================================
