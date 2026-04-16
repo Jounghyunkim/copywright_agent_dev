@@ -104,6 +104,7 @@ class GenerationConfig(BaseModel):
     personas: List[str]
     skillsets: List[str]
     copyCount: int = 3
+    writerPersona: Optional[str] = None  # AI 작가 페르소나 스킬 ID (e.g. 'writer-solmi')
 
 class GenerateCopyRequest(BaseModel):
     brief: dict

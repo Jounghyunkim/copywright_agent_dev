@@ -138,6 +138,14 @@ export interface CopyItem {
   toneAnalysis?: string
 }
 
+export interface CopyDiagnostic {
+  cliches: string[]
+  avg_sentence_len: number
+  filler_count: number
+  similarity: number | null
+  warnings: string[]
+}
+
 export interface CopyResult {
   countryCode: string
   copies: CopyItem[]
@@ -149,6 +157,7 @@ export interface GenerationConfig {
   personas: string[]
   skillsets: string[]
   copyCount: number
+  writerPersona?: string  // AI 작가 페르소나 스킬 ID (e.g. 'writer-solmi')
 }
 
 export interface GenerateCopyRequest {
@@ -160,6 +169,7 @@ export interface GenerateCopyRequest {
 
 export interface GenerateCopyResponse {
   status: string
+  diagnostics?: CopyDiagnostic[][]  // [countryIdx][copyIdx]
   data?: CopyResult[] | null
 }
 

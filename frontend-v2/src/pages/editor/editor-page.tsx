@@ -203,10 +203,15 @@ export function EditorPage() {
     setSelectedCopies([])
   }
 
+  const [copyDiagnostics, setCopyDiagnostics] = useState<
+    import('@/shared/api/types').CopyDiagnostic[][] | null
+  >(null)
+
   const handleGenerateCopy = async (cfg: GenerationConfigT) => {
     if (!analysisReport || !strategicMessage) return
     setCopyResults(null)
     setSelectedCopies([])
+    setCopyDiagnostics(null)
     try {
       const res = await generateCopy.mutateAsync({
         brief,
@@ -216,6 +221,9 @@ export function EditorPage() {
       })
       if (res.status === 'success' && res.data) {
         setCopyResults(res.data)
+        if ((res as any).diagnostics) {
+          setCopyDiagnostics((res as any).diagnostics)
+        }
         scrollToBottom()
       } else {
         throw new Error('Empty copy result')
@@ -439,6 +447,7 @@ export function EditorPage() {
       {currentStep >= 4 && copyResults && (
         <CopyResults
           results={copyResults}
+          diagnostics={copyDiagnostics}
           onProceed={handleProceedToReview}
           readOnly={currentStep >= 5}
         />

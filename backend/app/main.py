@@ -36,6 +36,7 @@ from .auth.middleware import AuthContextMiddleware
 from .auth.routes import router as auth_router
 from .auth.admin_routes import router as admin_router
 from .auth.stats_routes import router as stats_router
+from .knowledge_routes import router as knowledge_router
 
 load_dotenv(dotenv_path='.env')
 
@@ -119,6 +120,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(stats_router)
+app.include_router(knowledge_router)
 
 
 @app.get("/")
@@ -275,13 +277,22 @@ async def generate_copy(request: GenerateCopyRequest):
                 "skillsets": config.skillsets,
                 "copyCount": config.copyCount,
             },
+            persona_skill=config.writerPersona or None,
         )
 
         print(f"[DeepAgent] Selected skills: {result['selected_skills']}")
         print(f"[DeepAgent] Skill reviews: {result.get('skill_reviews', {})}")
         print(f"[DeepAgent] Elapsed: {result['elapsed_ms']}ms")
+        if result.get("diagnostics"):
+            total_warns = sum(
+                len(d.get("warnings", [])) for country in result["diagnostics"] for d in country
+            )
+            print(f"[DeepAgent] Filter warnings: {total_warns}")
 
-        return {"status": "success", "data": result["copies"]}
+        resp: dict = {"status": "success", "data": result["copies"]}
+        if result.get("diagnostics"):
+            resp["diagnostics"] = result["diagnostics"]
+        return resp
     except Exception as e:
         print(f"Copy generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Copy generation failed: {str(e)}")

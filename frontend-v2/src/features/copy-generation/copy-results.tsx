@@ -3,7 +3,7 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import type { CopyItem, CopyResult, SelectedCopy } from '@/shared/api/types'
+import type { CopyDiagnostic, CopyItem, CopyResult, SelectedCopy } from '@/shared/api/types'
 
 import { countryMeta } from './constants'
 import { type TranslatedCopy, useTranslateCopy } from './use-translate'
@@ -11,13 +11,15 @@ import { type TranslatedCopy, useTranslateCopy } from './use-translate'
 interface Props {
   /** 서버가 반환한 국가별 카피 결과 */
   results: CopyResult[]
+  /** 후처리 필터 진단 결과 (optional, writer 페르소나 사용 시) */
+  diagnostics?: CopyDiagnostic[][] | null
   /** 리뷰로 진행. 선택된 카피 목록을 전달. */
   onProceed?: (selected: SelectedCopy[]) => void
   /** 읽기 전용 모드. 선택 체크박스와 진행 버튼을 숨김. */
   readOnly?: boolean
 }
 
-export function CopyResults({ results, onProceed, readOnly = false }: Props) {
+export function CopyResults({ results, diagnostics, onProceed, readOnly = false }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<Record<string, number>>({})
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
@@ -116,11 +118,12 @@ export function CopyResults({ results, onProceed, readOnly = false }: Props) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {results.map((result) => {
+        {results.map((result, countryIdx) => {
           const meta = countryMeta(result.countryCode)
           const isOpen = expanded.has(result.countryCode)
           const tab = activeTab[result.countryCode] ?? 0
           const activeCopy = result.copies[tab]
+          const activeDiag = diagnostics?.[countryIdx]?.[tab]
           const copyKey = `${result.countryCode}-${tab}`
           const isKorean = result.countryCode === 'KR'
           const translated = isKorean ? undefined : translations.get(copyKey)
@@ -187,6 +190,7 @@ export function CopyResults({ results, onProceed, readOnly = false }: Props) {
                     copy={activeCopy}
                     translation={translated}
                     isTranslating={isTranslating}
+                    diagnostic={activeDiag}
                   />
                 </div>
               )}
@@ -221,12 +225,15 @@ function CopyDetail({
   copy,
   translation,
   isTranslating,
+  diagnostic,
 }: {
   copy: CopyItem
   translation?: TranslatedCopy
   isTranslating?: boolean
+  diagnostic?: CopyDiagnostic
 }) {
   if (!copy) return null
+  const hasWarnings = diagnostic && diagnostic.warnings.length > 0
   return (
     <div
       style={{
@@ -236,6 +243,32 @@ function CopyDetail({
         gap: 12,
       }}
     >
+      {hasWarnings && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            padding: '10px 14px',
+            background: '#fffbeb',
+            border: '1px solid #fbbf24',
+            borderRadius: 10,
+            fontSize: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Badge tone="warning">Quality Filter</Badge>
+            <span style={{ fontWeight: 600, color: '#92400e' }}>
+              {diagnostic!.warnings.length}건 감지
+            </span>
+          </div>
+          {diagnostic!.warnings.map((w, i) => (
+            <p key={i} style={{ margin: 0, color: '#92400e', lineHeight: 1.5 }}>
+              &bull; {w}
+            </p>
+          ))}
+        </div>
+      )}
       <Field label="Headline" value={copy.headline} large translation={translation?.headline} />
       <Field label="Subheadline" value={copy.subheadline} translation={translation?.subheadline} />
       <Field label="Body Copy" value={copy.bodyCopy} multiline translation={translation?.bodyCopy} />

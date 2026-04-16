@@ -3,7 +3,8 @@ import { CSSProperties, useMemo, useState } from 'react'
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import type { GenerationConfig as GenerationConfigT } from '@/shared/api/types'
+import type { AIPersona, GenerationConfig as GenerationConfigT } from '@/shared/api/types'
+import { usePersonas } from '@/shared/api/hooks'
 import { useWorkflowStore } from '@/shared/state/workflow-store'
 
 import { AGE_GROUPS, COUNTRIES, TARGET_PERSONAS } from './constants'
@@ -28,7 +29,12 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
   const [countries, setCountries] = useState<string[]>([])
   const [ages, setAges] = useState<string[]>(inferred.ageGroups)
   const [personas, setPersonas] = useState<string[]>(inferred.personas)
+  const [writerPersona, setWriterPersona] = useState<string | undefined>()
   const [copyCount, setCopyCount] = useState(3)
+
+  // AI Writer 페르소나 목록 (선택 사항)
+  const personasQuery = usePersonas()
+  const writerPersonas: AIPersona[] = (personasQuery.data as any)?.data ?? []
 
   const toggle = (
     list: string[],
@@ -58,6 +64,7 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
       personas,
       skillsets: [],
       copyCount,
+      writerPersona,
     })
   }
 
@@ -155,6 +162,70 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Writer Persona (optional) */}
+      {writerPersonas.length > 0 && (
+        <>
+          <SectionTitle title="AI 작가 페르소나 (선택)">
+            {writerPersona && (
+              <button
+                type="button"
+                style={linkBtn}
+                onClick={() => setWriterPersona(undefined)}
+              >
+                선택 해제
+              </button>
+            )}
+          </SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {writerPersonas.map((p) => (
+              <div
+                key={p.id}
+                onClick={() =>
+                  setWriterPersona(writerPersona === p.id ? undefined : p.id)
+                }
+                style={personaCard(writerPersona === p.id)}
+              >
+                <CheckMark checked={writerPersona === p.id} />
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: p.color || '#9ca3af',
+                    flexShrink: 0,
+                    marginTop: 3,
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color:
+                        writerPersona === p.id
+                          ? 'var(--lg-red-700)'
+                          : 'var(--neutral-900)',
+                      margin: 0,
+                    }}
+                  >
+                    {p.name}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--neutral-500)',
+                      margin: '2px 0 0 0',
+                    }}
+                  >
+                    {p.tags?.join(' · ')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Submit row */}
       <div

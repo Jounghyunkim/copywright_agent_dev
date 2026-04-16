@@ -253,9 +253,30 @@ class DeepAgentExecutor:
         # 4) 페르소나 시스템 프롬프트 부분
         persona_instruction = ""
         if persona_skill:
-            persona_body = self.loader.get_skill_body(persona_skill, max_chars=2000)
+            persona_body = self.loader.get_skill_body(persona_skill, max_chars=3000)
             if persona_body:
                 persona_instruction = f"\n\n## AI Writer Persona\n{persona_body}"
+
+            # writer-solmi: RAG 지식 베이스에서 캠페인 맥락 유사 청크 검색 → 동적 Few-shot
+            if persona_skill == "writer-solmi":
+                try:
+                    from ..knowledge_routes import search_solmi_knowledge
+                    rag_query = " ".join([
+                        str(objective),
+                        brief.get("keyMessage", ""),
+                        brief.get("audience", ""),
+                        brief.get("projectName", ""),
+                    ])
+                    rag_chunks = search_solmi_knowledge(rag_query, k=5)
+                    if rag_chunks:
+                        rag_block = "\n\n---\n".join(rag_chunks)
+                        persona_instruction += (
+                            f"\n\n## 참고: 작가의 실제 텍스트에서 검색된 유사 예시\n"
+                            f"아래 텍스트의 문체, 어휘, 은유 방식을 참고하여 카피를 생성하세요.\n\n"
+                            f"{rag_block}"
+                        )
+                except Exception:
+                    logger.debug("solmi RAG search failed", exc_info=True)
 
         # 5) 시스템 프롬프트 구성
         system_prompt = f"""You are a DeepAgent for enterprise ad-copy automation at LG Electronics.
@@ -335,11 +356,21 @@ Generate culturally adapted copy for each target country, following ALL skill in
             market=market,
         )
 
+        # 8) 후처리 필터 (writer-solmi 및 기타 페르소나에 적용)
+        diagnostics = None
+        if persona_skill:
+            try:
+                from .copy_filter import run_copy_filter
+                diagnostics = run_copy_filter(data, brief, strategic_message)
+            except Exception:
+                logger.debug("copy filter failed", exc_info=True)
+
         return {
             "copies": data,
             "selected_skills": selected_skills,
             "skill_reviews": skill_reviews,
             "elapsed_ms": elapsed_ms,
+            "diagnostics": diagnostics,
         }
 
     async def _generate_skill_reviews(

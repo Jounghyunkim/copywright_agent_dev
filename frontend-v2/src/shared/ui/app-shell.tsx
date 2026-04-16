@@ -48,6 +48,7 @@ function GearMenu() {
       ? [
           { label: '관리자 설정', path: '/admin/users' },
           { label: '사용 통계', path: '/admin/stats' },
+          { label: '지식 구축', path: '/admin/knowledge' },
         ]
       : []),
     { label: '설정', path: '/settings' },

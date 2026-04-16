@@ -127,6 +127,25 @@ class CustomSkill(Base):
     )
 
 
+class KnowledgeDocument(Base):
+    """지식 구축 — 업로드된 문서 메타데이터 (벡터는 FAISS에 저장)"""
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    filename: Mapped[str] = mapped_column(String(500), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)  # 저서, 에세이, 인터뷰, 카피샘플, 인사이트
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_chars: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    added_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("idx_knowledge_documents_category", "category"),
+    )
+
+
 class AdminUser(Base):
     __tablename__ = "admin_users"
 
