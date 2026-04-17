@@ -42,6 +42,10 @@ async def init_db():
                     ALTER TABLE campaigns ALTER COLUMN analysis_report DROP NOT NULL;
                     ALTER TABLE campaigns ALTER COLUMN strategic_message DROP NOT NULL;
                     ALTER TABLE campaigns ALTER COLUMN copy_results DROP NOT NULL;
+                    -- Campaign ownership
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='created_by') THEN
+                        ALTER TABLE campaigns ADD COLUMN created_by VARCHAR(128);
+                    END IF;
                 END $$;
             """)
         )
@@ -84,6 +88,7 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_auth_session_events_user_time ON auth_session_events (user_id, occurred_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_auth_session_events_type_time ON auth_session_events (event_type, occurred_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_auth_session_events_session_time ON auth_session_events (session_id, occurred_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_campaigns_created_by ON campaigns (created_by)",
         ):
             await conn.execute(__import__('sqlalchemy').text(idx_sql))
 

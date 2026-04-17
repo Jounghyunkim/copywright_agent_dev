@@ -1,4 +1,5 @@
 import { CSSProperties, useMemo, useState } from 'react'
+import Markdown from 'react-markdown'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -22,7 +23,10 @@ interface Props {
  * - Target Personas (5종)
  * - 카피 변형 수 (1-10)
  */
-export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
+export function GenerationConfig({
+  onSubmit,
+  isGenerating = false,
+}: Props) {
   const audience = useWorkflowStore((s) => s.brief.audience)
   const inferred = useMemo(() => inferFromAudience(audience), [audience])
 
@@ -177,53 +181,61 @@ export function GenerationConfig({ onSubmit, isGenerating = false }: Props) {
               </button>
             )}
           </SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {writerPersonas.map((p) => (
-              <div
-                key={p.id}
-                onClick={() =>
-                  setWriterPersona(writerPersona === p.id ? undefined : p.id)
-                }
-                style={personaCard(writerPersona === p.id)}
-              >
-                <CheckMark checked={writerPersona === p.id} />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: 8,
+            }}
+          >
+            {writerPersonas.map((p) => {
+              const selected = writerPersona === p.id
+              return (
                 <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: p.color || '#9ca3af',
-                    flexShrink: 0,
-                    marginTop: 3,
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color:
-                        writerPersona === p.id
+                  key={p.id}
+                  onClick={() =>
+                    setWriterPersona(selected ? undefined : p.id)
+                  }
+                  style={writerPersonaCard(selected)}
+                >
+                  <CheckMark checked={selected} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: selected
                           ? 'var(--lg-red-700)'
                           : 'var(--neutral-900)',
-                      margin: 0,
-                    }}
-                  >
-                    {p.name}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--neutral-500)',
-                      margin: '2px 0 0 0',
-                    }}
-                  >
-                    {p.tags?.join(' · ')}
-                  </p>
+                        margin: 0,
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {p.name}
+                    </p>
+                    {p.tags?.length ? (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--neutral-500)',
+                          margin: '2px 0 0 0',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {p.tags.join(' · ')}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
+          {(() => {
+            const selected = writerPersonas.find((p) => p.id === writerPersona)
+            return selected ? <WriterIntroCard persona={selected} /> : null
+          })()}
         </>
       )}
 
@@ -399,4 +411,161 @@ const linkBtn: CSSProperties = {
   padding: 0,
   textTransform: 'none',
   letterSpacing: 0,
+}
+
+const writerPersonaCard = (selected: boolean): CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 12px',
+  borderRadius: 10,
+  cursor: 'pointer',
+  border: `1.5px solid ${selected ? 'var(--lg-red-600)' : 'var(--color-border)'}`,
+  background: selected ? 'var(--lg-red-100)' : 'var(--white)',
+  transition: 'all 0.15s ease',
+})
+
+/* ── Writer Intro Card (선택된 작가 소개/문체) ── */
+
+function WriterIntroCard({ persona }: { persona: AIPersona }) {
+  const color = persona.color || '#6366f1'
+  return (
+    <div style={writerIntroWrap(color)}>
+      <div style={writerIntroHeader}>
+        <span style={writerIntroIcon(color)}>✍️</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={writerIntroKicker}>AI 작가 페르소나</p>
+          <p style={writerIntroName}>{persona.name}</p>
+        </div>
+        {typeof persona.temperature === 'number' && (
+          <span style={writerIntroTempBadge}>
+            temp · {persona.temperature}
+          </span>
+        )}
+      </div>
+      {persona.tags && persona.tags.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 4,
+            marginTop: 8,
+          }}
+        >
+          {persona.tags.map((t) => (
+            <span key={t} style={writerIntroTag}>
+              #{t}
+            </span>
+          ))}
+        </div>
+      )}
+      {persona.description && (
+        <div style={writerIntroSection}>
+          <p style={writerIntroSectionLabel}>소개</p>
+          <div className="chat-markdown" style={{ fontSize: 13 }}>
+            <Markdown>{persona.description}</Markdown>
+          </div>
+        </div>
+      )}
+      {persona.style_highlights && persona.style_highlights.length > 0 && (
+        <div style={writerIntroSection}>
+          <p style={writerIntroSectionLabel}>문체 특징</p>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              fontSize: 13,
+              lineHeight: 1.55,
+              color: 'var(--neutral-900)',
+            }}
+          >
+            {persona.style_highlights.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const writerIntroWrap = (color: string): CSSProperties => ({
+  marginTop: 10,
+  background: '#fff',
+  border: '1px solid var(--color-border)',
+  borderLeft: `3px solid ${color}`,
+  borderRadius: 10,
+  padding: '12px 14px',
+  boxShadow: '0 1px 2px rgba(17,17,17,0.04)',
+})
+
+const writerIntroHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+}
+
+const writerIntroIcon = (color: string): CSSProperties => ({
+  width: 30,
+  height: 30,
+  borderRadius: '50%',
+  background: `${color}1a`,
+  color,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 14,
+  flexShrink: 0,
+})
+
+const writerIntroKicker: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--neutral-500)',
+  letterSpacing: 0.5,
+  textTransform: 'uppercase',
+  margin: 0,
+}
+
+const writerIntroName: CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  color: 'var(--neutral-900)',
+  margin: '2px 0 0 0',
+  lineHeight: 1.3,
+  wordBreak: 'break-word',
+}
+
+const writerIntroTempBadge: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--neutral-500)',
+  background: 'var(--neutral-100)',
+  padding: '3px 8px',
+  borderRadius: 10,
+  flexShrink: 0,
+}
+
+const writerIntroTag: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  padding: '2px 8px',
+  borderRadius: 10,
+  background: 'var(--neutral-100)',
+  color: 'var(--neutral-700)',
+}
+
+const writerIntroSection: CSSProperties = {
+  marginTop: 10,
+  paddingTop: 10,
+  borderTop: '1px dashed var(--color-border)',
+}
+
+const writerIntroSectionLabel: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--neutral-500)',
+  letterSpacing: 0.5,
+  textTransform: 'uppercase',
+  margin: '0 0 6px 0',
 }

@@ -28,12 +28,39 @@ function safeText(v: unknown, fallback: ReactNode = ''): ReactNode {
   return String(v)
 }
 
+const SECTION_HELP: Record<string, string> = {
+  'Research Summary & AI Direction':
+    '캠페인 브리프를 요약하고, AI가 분석한 핵심 과제와 크리에이티브 방향을 제시합니다.\n- Objective: 캠페인의 목표\n- Core Challenge: 해결해야 할 핵심 과제\n- AI Direction: AI가 추천하는 전략 방향',
+  'Deep-dive Persona':
+    '타겟 고객의 심층 프로필입니다. 이름, 신념, 불만, 구매 동기 등을 통해 카피가 누구에게 말하는지 명확히 합니다.\n감정 트리거 키워드는 카피에서 활용할 수 있는 핵심 어휘입니다.',
+  'Brand Fit Score':
+    '브랜드와 캠페인의 적합도를 0~100% 점수로 평가합니다.\n- Functional: 기능적 적합성\n- Emotional: 감성적 적합성\n- Cultural: 문화적 적합성',
+  'Market Opportunity & Risk':
+    '시장 내 기회 요소와 위험 요소를 분석한 결과입니다.\n- Opportunity Gap: 경쟁사가 놓치고 있는 기회 영역\n- Risk: 주의해야 할 위험 키워드나 트렌드',
+  'Competitive Keywords':
+    '경쟁사가 이미 선점한 키워드 목록입니다. 카피에서 이 단어들을 그대로 사용하면 차별화가 어려우므로, 피하거나 재정의해야 합니다.',
+  'Untapped Keywords':
+    '아직 어떤 경쟁사도 선점하지 않은 감각적·감성적 키워드 영역입니다. 이 키워드들을 활용하면 독자적인 브랜드 언어를 구축할 수 있습니다.',
+  'Category Narrative Shift':
+    '해당 카테고리의 기존 이야기 방식(Old Narrative)에서 새로운 이야기 방식(New Narrative)으로의 전환을 보여줍니다.\n카피는 이 새로운 내러티브 위에서 작성되어야 합니다.',
+  'Emotional Job To Be Done':
+    '고객이 이 제품을 통해 실제로 해결하고 싶은 감정적 과업입니다.\n이 문장이 모든 카피의 출발점이 됩니다. "나는 ___하고 싶다" 형태로 표현됩니다.',
+  'Cultural Tension Map':
+    '타겟 시장에서 존재하는 문화적 긴장 요소들입니다. 이 긴장을 이해하고 활용하면 공감을 이끌어내는 카피를 작성할 수 있습니다.',
+  'Copy Implications & Guardrails':
+    '카피 작성 시 반드시 따라야 할 가이드라인입니다.\n- DO: 카피에 포함해야 할 요소\n- DON\'T: 카피에서 피해야 할 요소',
+  'Recommended Keywords':
+    'AI가 분석 결과를 종합하여 추천하는 카피용 핵심 키워드입니다. 이 단어들을 카피에 자연스럽게 녹여 사용하면 효과적입니다.',
+}
+
 interface Props {
   report: AnalysisReportT
   /** 사용자가 승인했을 때 호출 → 다음 step으로 전환 */
   onApprove?: () => void
   /** 사용자가 수정을 요청했을 때 호출 → brief로 되돌림 */
   onModify?: () => void
+  /** (?) 클릭 시 제목+설명을 부모에 전달 → 채팅에 표시 */
+  onHelpRequest?: (title: string, text: string) => void
   /** 이미 승인된 상태면 HITL 블록을 숨김 */
   isApproved?: boolean
 }
@@ -45,8 +72,12 @@ export function AnalysisReport({
   report: r,
   onApprove,
   onModify,
+  onHelpRequest,
   isApproved = false,
 }: Props) {
+  const help = (title: string) =>
+    onHelpRequest ? () => onHelpRequest(title, SECTION_HELP[title] ?? '') : undefined
+
   return (
     <Card style={{ padding: '1.2rem' }}>
       <h3
@@ -72,7 +103,7 @@ export function AnalysisReport({
         }}
       >
         {/* 1. Research Summary */}
-        <SubCard span={12} title="Research Summary & AI Direction" icon="ⓘ">
+        <SubCard span={12} title="Research Summary & AI Direction" icon="ⓘ" onHelp={help('Research Summary & AI Direction')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p style={bodyText}>
               <strong>Objective:</strong> {safeText(r.briefSummary.objective)}
@@ -95,7 +126,7 @@ export function AnalysisReport({
         </SubCard>
 
         {/* 2. Persona */}
-        <SubCard span={7} title="Deep-dive Persona" icon="👤">
+        <SubCard span={7} title="Deep-dive Persona" icon="👤" onHelp={help('Deep-dive Persona')}>
           <div style={{ display: 'flex', gap: 16 }}>
             <img
               src={
@@ -161,7 +192,7 @@ export function AnalysisReport({
         </SubCard>
 
         {/* 3. Brand Fit */}
-        <SubCard span={5} title="Brand Fit Score" icon="✓">
+        <SubCard span={5} title="Brand Fit Score" icon="✓" onHelp={help('Brand Fit Score')}>
           <div style={{ textAlign: 'center', marginBottom: 12 }}>
             <p
               style={{
@@ -196,7 +227,7 @@ export function AnalysisReport({
         </SubCard>
 
         {/* 4. Market Opportunity & Risk */}
-        <SubCard span={12} title="Market Opportunity & Risk" icon="📈">
+        <SubCard span={12} title="Market Opportunity & Risk" icon="📈" onHelp={help('Market Opportunity & Risk')}>
           <p style={{ ...bodyText, marginBottom: 10 }}>
             <strong style={{ color: 'var(--success)' }}>Opportunity Gap:</strong>{' '}
             {safeText(r.marketAnalysis.opportunityGap)}
@@ -208,7 +239,7 @@ export function AnalysisReport({
         </SubCard>
 
         {/* 5. Competitive Keywords */}
-        <SubCard span={6} title="Competitive Keywords" icon="◈">
+        <SubCard span={6} title="Competitive Keywords" icon="◈" onHelp={help('Competitive Keywords')}>
           <p style={mutedHint}>
             Language already owned by competitors — avoid or redefine
           </p>
@@ -248,7 +279,7 @@ export function AnalysisReport({
         </SubCard>
 
         {/* 6. Untapped Keywords */}
-        <SubCard span={6} title="Untapped Keywords" icon="◎">
+        <SubCard span={6} title="Untapped Keywords" icon="◎" onHelp={help('Untapped Keywords')}>
           <p style={mutedHint}>Sensory & emotional territory no one owns yet</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {(r.marketAnalysis.untappedKeywords ?? []).map((kw, i) => (
@@ -261,7 +292,7 @@ export function AnalysisReport({
 
         {/* 7. Category Narrative Shift */}
         {r.categoryNarrative.oldNarrative && (
-          <SubCard span={12} title="Category Narrative Shift" icon="↻">
+          <SubCard span={12} title="Category Narrative Shift" icon="↻" onHelp={help('Category Narrative Shift')}>
             <div
               style={{
                 display: 'grid',
@@ -297,7 +328,7 @@ export function AnalysisReport({
 
         {/* 8. Emotional JTBD */}
         {r.emotionalJTBD && (
-          <SubCard span={6} title="Emotional Job To Be Done" icon="♥">
+          <SubCard span={6} title="Emotional Job To Be Done" icon="♥" onHelp={help('Emotional Job To Be Done')}>
             <div style={blockquote}>"{safeText(r.emotionalJTBD)}"</div>
             <p style={{ ...mutedHint, marginTop: 10 }}>
               This sentence becomes the root of all copy.
@@ -307,7 +338,7 @@ export function AnalysisReport({
 
         {/* 9. Cultural Tension Map */}
         {!!r.culturalTension.tensions?.length && (
-          <SubCard span={6} title="Cultural Tension Map" icon="🌐">
+          <SubCard span={6} title="Cultural Tension Map" icon="🌐" onHelp={help('Cultural Tension Map')}>
             {r.culturalTension.tensions.map((t, i) => (
               <div
                 key={i}
@@ -344,7 +375,7 @@ export function AnalysisReport({
 
         {/* 10. Copy Implications & Guardrails */}
         {(r.copyImplications.doList || r.copyImplications.dontList) && (
-          <SubCard span={12} title="Copy Implications & Guardrails" icon="✎">
+          <SubCard span={12} title="Copy Implications & Guardrails" icon="✎" onHelp={help('Copy Implications & Guardrails')}>
             <div
               style={{
                 display: 'grid',
@@ -394,7 +425,7 @@ export function AnalysisReport({
 
         {/* 11. Recommended Keywords */}
         {r.recommendedKeywords.length > 0 && (
-          <SubCard span={12} title="Recommended Keywords" icon="✦">
+          <SubCard span={12} title="Recommended Keywords" icon="✦" onHelp={help('Recommended Keywords')}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {r.recommendedKeywords.map((kw, i) => (
                 <Badge key={i} tone="success">
@@ -405,8 +436,8 @@ export function AnalysisReport({
           </SubCard>
         )}
 
-        {/* HITL */}
-        {!isApproved && (onApprove || onModify) && (
+        {/* HITL — '이전 단계'는 외부(editor-page)에서 공통 스타일로 렌더 */}
+        {!isApproved && onApprove && (
           <div
             style={{
               gridColumn: 'span 12',
@@ -417,9 +448,6 @@ export function AnalysisReport({
               borderTop: '1px solid var(--color-border)',
             }}
           >
-            <Button variant="ghost" onClick={onModify}>
-              이전 단계
-            </Button>
             <Button onClick={onApprove}>③ 전략 메시지 생성</Button>
           </div>
         )}
@@ -434,11 +462,13 @@ function SubCard({
   span,
   title,
   icon,
+  onHelp,
   children,
 }: {
   span: number
   title: string
   icon?: string
+  onHelp?: () => void
   children: React.ReactNode
 }) {
   return (
@@ -459,6 +489,17 @@ function SubCard({
           </span>
         )}
         {title}
+        {onHelp && (
+          <span
+            onClick={onHelp}
+            title="클릭하면 AI 어시스턴트가 설명합니다"
+            style={helpBtnStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lg-red-100)'; e.currentTarget.style.color = 'var(--lg-red-600)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--neutral-200)'; e.currentTarget.style.color = 'var(--neutral-600)' }}
+          >
+            ?
+          </span>
+        )}
       </h4>
       {children}
     </section>
@@ -509,6 +550,24 @@ const blockquote: CSSProperties = {
   fontStyle: 'italic',
   lineHeight: 1.7,
   color: 'var(--neutral-900)',
+}
+
+const helpBtnStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 16,
+  height: 16,
+  borderRadius: '50%',
+  background: 'var(--neutral-200)',
+  color: 'var(--neutral-600)',
+  fontSize: 10,
+  fontWeight: 700,
+  cursor: 'pointer',
+  lineHeight: 1,
+  userSelect: 'none',
+  marginLeft: 2,
+  transition: 'background 0.15s, color 0.15s',
 }
 
 const narrativeBox = (bg: string): CSSProperties => ({

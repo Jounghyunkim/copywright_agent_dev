@@ -296,6 +296,7 @@ export interface CampaignListItem {
   reviewAvgScore: number | null
   currentStep: number
   status: 'draft' | 'completed'
+  createdBy: string | null
 }
 
 export interface DashboardData {
@@ -368,6 +369,10 @@ export interface AIPersona {
   color: string
   tags: string[]
   temperature: number
+  /** SKILL.md의 "When To Use" 섹션 — AI 어시스트에 소개로 표시 */
+  description?: string
+  /** System Prompt의 "문체 규칙" 섹션 볼드 헤드라인 추출본 */
+  style_highlights?: string[]
 }
 
 export interface CultureProfile {
@@ -449,6 +454,7 @@ export interface CampaignDetail {
   totalCopies: number | null
   currentStep: number
   status: 'draft' | 'completed'
+  createdBy: string | null
   createdAt: string | null
 }
 

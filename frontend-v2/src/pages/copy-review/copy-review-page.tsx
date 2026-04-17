@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useState } from 'react'
+import { CSSProperties, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Card } from '@/shared/ui/card'
@@ -10,6 +10,7 @@ import { SplitPane } from '@/shared/ui/split-pane'
 import { ReviewConfig, ReviewResults } from '@/features/review'
 import { CopyResults, COUNTRIES } from '@/features/copy-generation'
 import { ChatPanel } from '@/features/chat'
+import type { ChatPanelHandle } from '@/features/chat'
 
 import {
   useCampaign,
@@ -108,6 +109,7 @@ export function CopyReviewPage() {
   /* ── URL ?campaignId=xxx → 기존 저장 캠페인 로드 ── */
   const urlCampaignId = searchParams.get('campaignId')
 
+  const chatRef = useRef<ChatPanelHandle>(null)
   const [entries, setEntries] = useState<CopyEntry[]>([newEntry()])
   const [phase, setPhase] = useState<'input' | 'review'>('input')
   const [reviewCompleted, setReviewCompleted] = useState(false)
@@ -323,7 +325,7 @@ export function CopyReviewPage() {
               </div>
               <div style={{ display: 'grid', gap: 10 }}>
                 <div>
-                  <FieldLabel>국가 <span style={{ color: 'var(--lg-red-600)' }}>*</span></FieldLabel>
+                  <FieldLabel>국가 <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="국가" text="카피가 게재될 대상 국가를 선택하세요. 국가에 따라 언어와 문화적 맥락이 달라집니다." chatRef={chatRef} /></FieldLabel>
                   <select className="select" value={entry.countryCode} onChange={(e) => updateEntry(entry.id, { countryCode: e.target.value })}>
                     {COUNTRIES.map((c) => (
                       <option key={c.code} value={c.code}>{c.flag} {c.label} ({c.lang})</option>
@@ -332,20 +334,20 @@ export function CopyReviewPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
-                    <FieldLabel>Headline <span style={{ color: 'var(--lg-red-600)' }}>*</span></FieldLabel>
+                    <FieldLabel>Headline <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Headline" text="광고의 첫 인상을 결정하는 메인 문구입니다. 짧고 강렬하게 핵심 메시지를 전달하세요." chatRef={chatRef} /></FieldLabel>
                     <TextInput value={entry.headline} onChange={(e) => updateEntry(entry.id, { headline: e.target.value })} placeholder="메인 헤드라인" />
                   </div>
                   <div>
-                    <FieldLabel>Subheadline <span style={{ color: 'var(--lg-red-600)' }}>*</span></FieldLabel>
+                    <FieldLabel>Subheadline <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Subheadline" text="헤드라인을 보충하는 보조 문구입니다. 추가 설명이나 맥락을 제공합니다." chatRef={chatRef} /></FieldLabel>
                     <TextInput value={entry.subheadline} onChange={(e) => updateEntry(entry.id, { subheadline: e.target.value })} placeholder="보조 헤드라인" />
                   </div>
                 </div>
                 <div>
-                  <FieldLabel>Body Copy <span style={{ color: 'var(--lg-red-600)' }}>*</span></FieldLabel>
+                  <FieldLabel>Body Copy <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Body Copy" text="제품이나 캠페인의 상세 내용을 전달하는 본문입니다. 타겟 고객의 관심을 끄는 핵심 정보를 담으세요." chatRef={chatRef} /></FieldLabel>
                   <TextArea value={entry.bodyCopy} onChange={(e) => updateEntry(entry.id, { bodyCopy: e.target.value })} placeholder="본문 카피" style={{ minHeight: 100 }} />
                 </div>
                 <div>
-                  <FieldLabel>CTA <span style={{ color: 'var(--lg-red-600)' }}>*</span></FieldLabel>
+                  <FieldLabel>CTA <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="CTA" text="사용자의 행동을 유도하는 문구입니다. 예: '지금 구매하기', 'Learn More' 등" chatRef={chatRef} /></FieldLabel>
                   <TextInput value={entry.cta} onChange={(e) => updateEntry(entry.id, { cta: e.target.value })} placeholder="Call to Action" />
                 </div>
                 <details style={{ marginTop: 4 }}>
@@ -353,9 +355,9 @@ export function CopyReviewPage() {
                     선택 항목 (Methodology / Cultural Notes / Tone Analysis)
                   </summary>
                   <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-                    <div><FieldLabel>Methodology</FieldLabel><TextInput value={entry.methodology} onChange={(e) => updateEntry(entry.id, { methodology: e.target.value })} placeholder="카피 작성 방법론 (선택)" /></div>
-                    <div><FieldLabel>Cultural Notes</FieldLabel><TextInput value={entry.culturalNotes} onChange={(e) => updateEntry(entry.id, { culturalNotes: e.target.value })} placeholder="문화적 고려사항 (선택)" /></div>
-                    <div><FieldLabel>Tone Analysis</FieldLabel><TextInput value={entry.toneAnalysis} onChange={(e) => updateEntry(entry.id, { toneAnalysis: e.target.value })} placeholder="톤 분석 (선택)" /></div>
+                    <div><FieldLabel>Methodology<HelpTip label="Methodology" text="카피를 작성할 때 사용한 방법론이나 전략입니다. 예: AIDA, PAS, 스토리텔링 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.methodology} onChange={(e) => updateEntry(entry.id, { methodology: e.target.value })} placeholder="카피 작성 방법론 (선택)" /></div>
+                    <div><FieldLabel>Cultural Notes<HelpTip label="Cultural Notes" text="해당 국가나 문화권에서 특별히 고려한 사항입니다. 현지 관습, 금기, 언어적 뉘앙스 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.culturalNotes} onChange={(e) => updateEntry(entry.id, { culturalNotes: e.target.value })} placeholder="문화적 고려사항 (선택)" /></div>
+                    <div><FieldLabel>Tone Analysis<HelpTip label="Tone Analysis" text="카피의 전체적인 톤과 분위기를 설명합니다. 예: 격식체, 유머러스, 감성적, 전문적 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.toneAnalysis} onChange={(e) => updateEntry(entry.id, { toneAnalysis: e.target.value })} placeholder="톤 분석 (선택)" /></div>
                   </div>
                 </details>
               </div>
@@ -453,13 +455,50 @@ export function CopyReviewPage() {
               <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--neutral-700)', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--color-border)' }}>
                 AI 어시스턴트
               </h4>
-              <div style={{ flex: 1, minHeight: 0 }}><ChatPanel /></div>
+              <div style={{ flex: 1, minHeight: 0 }}><ChatPanel ref={chatRef} /></div>
             </Card>
           }
         />
       </div>
       <style>{`@keyframes cr-spin { to { transform: rotate(360deg) } }`}</style>
     </div>
+  )
+}
+
+/* ── HelpTip ── */
+
+function HelpTip({ label, text, chatRef }: { label: string; text: string; chatRef: React.RefObject<ChatPanelHandle | null> }) {
+  const handleClick = () => {
+    chatRef.current?.addAssistantMessage(
+      `**${label} 항목 안내**\n${text}`,
+    )
+  }
+  return (
+    <span
+      onClick={handleClick}
+      title="클릭하면 AI 어시스턴트가 설명합니다"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        background: 'var(--neutral-200)',
+        color: 'var(--neutral-600)',
+        fontSize: 10,
+        fontWeight: 700,
+        cursor: 'pointer',
+        lineHeight: 1,
+        userSelect: 'none',
+        marginLeft: 4,
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--lg-red-100)'; e.currentTarget.style.color = 'var(--lg-red-600)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--neutral-200)'; e.currentTarget.style.color = 'var(--neutral-600)' }}
+    >
+      ?
+    </span>
   )
 }
 

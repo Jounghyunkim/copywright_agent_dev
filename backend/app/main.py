@@ -32,7 +32,7 @@ from sqlalchemy import func
 from .skills.runner import run_review
 from .skills.catalog import get_all_skills, get_skillmd_skills
 from .auth.redis_store import get_redis, close_redis
-from .auth.middleware import AuthContextMiddleware
+from .auth.middleware import AuthContextMiddleware, AuthContext, require_auth
 from .auth.routes import router as auth_router
 from .auth.admin_routes import router as admin_router
 from .auth.stats_routes import router as stats_router
@@ -383,6 +383,8 @@ async def list_personas():
                 "color": p.get("color", "#9ca3af"),
                 "tags": p.get("tags", []),
                 "temperature": p.get("temperature", 0.9),
+                "description": p.get("description", ""),
+                "style_highlights": p.get("style_highlights", []),
             }
             for p in personas
         ],
@@ -1172,7 +1174,11 @@ def _derive_campaign_fields(request: CampaignSaveRequest) -> dict:
 
 
 @app.post("/api/v1/campaigns/save", status_code=201)
-async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
+async def save_campaign(
+    request: CampaignSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(require_auth),
+):
     """캠페인 저장 (신규 생성) — 각 단계 완료 시 자동 저장"""
     brief = request.brief
     project_name = brief.get("projectName", "Untitled")
@@ -1188,6 +1194,7 @@ async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends
         review_results=request.reviewResults,
         copy_candidates=request.copyCandidates,
         current_step=request.currentStep,
+        created_by=ctx.user_id,
         **derived,
     )
     db.add(campaign)
@@ -1203,12 +1210,16 @@ async def save_campaign(request: CampaignSaveRequest, db: AsyncSession = Depends
 
 
 @app.get("/api/v1/campaigns/dashboard")
-async def get_dashboard(db: AsyncSession = Depends(get_db)):
+async def get_dashboard(
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(require_auth),
+):
     """Dashboard 통계 + 최근 캠페인 목록"""
-    # 최근 캠페인 20개
-    result = await db.execute(
-        select(Campaign).order_by(Campaign.created_at.desc()).limit(20)
-    )
+    is_admin = "admin" in ctx.roles
+    query = select(Campaign).order_by(Campaign.created_at.desc()).limit(20)
+    if not is_admin:
+        query = query.where(Campaign.created_by == ctx.user_id)
+    result = await db.execute(query)
     campaigns = result.scalars().all()
 
     # 통계 계산
@@ -1239,6 +1250,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
             "currentStep": c.current_step,
             "status": c.status,
             "summary": c.brief.get("projectContext", "")[:120] if isinstance(c.brief, dict) else "",
+            "createdBy": c.created_by,
         }
         for c in campaigns
     ]
@@ -1255,7 +1267,11 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
 
 
 @app.get("/api/v1/campaigns/{campaign_id}")
-async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+async def get_campaign(
+    campaign_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(require_auth),
+):
     """캠페인 상세 조회 — 전체 산출물 반환"""
     try:
         uid = uuid.UUID(campaign_id)
@@ -1266,6 +1282,10 @@ async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
+
+    is_admin = "admin" in ctx.roles
+    if not is_admin and campaign.created_by and campaign.created_by != ctx.user_id:
+        raise HTTPException(status_code=403, detail="이 캠페인에 대한 접근 권한이 없습니다.")
 
     return {
         "id": str(campaign.id),
@@ -1283,12 +1303,17 @@ async def get_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
         "totalCopies": campaign.total_copies,
         "currentStep": campaign.current_step,
         "status": campaign.status,
+        "createdBy": campaign.created_by,
         "createdAt": campaign.created_at.isoformat() if campaign.created_at else None,
     }
 
 
 @app.delete("/api/v1/campaigns/{campaign_id}")
-async def delete_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_campaign(
+    campaign_id: str,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(require_auth),
+):
     """캠페인 삭제"""
     try:
         uid = uuid.UUID(campaign_id)
@@ -1300,13 +1325,22 @@ async def delete_campaign(campaign_id: str, db: AsyncSession = Depends(get_db)):
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
+    is_admin = "admin" in ctx.roles
+    if not is_admin and campaign.created_by and campaign.created_by != ctx.user_id:
+        raise HTTPException(status_code=403, detail="이 캠페인을 삭제할 권한이 없습니다.")
+
     await db.delete(campaign)
     await db.commit()
     return {"status": "deleted", "id": campaign_id}
 
 
 @app.put("/api/v1/campaigns/{campaign_id}")
-async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: AsyncSession = Depends(get_db)):
+async def update_campaign(
+    campaign_id: str,
+    request: CampaignSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    ctx: AuthContext = Depends(require_auth),
+):
     """기존 캠페인 업데이트 — 단계 진행 시 자동 저장"""
     try:
         uid = uuid.UUID(campaign_id)
@@ -1317,6 +1351,10 @@ async def update_campaign(campaign_id: str, request: CampaignSaveRequest, db: As
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
+
+    is_admin = "admin" in ctx.roles
+    if not is_admin and campaign.created_by and campaign.created_by != ctx.user_id:
+        raise HTTPException(status_code=403, detail="이 캠페인을 수정할 권한이 없습니다.")
 
     brief = request.brief
     derived = _derive_campaign_fields(request)

@@ -146,8 +146,8 @@ export function StrategicMessageView({
           </SubCard>
         )}
 
-        {/* HITL */}
-        {!isApproved && (onApprove || onModify) && (
+        {/* HITL — '이전 단계'는 외부(editor-page)에서 공통 스타일로 렌더 */}
+        {!isApproved && onApprove && (
           <div
             style={{
               gridColumn: 'span 12',
@@ -158,9 +158,6 @@ export function StrategicMessageView({
               borderTop: '1px solid var(--color-border)',
             }}
           >
-            <Button variant="ghost" onClick={onModify}>
-              전략 재추출
-            </Button>
             <Button onClick={onApprove}>④ 카피 후보 생성</Button>
           </div>
         )}

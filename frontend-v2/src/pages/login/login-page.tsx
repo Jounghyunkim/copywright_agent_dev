@@ -67,7 +67,7 @@ export function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="예: jounghyun.kim"
+              placeholder="@lge.com 를 제외한 ID 입력"
               autoFocus
               autoComplete="username"
               disabled={loading}

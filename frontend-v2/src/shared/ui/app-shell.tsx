@@ -20,8 +20,8 @@ const BRAND_SUB = 'Marketing AX Platform'
 
 const mainNav = [
   { to: '/', label: '홈' },
-  { to: '/workflow', label: '카피라이트 생성' },
   { to: '/copy-review', label: '카피라이트 검토' },
+  { to: '/workflow', label: '카피라이트 생성' },
   { to: '/workflow-list', label: '카피라이트 목록' },
   { to: '/approvals', label: '승인 대기' },
   { to: '/skills', label: '스킬' },
@@ -51,7 +51,7 @@ function GearMenu() {
           { label: '지식 구축', path: '/admin/knowledge' },
         ]
       : []),
-    { label: '설정', path: '/settings' },
+    { label: '일반 설정', path: '/settings' },
   ]
 
   return (

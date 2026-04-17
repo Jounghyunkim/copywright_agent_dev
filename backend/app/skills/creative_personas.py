@@ -40,6 +40,60 @@ def _parse_system_prompt(body: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _parse_when_to_use(body: str) -> str:
+    """SKILL.md body에서 '## When To Use' 섹션을 AI 어시스트 소개문으로 사용."""
+    lines: list[str] = []
+    in_section = False
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if stripped.lower().startswith("## when to use"):
+            in_section = True
+            continue
+        if stripped.startswith("## ") and in_section:
+            break
+        if in_section:
+            lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def _parse_style_highlights(body: str) -> list[str]:
+    """System Prompt 섹션에서 '### 문체 규칙' 의 각 볼드 헤드라인만 추출.
+
+    예: "**의미 치환 은유**: ..." → "의미 치환 은유"
+    없으면 빈 리스트 반환.
+    """
+    import re as _re
+
+    sys_prompt = _parse_system_prompt(body)
+    if not sys_prompt:
+        return []
+
+    # '### 문체 규칙' 혹은 이와 유사한 스타일 섹션만 추출
+    section_lines: list[str] = []
+    in_section = False
+    for line in sys_prompt.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("### ") and (
+            "문체" in stripped or "스타일" in stripped or "style" in stripped.lower()
+        ):
+            in_section = True
+            continue
+        if stripped.startswith("### ") and in_section:
+            break
+        if in_section:
+            section_lines.append(line)
+
+    if not section_lines:
+        return []
+
+    highlights: list[str] = []
+    for line in section_lines:
+        m = _re.match(r"^\s*\d+\.\s*\*\*(.+?)\*\*", line)
+        if m:
+            highlights.append(m.group(1).strip())
+    return highlights[:6]
+
+
 def _load_personas_from_skills() -> list[dict]:
     """writer-* SKILL.md 파일에서 페르소나 정보 로딩"""
     loader = SkillLoader()
@@ -71,6 +125,8 @@ def _load_personas_from_skills() -> list[dict]:
             "tags": persona_tags,
             "avatar": config.get("avatar", ""),
             "color": config.get("color", "#9ca3af"),
+            "description": _parse_when_to_use(body),
+            "style_highlights": _parse_style_highlights(body),
         })
     return personas
 

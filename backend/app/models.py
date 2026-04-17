@@ -87,6 +87,7 @@ class Campaign(Base):
     total_copies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_step: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -97,6 +98,7 @@ class Campaign(Base):
 
     __table_args__ = (
         Index("idx_campaigns_created", "created_at"),
+        Index("idx_campaigns_created_by", "created_by"),
     )
 
 

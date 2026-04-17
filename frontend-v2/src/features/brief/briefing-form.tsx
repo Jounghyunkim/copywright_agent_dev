@@ -23,7 +23,6 @@ import {
 } from '@/features/message-matrix'
 
 import { GuideModal } from './guide-modal'
-import { PreviewModal } from './preview-modal'
 
 interface Props {
   /** 부모가 이미 가지고 있는 초기 brief (옵션). */
@@ -36,6 +35,8 @@ interface Props {
   onMatrixParsed?: (matrix: Record<string, MessageMatrixProduct> | null) => void
   /** 가이드 (?) 클릭 시 제목+내용을 부모에 전달 → 채팅 패널에 표시. */
   onGuideRequest?: (title: string, guide: string) => void
+  /** 미리보기 클릭 시 부모에 brief를 전달 → 패널 내 인라인 프리뷰 표시. */
+  onPreview?: (brief: CampaignBrief) => void
   /** 상위에서 분석 중임을 표시. 버튼 비활성 및 로딩 문구 전환. */
   isAnalyzing?: boolean
   /** 전체 폼 비활성화. */
@@ -56,6 +57,7 @@ export function BriefingForm({
   onSubmit,
   onMatrixParsed,
   onGuideRequest,
+  onPreview,
   isAnalyzing = false,
   isDisabled = false,
 }: Props) {
@@ -65,7 +67,6 @@ export function BriefingForm({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const [guideSection, setGuideSection] = useState<BriefSection | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
 
   const generateBrief = useGenerateBrief()
 
@@ -335,7 +336,7 @@ export function BriefingForm({
       >
         <Button
           variant="ghost"
-          onClick={() => setShowPreview(true)}
+          onClick={() => onPreview?.(brief)}
           type="button"
         >
           미리보기
@@ -352,11 +353,6 @@ export function BriefingForm({
       <GuideModal
         section={guideSection}
         onClose={() => setGuideSection(null)}
-      />
-      <PreviewModal
-        open={showPreview}
-        brief={brief}
-        onClose={() => setShowPreview(false)}
       />
     </Card>
   )

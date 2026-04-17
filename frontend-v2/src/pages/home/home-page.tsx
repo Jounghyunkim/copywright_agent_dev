@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import { useDashboard, useHealth } from '@/shared/api/hooks'
+import { useDashboard } from '@/shared/api/hooks'
 import { PendingApprovals } from '@/features/approval'
 import { useWorkflowStore } from '@/shared/state/workflow-store'
 import { campaignRoute } from '@/shared/lib/campaign-route'
@@ -11,7 +11,6 @@ import { campaignRoute } from '@/shared/lib/campaign-route'
 export function HomePage() {
   const navigate = useNavigate()
   const dashboard = useDashboard()
-  const health = useHealth()
   const reset = useWorkflowStore((s) => s.reset)
 
   const stats = dashboard.data?.stats
@@ -38,7 +37,8 @@ export function HomePage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Button onClick={handleNew}>+ 새 카피라이트 생성</Button>
+          <Button variant="secondary" onClick={handleNew}>+ 새 카피라이트 생성</Button>
+          <Button onClick={() => navigate('/copy-review')}>카피라이트 검토</Button>
         </div>
       </div>
 
@@ -161,20 +161,6 @@ export function HomePage() {
         )}
       </Card>
 
-      {/* System health */}
-      <Card>
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          시스템 상태
-        </h3>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Badge tone={health.isError ? 'danger' : 'success'}>
-            Backend :5000 {health.isError ? 'offline' : 'online'}
-          </Badge>
-          <Badge tone="neutral">FAISS Index</Badge>
-          <Badge tone="neutral">Azure OpenAI</Badge>
-          <Badge tone="neutral">Tavily Search</Badge>
-        </div>
-      </Card>
     </>
   )
 }

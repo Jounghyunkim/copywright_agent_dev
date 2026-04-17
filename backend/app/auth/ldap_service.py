@@ -59,6 +59,16 @@ def _build_server() -> Server:
     return Server(url, get_info=ldap3.NONE)
 
 
+_DEV_ACCOUNTS: dict[str, dict] = {
+    "user": {
+        "password": "1234",
+        "display_name": "테스트 사용자",
+        "department": "테스트팀",
+        "email": "user@lge.com",
+    },
+}
+
+
 def authenticate(username: str, password: str) -> LdapUserInfo:
     """
     Authenticate user via LDAP bind.
@@ -75,6 +85,17 @@ def authenticate(username: str, password: str) -> LdapUserInfo:
     """
     if not username or not password:
         raise LdapAuthError("empty_credentials", "Username and password are required.")
+
+    # 개발 환경 로컬 테스트 계정
+    if os.getenv("ENABLE_DEV_ACCOUNTS", "").lower() in ("1", "true"):
+        dev = _DEV_ACCOUNTS.get(username)
+        if dev and password == dev["password"]:
+            return LdapUserInfo(
+                user_id=username,
+                display_name=dev["display_name"],
+                department=dev["department"],
+                email=dev["email"],
+            )
 
     upn = f"{username}@{_ldap_upn_domain()}"
     server = _build_server()

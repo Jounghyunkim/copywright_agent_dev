@@ -18,6 +18,8 @@ export type WorkflowStep = 1 | 2 | 3 | 4 | 5
 interface WorkflowState {
   /** 저장된 캠페인 ID. null 이면 아직 저장되지 않은 새 워크플로우. */
   campaignId: string | null
+  /** 저장된 캠페인의 상태. 'completed'인 경우 스테퍼 전체를 완료로 표시. */
+  campaignStatus: 'draft' | 'completed' | null
   currentStep: WorkflowStep
   brief: CampaignBrief
   /** Briefing 단계에서 업로드한 Message Matrix(시트별 ProductInfo). 분석 호출 시 함께 전송됨. */
@@ -31,6 +33,7 @@ interface WorkflowState {
   reviewResults: ReviewResult[] | null
 
   setCampaignId: (id: string | null) => void
+  setCampaignStatus: (status: 'draft' | 'completed' | null) => void
   setCurrentStep: (step: WorkflowStep) => void
   setBrief: (brief: CampaignBrief) => void
   patchBrief: (patch: Partial<CampaignBrief>) => void
@@ -51,6 +54,7 @@ interface WorkflowState {
 const INITIAL: Pick<
   WorkflowState,
   | 'campaignId'
+  | 'campaignStatus'
   | 'currentStep'
   | 'brief'
   | 'messageMatrix'
@@ -63,6 +67,7 @@ const INITIAL: Pick<
   | 'reviewResults'
 > = {
   campaignId: null,
+  campaignStatus: null,
   currentStep: 1,
   brief: INITIAL_BRIEF,
   messageMatrix: null,
@@ -91,6 +96,7 @@ export const useWorkflowStore = create<WorkflowState>()(
     (set) => ({
       ...INITIAL,
       setCampaignId: (campaignId) => set({ campaignId }),
+      setCampaignStatus: (campaignStatus) => set({ campaignStatus }),
       setCurrentStep: (currentStep) => set({ currentStep }),
       setBrief: (brief) => set({ brief }),
       patchBrief: (patch) =>
@@ -107,6 +113,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       hydrateFromCampaign: (d) =>
         set({
           campaignId: d.id,
+          campaignStatus: d.status,
           currentStep: clampStep(d.currentStep),
           brief: d.brief,
           messageMatrix: null,
