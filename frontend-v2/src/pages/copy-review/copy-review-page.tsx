@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useRef, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Card } from '@/shared/ui/card'
@@ -7,7 +7,11 @@ import { Button } from '@/shared/ui/button'
 import { FieldLabel, TextInput, TextArea } from '@/shared/ui/field'
 import { StepIndicator } from '@/shared/ui/step-indicator'
 import { SplitPane } from '@/shared/ui/split-pane'
-import { ReviewConfig, ReviewResults } from '@/features/review'
+import {
+  ReviewConfig,
+  ReviewResults,
+  recommendSkillsForCountries,
+} from '@/features/review'
 import { CopyResults, COUNTRIES } from '@/features/copy-generation'
 import { ChatPanel } from '@/features/chat'
 import type { ChatPanelHandle } from '@/features/chat'
@@ -31,6 +35,27 @@ const STEPS = [
   { step: 1, label: '카피 입력' },
   { step: 2, label: '검토' },
 ]
+
+type CampaignIntent = 'branding' | 'promotion' | 'performance' | 'launch'
+
+const INTENT_OPTIONS: { value: CampaignIntent; label: string; hint: string }[] = [
+  { value: 'branding', label: '브랜딩', hint: '브랜드 인지도·선호도 강화' },
+  { value: 'promotion', label: '프로모션', hint: '세일·이벤트·할인 소구' },
+  { value: 'performance', label: '퍼포먼스', hint: '전환율·퍼포먼스 최적화' },
+  { value: 'launch', label: '신제품 론칭', hint: '신제품 출시·론칭 커뮤니케이션' },
+]
+
+interface ReviewContext {
+  campaignIntent: CampaignIntent
+  productCategory: string
+  originalCopy: string
+}
+
+const EMPTY_CONTEXT: ReviewContext = {
+  campaignIntent: 'branding',
+  productCategory: '',
+  originalCopy: '',
+}
 
 interface CopyEntry {
   id: string
@@ -60,16 +85,53 @@ function newEntry(): CopyEntry {
   return { ...EMPTY_ENTRY, id: `entry-${++entrySeq}` }
 }
 
-/** 첫 번째 카피의 headline/bodyCopy로 brief를 동적 생성 */
-function buildReviewBrief(copies: CopyResult[]) {
+const INTENT_TO_OBJECTIVES: Record<
+  CampaignIntent,
+  { commercial: string; behavior: string; attitudinal: string }
+> = {
+  branding: {
+    commercial: '',
+    behavior: '브랜드 검색·재방문 유도',
+    attitudinal: '브랜드 인지도·호감도 강화',
+  },
+  promotion: {
+    commercial: '프로모션 매출/참여 증대',
+    behavior: '세일 기간 내 구매 전환',
+    attitudinal: '',
+  },
+  performance: {
+    commercial: '전환율·ROAS 개선',
+    behavior: '클릭·가입·구매 전환',
+    attitudinal: '',
+  },
+  launch: {
+    commercial: '신제품 초기 매출 확보',
+    behavior: '신제품 체험·사전예약',
+    attitudinal: '신제품 인지·기대감 형성',
+  },
+}
+
+/** ReviewContext + 첫 카피로 brief를 생성. intent/productCategory/originalCopy는 별도 필드로 주입. */
+function buildReviewBrief(copies: CopyResult[], ctx: ReviewContext) {
   const first = copies[0]?.copies?.[0]
+  const objectives = INTENT_TO_OBJECTIVES[ctx.campaignIntent]
+  const contextLines: string[] = []
+  if (ctx.productCategory) contextLines.push(`제품군: ${ctx.productCategory}`)
+  if (ctx.originalCopy) contextLines.push(`원본/마스터 카피:\n${ctx.originalCopy}`)
+  if (first?.bodyCopy) contextLines.push(`대표 카피 본문:\n${first.bodyCopy}`)
+  if (contextLines.length === 0) {
+    contextLines.push('사용자가 직접 입력한 카피에 대한 스킬 기반 검토')
+  }
   return {
-    projectName: first?.headline || '카피라이트 검토',
+    projectName:
+      ctx.productCategory
+        ? `${ctx.productCategory} 카피 검토`
+        : first?.headline || '카피라이트 검토',
     date: new Date().toISOString().slice(0, 10),
-    projectContext: first?.bodyCopy || '사용자가 직접 입력한 카피에 대한 스킬 기반 검토',
-    objectiveCommercial: '',
-    objectiveBehavior: '',
-    objectiveAttitudinal: '',
+    projectContext: contextLines.join('\n\n'),
+    objectiveCommercial: objectives.commercial,
+    objectiveBehavior: objectives.behavior,
+    objectiveAttitudinal: objectives.attitudinal,
     audience: '',
     keyMessage: '',
     proofPoints: '',
@@ -77,6 +139,10 @@ function buildReviewBrief(copies: CopyResult[]) {
     budget: '',
     marketNeeds: '',
     timing: '',
+    // 확장 필드 — 스킬이 직접 참조할 수 있도록 원형 그대로 전달
+    campaignIntent: ctx.campaignIntent,
+    productCategory: ctx.productCategory || null,
+    originalCopy: ctx.originalCopy || null,
   }
 }
 
@@ -110,6 +176,7 @@ export function CopyReviewPage() {
   const urlCampaignId = searchParams.get('campaignId')
 
   const chatRef = useRef<ChatPanelHandle>(null)
+  const [reviewContext, setReviewContext] = useState<ReviewContext>(EMPTY_CONTEXT)
   const [entries, setEntries] = useState<CopyEntry[]>([newEntry()])
   const [phase, setPhase] = useState<'input' | 'review'>('input')
   const [reviewCompleted, setReviewCompleted] = useState(false)
@@ -137,6 +204,16 @@ export function CopyReviewPage() {
   useEffect(() => {
     if (!loadedCampaign.data || loaded) return
     const d = loadedCampaign.data
+
+    // ReviewContext 복원 (brief에 확장 필드로 저장되어 있음)
+    const brief: any = d.brief || {}
+    if (brief.campaignIntent || brief.productCategory || brief.originalCopy) {
+      setReviewContext({
+        campaignIntent: (brief.campaignIntent as CampaignIntent) || 'branding',
+        productCategory: brief.productCategory || '',
+        originalCopy: brief.originalCopy || '',
+      })
+    }
 
     // copyResults가 있으면 review phase로 바로 이동
     if (d.copyResults && d.copyResults.length > 0) {
@@ -232,7 +309,7 @@ export function CopyReviewPage() {
   const handleRunReview = async (enabledSkillIds: string[]) => {
     if (localSelectedCopies.length === 0 || enabledSkillIds.length === 0) return
     const results = await runReview.run({
-      brief: buildReviewBrief(localCopyResults),
+      brief: buildReviewBrief(localCopyResults, reviewContext),
       analysisReport: REVIEW_ONLY_ANALYSIS as never,
       strategicMessage: REVIEW_ONLY_STRATEGY as never,
       selectedCopies: localSelectedCopies,
@@ -251,7 +328,7 @@ export function CopyReviewPage() {
     const copy = localSelectedCopies.find((c) => c.key === copyKey)
     if (!copy) return []
     return await runReview.run({
-      brief: buildReviewBrief(localCopyResults),
+      brief: buildReviewBrief(localCopyResults, reviewContext),
       analysisReport: REVIEW_ONLY_ANALYSIS as never,
       strategicMessage: REVIEW_ONLY_STRATEGY as never,
       selectedCopies: [
@@ -260,6 +337,14 @@ export function CopyReviewPage() {
       enabledSkills: skillIds,
     })
   }
+
+  /** 선택된 카피의 국가 기반으로 추천 스킬 ID 계산. 사용 가능한 스킬과 교집합만. */
+  const recommendedSkillIds = useMemo(() => {
+    const countries = [...new Set(localSelectedCopies.map((c) => c.countryCode))]
+    const recs = recommendSkillsForCountries(countries)
+    const availableIds = new Set((skillsQuery.data ?? []).map((s) => s.id))
+    return recs.filter((id) => availableIds.has(id))
+  }, [localSelectedCopies, skillsQuery.data])
 
   const reviewSummary: ReviewSummary | null =
     localReviewResults && localReviewResults.length > 0
@@ -276,10 +361,48 @@ export function CopyReviewPage() {
         }
       : null
 
+  /** 검토 단계 → 입력 단계로 복귀. 리뷰 결과/선택 상태 초기화, entries는 보존. */
+  const handleBackToInput = () => {
+    if (
+      !confirm(
+        '입력 단계로 돌아가면 현재 리뷰 결과가 초기화됩니다. 계속하시겠습니까?',
+      )
+    )
+      return
+    setLocalReviewResults(null)
+    setLocalSelectedCopies([])
+    setLocalCopyResults([])
+    setReviewCompleted(false)
+    setPhase('input')
+  }
+
+  /** 리뷰 단계 보정 결과를 localCopyResults 에 반영해 저장 시 최종값이 persist 되도록 한다.
+   *  localSelectedCopies 는 원본 유지 — ReviewResults의 Before/After 비교를 보존. */
+  const handleCopyCorrected = (copyKey: string, corrected: CopyItem) => {
+    const dashIdx = copyKey.lastIndexOf('-')
+    if (dashIdx < 0) return
+    const countryCode = copyKey.slice(0, dashIdx)
+    const idx = parseInt(copyKey.slice(dashIdx + 1), 10)
+    if (!Number.isFinite(idx)) return
+
+    setLocalCopyResults((prev) =>
+      prev.map((cr) =>
+        cr.countryCode !== countryCode
+          ? cr
+          : {
+              ...cr,
+              copies: cr.copies.map((c, i) =>
+                i === idx ? { ...c, ...corrected } : c,
+              ),
+            },
+      ),
+    )
+  }
+
   const handleSaveAndFinish = async () => {
     setReviewCompleted(true)
     const body = {
-      brief: buildReviewBrief(localCopyResults),
+      brief: buildReviewBrief(localCopyResults, reviewContext),
       copyResults: localCopyResults,
       reviewSummary,
       reviewResults: localReviewResults,
@@ -306,6 +429,129 @@ export function CopyReviewPage() {
       {/* Phase: input */}
       {phase === 'input' && (
         <>
+          {/* Campaign Context (전체 카피 공용) */}
+          <Card style={{ padding: '1.2rem' }}>
+            <div style={{ marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>
+                캠페인 컨텍스트
+              </h3>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: 'var(--neutral-500)',
+                  margin: '4px 0 0 0',
+                }}
+              >
+                검토 품질을 높이기 위한 공통 맥락. 모든 카피에 함께 반영됩니다.
+              </p>
+            </div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <FieldLabel>
+                  캠페인 목적{' '}
+                  <HelpTip
+                    label="캠페인 목적"
+                    text="이 검토의 목적을 선택하세요. 목적에 따라 리뷰 스킬이 카피를 평가하는 기준(소구 방향, 톤, KPI)이 달라집니다."
+                    chatRef={chatRef}
+                  />
+                </FieldLabel>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                    gap: 8,
+                  }}
+                >
+                  {INTENT_OPTIONS.map((opt) => {
+                    const active = reviewContext.campaignIntent === opt.value
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setReviewContext((prev) => ({
+                            ...prev,
+                            campaignIntent: opt.value,
+                          }))
+                        }
+                        style={{
+                          textAlign: 'left',
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? 'var(--lg-red-600)' : 'var(--color-border)'}`,
+                          background: active ? 'var(--lg-red-100)' : 'var(--white)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: active ? 'var(--lg-red-700)' : 'var(--neutral-900)',
+                            margin: 0,
+                          }}
+                        >
+                          {opt.label}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--neutral-500)',
+                            margin: '2px 0 0 0',
+                          }}
+                        >
+                          {opt.hint}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <FieldLabel>
+                  제품군 / 카테고리
+                  <HelpTip
+                    label="제품군"
+                    text="예: TV, 냉장고, 스마트폰, 에어컨 등. 제품군에 따라 규제·문화·클레임 검증 기준이 달라집니다."
+                    chatRef={chatRef}
+                  />
+                </FieldLabel>
+                <TextInput
+                  value={reviewContext.productCategory}
+                  onChange={(e) =>
+                    setReviewContext((prev) => ({
+                      ...prev,
+                      productCategory: e.target.value,
+                    }))
+                  }
+                  placeholder="예: OLED TV, 무선 이어폰"
+                />
+              </div>
+              <div>
+                <FieldLabel>
+                  원본/마스터 카피 (선택)
+                  <HelpTip
+                    label="원본 카피"
+                    text="현지화 전 영문 마스터 카피 등 기준이 되는 원문이 있다면 입력하세요. 언어 재창작·현지화 검증 스킬이 참조합니다."
+                    chatRef={chatRef}
+                  />
+                </FieldLabel>
+                <TextArea
+                  value={reviewContext.originalCopy}
+                  onChange={(e) =>
+                    setReviewContext((prev) => ({
+                      ...prev,
+                      originalCopy: e.target.value,
+                    }))
+                  }
+                  placeholder="Global master copy or reference version"
+                  style={{ minHeight: 70 }}
+                />
+              </div>
+            </div>
+          </Card>
+
           {entries.map((entry, idx) => (
             <Card key={entry.id} style={{ padding: '1.2rem' }}>
               <div
@@ -328,7 +574,7 @@ export function CopyReviewPage() {
                   <FieldLabel>국가 <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="국가" text="카피가 게재될 대상 국가를 선택하세요. 국가에 따라 언어와 문화적 맥락이 달라집니다." chatRef={chatRef} /></FieldLabel>
                   <select className="select" value={entry.countryCode} onChange={(e) => updateEntry(entry.id, { countryCode: e.target.value })}>
                     {COUNTRIES.map((c) => (
-                      <option key={c.code} value={c.code}>{c.flag} {c.label} ({c.lang})</option>
+                      <option key={c.code} value={c.code}>{c.code} · {c.label} ({c.lang})</option>
                     ))}
                   </select>
                 </div>
@@ -385,6 +631,7 @@ export function CopyReviewPage() {
               isLoadingSkills={skillsQuery.isLoading}
               isReviewing={runReview.isPending}
               onRunReview={handleRunReview}
+              recommendedSkillIds={recommendedSkillIds}
             />
           )}
 
@@ -407,9 +654,21 @@ export function CopyReviewPage() {
               results={localReviewResults}
               selectedCopies={localSelectedCopies}
               onReReview={handleReReview}
+              onCopyCorrected={handleCopyCorrected}
               onSaveAndFinish={handleSaveAndFinish}
             />
           )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <Button
+              variant="ghost"
+              className="btn-compact"
+              onClick={handleBackToInput}
+              disabled={runReview.isPending}
+            >
+              ← 이전 단계
+            </Button>
+          </div>
         </>
       )}
     </div>

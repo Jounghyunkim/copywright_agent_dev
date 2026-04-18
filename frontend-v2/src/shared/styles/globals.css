@@ -34,6 +34,10 @@ button, input, select, textarea { font: inherit; }
   display: grid;
   grid-template-columns: 200px 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.2s ease;
+}
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 64px 1fr;
 }
 
 .sidebar {
@@ -49,10 +53,81 @@ button, input, select, textarea { font: inherit; }
 .brand-sub { opacity: 0.9; font-size: 0.85rem; margin-top: 0.3rem; }
 
 .nav-list { margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.25rem; }
-.nav-item { color: #fbd6db; padding: 0.6rem 0.7rem; border-radius: 10px; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fbd6db;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
 .nav-item.active, .nav-item:hover {
   background: rgba(255, 255, 255, 0.12);
   color: var(--white);
+}
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.nav-item.active .nav-icon, .nav-item:hover .nav-icon {
+  opacity: 1;
+}
+
+/* ── Sidebar collapsed state ── */
+.app-shell.sidebar-collapsed .sidebar {
+  padding: 1rem 0.35rem;
+}
+.app-shell.sidebar-collapsed .brand-title,
+.app-shell.sidebar-collapsed .brand-sub,
+.app-shell.sidebar-collapsed .nav-label {
+  display: none;
+}
+.app-shell.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 0.6rem 0;
+}
+.app-shell.sidebar-collapsed .sidebar-footer {
+  flex-direction: column;
+  gap: 6px;
+}
+.app-shell.sidebar-collapsed .sidebar-footer > div[style*="flex"] { display: none; }
+
+/* Sidebar toggle button */
+.sidebar-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.sidebar-toggle svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .layout-main { display: grid; grid-template-rows: auto 1fr; }

@@ -102,7 +102,21 @@ export function GenerationConfig({
             checked={countries.includes(c.code)}
             onClick={() => toggle(countries, setCountries, c.code)}
           >
-            <span style={{ fontSize: 16 }}>{c.flag}</span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: 0.5,
+                color: 'var(--neutral-700)',
+                background: 'var(--neutral-100)',
+                border: '1px solid var(--color-border)',
+                padding: '2px 6px',
+                borderRadius: 5,
+                fontFamily: 'JetBrains Mono, monospace',
+              }}
+            >
+              {c.code}
+            </span>
             <span>{c.label}</span>
           </CheckboxRow>
         ))}

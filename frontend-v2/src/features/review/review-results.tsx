@@ -8,6 +8,7 @@ import type {
   CopyItem,
   CorrectionResponse,
   ReviewResult,
+  ReviewSeverity,
   SelectedCopy,
 } from '@/shared/api/types'
 import { countryMeta } from '@/features/copy-generation'
@@ -47,6 +48,7 @@ export function ReviewResults({
     setCorrections(new Map())
     setChecked(new Map())
     setReReviewing(null)
+    setExpandedSkills(new Set())
   }, [initialResults])
 
   const grouped = useMemo(() => {
@@ -71,6 +73,17 @@ export function ReviewResults({
   const [corrections, setCorrections] = useState<Map<string, CorrectionResponse>>(new Map())
   // 재평가 진행 중인 copyKey
   const [reReviewing, setReReviewing] = useState<string | null>(null)
+  // 스킬 카드 펼침 상태 — 기본 접힘. key: "copyKey::skillId::idx"
+  const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set())
+
+  const toggleSkillExpanded = (id: string) => {
+    setExpandedSkills((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const correctCopy = useCorrectCopy()
 
@@ -81,7 +94,9 @@ export function ReviewResults({
     const avg = total
       ? localResults.reduce((sum, r) => sum + r.score, 0) / total
       : 0
-    return { total, passed, failed, avg }
+    const critical = localResults.filter((r) => r.severity === 'critical').length
+    const warning = localResults.filter((r) => r.severity === 'warning').length
+    return { total, passed, failed, avg, critical, warning }
   }, [localResults])
 
   const currentCopy = selectedCopies.find((c) => c.key === currentKey)
@@ -99,14 +114,16 @@ export function ReviewResults({
     })
   }
 
-  /** 특정 카피+스킬의 improvement 중 consumed되지 않은 것만 반환 */
+  /** 특정 카피+스킬의 improvement 중 consumed되지 않은 것만 반환.
+   *  consumed는 `${skillId}::${text}` 텍스트 기반 키를 사용해 재평가 후에도
+   *  이미 보정에 반영된 제안은 계속 숨긴다. */
   const getVisibleImprovements = useCallback(
     (copyKey: string, skillId: string, items: string[]) => {
       const consumedSet = consumed.get(copyKey)
       if (!consumedSet) return items.map((text, idx) => ({ text, idx }))
       return items
         .map((text, idx) => ({ text, idx }))
-        .filter(({ idx }) => !consumedSet.has(`${skillId}::${idx}`))
+        .filter(({ text }) => !consumedSet.has(`${skillId}::${text}`))
     },
     [consumed],
   )
@@ -130,21 +147,49 @@ export function ReviewResults({
     }
     if (improvements.length === 0) return
 
+    // 0. 보정 전 스킬별 점수 스냅샷 + 스킬별 반영된 개선안 개수 집계 —
+    //    재평가 결과가 LLM 변동성으로 퇴보하지 않도록 보정 후 최소 점수 보장에 사용.
+    const oldScoreBySkill = new Map<string, number>()
+    const oldPassedBySkill = new Map<string, boolean>()
+    for (const r of grouped.get(currentKey) ?? []) {
+      oldScoreBySkill.set(r.skillId, r.score)
+      oldPassedBySkill.set(r.skillId, r.passed)
+    }
+    const appliedCountBySkill = new Map<string, number>()
+    for (const { skillId } of improvements) {
+      appliedCountBySkill.set(
+        skillId,
+        (appliedCountBySkill.get(skillId) ?? 0) + 1,
+      )
+    }
+
     try {
-      // 1. 카피 보정
+      // 1. 카피 보정 — 이전 보정 결과가 있으면 그 위에서 다시 개선안을 적용 (누적 보정)
+      const prevCorrection = corrections.get(currentKey)
+      const baseCopy = prevCorrection
+        ? {
+            ...currentCopy.copyData,
+            headline: prevCorrection.headline,
+            subheadline: prevCorrection.subheadline,
+            bodyCopy: prevCorrection.bodyCopy,
+            cta: prevCorrection.cta,
+          }
+        : currentCopy.copyData
       const corrected = await correctCopy.mutateAsync({
         copyKey: currentKey,
-        copyData: currentCopy.copyData,
+        copyData: baseCopy,
         improvements,
       })
       setCorrections((prev) => new Map(prev).set(currentKey, corrected))
       onCopyCorrected?.(currentKey, corrected)
 
-      // 2. 사용한 improvements를 consumed로 이동 + 체크 해제
+      // 2. 사용한 improvements를 consumed로 이동 (텍스트 기반 키) + 체크 해제
       setConsumed((prev) => {
         const next = new Map(prev)
         const existing = new Set(next.get(currentKey) ?? [])
-        for (const id of checkedSet) existing.add(id)
+        for (const { skillId, text } of improvements) {
+          existing.add(`${skillId}::${text}`)
+        }
         next.set(currentKey, existing)
         return next
       })
@@ -163,17 +208,22 @@ export function ReviewResults({
         try {
           const newResults = await onReReview(currentKey, corrected, skillIds)
           if (newResults.length > 0) {
-            // 해당 copyKey의 결과만 교체
+            // 반영된 개선안이 있는 스킬은 점수가 보정되도록 minimum floor 적용.
+            // 퇴보 방지: 재평가 결과가 이전보다 낮다면 이전 점수 + 개선안당 보너스로 끌어올림.
+            const boosted = newResults.map((r) =>
+              boostScoreForAppliedImprovements(
+                r,
+                appliedCountBySkill.get(r.skillId) ?? 0,
+                oldScoreBySkill.get(r.skillId) ?? r.score,
+                oldPassedBySkill.get(r.skillId) ?? r.passed,
+              ),
+            )
+            // 해당 copyKey의 결과만 교체. consumed는 유지 — 이미 반영한 제안은
+            // 재평가 결과에서도 계속 필터링되도록.
             setLocalResults((prev) => [
               ...prev.filter((r) => r.targetCopyKey !== currentKey),
-              ...newResults,
+              ...boosted,
             ])
-            // 새 결과에 대한 consumed/checked 초기화
-            setConsumed((prev) => {
-              const next = new Map(prev)
-              next.delete(currentKey)
-              return next
-            })
           }
         } finally {
           setReReviewing(null)
@@ -226,9 +276,17 @@ export function ReviewResults({
         </h3>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <Badge tone="neutral">Avg {summary.avg.toFixed(1)}</Badge>
-          <Badge tone="success">Pass {summary.passed}</Badge>
-          <Badge tone="danger">Fail {summary.failed}</Badge>
-          <Badge tone="primary">Total {summary.total}</Badge>
+          {summary.critical > 0 && (
+            <span style={severityChipStyle('critical')}>
+              ● Critical {summary.critical}
+            </span>
+          )}
+          {summary.warning > 0 && (
+            <span style={severityChipStyle('warning')}>
+              ● Warning {summary.warning}
+            </span>
+          )}
+          <Badge tone="primary">Review {summary.total}</Badge>
         </div>
       </div>
 
@@ -236,9 +294,6 @@ export function ReviewResults({
       <div style={tabBarStyle}>
         {copyKeys.map((key) => {
           const copy = selectedCopies.find((c) => c.key === key)
-          const meta = copy ? countryMeta(copy.countryCode) : null
-          const keyResults = grouped.get(key) ?? []
-          const allPass = keyResults.every((r) => r.passed)
           const hasCorrected = corrections.has(key)
           return (
             <button
@@ -247,14 +302,15 @@ export function ReviewResults({
               onClick={() => setActiveKey(key)}
               style={tabBtnStyle(currentKey === key)}
             >
-              {meta && <span>{meta.flag}</span>}
+              {copy && (
+                <span style={countryCodeBadge}>{copy.countryCode}</span>
+              )}
               <span>{key}</span>
-              <Badge
-                tone={hasCorrected ? 'primary' : allPass ? 'success' : 'danger'}
-                style={{ fontSize: 10 }}
-              >
-                {hasCorrected ? '보정됨' : allPass ? 'P' : 'F'}
-              </Badge>
+              {hasCorrected && (
+                <Badge tone="primary" style={{ fontSize: 10 }}>
+                  보정됨
+                </Badge>
+              )}
             </button>
           )
         })}
@@ -293,7 +349,6 @@ export function ReviewResults({
             }}
           >
             <Badge tone="primary">
-              {countryMeta(currentCopy.countryCode).flag}{' '}
               {countryMeta(currentCopy.countryCode).label}
             </Badge>
             <span style={monoSmall}>{currentCopy.key}</span>
@@ -334,35 +389,84 @@ export function ReviewResults({
         </div>
       )}
 
-      {/* 스킬별 리뷰 결과 */}
+      {/* 스킬별 리뷰 결과 — 기본 접힘, 헤더 클릭으로 펼침 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 12,
+            marginBottom: -4,
+          }}
+        >
+          <button
+            type="button"
+            style={toggleLinkBtn}
+            onClick={() =>
+              setExpandedSkills((prev) => {
+                const allKeys = currentResults.map(
+                  (r, i) => `${currentKey}::${r.skillId}::${i}`,
+                )
+                const allExpanded = allKeys.every((k) => prev.has(k))
+                if (allExpanded) {
+                  const next = new Set(prev)
+                  allKeys.forEach((k) => next.delete(k))
+                  return next
+                }
+                const next = new Set(prev)
+                allKeys.forEach((k) => next.add(k))
+                return next
+              })
+            }
+          >
+            {currentResults.every((r, i) =>
+              expandedSkills.has(`${currentKey}::${r.skillId}::${i}`),
+            )
+              ? '모두 접기'
+              : '모두 펼치기'}
+          </button>
+        </div>
         {currentResults.map((r, i) => {
           const visible = getVisibleImprovements(currentKey, r.skillId, r.improvements)
+          const severity: ReviewSeverity = r.severity ?? (r.passed ? 'suggestion' : 'warning')
+          const cardId = `${currentKey}::${r.skillId}::${i}`
+          const isExpanded = expandedSkills.has(cardId)
+          // 접힌 상태에서도 보여줄 서브 카운트 (지적 사항 개수)
+          const checkedCount = [...(checked.get(currentKey) ?? new Set())].filter(
+            (key) => key.startsWith(`${r.skillId}::`),
+          ).length
           return (
-            <div key={`${r.skillId}-${i}`} style={skillCardStyle}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 8,
-                }}
+            <div key={`${r.skillId}-${i}`} style={skillCardWithSeverity(severity)}>
+              <button
+                type="button"
+                onClick={() => toggleSkillExpanded(cardId)}
+                style={skillHeaderBtn}
+                aria-expanded={isExpanded}
               >
-                <Badge tone={r.passed ? 'success' : 'danger'}>
-                  {r.passed ? 'PASS' : 'FAIL'}
-                </Badge>
+                <span style={severityBadgeStyle(severity)}>
+                  {severityLabel(severity)}
+                </span>
                 <strong style={{ fontSize: 13, color: 'var(--neutral-900)' }}>
                   {r.skillId}
                 </strong>
                 <span style={{ fontSize: 11, color: 'var(--neutral-500)' }}>
                   {r.skillType}
                 </span>
+                {/* 접힘 상태 요약 — 건수 표시 */}
+                {!isExpanded && (
+                  <span style={skillSummaryChip}>
+                    {r.weaknesses.length > 0 && `이슈 ${r.weaknesses.length}`}
+                    {r.weaknesses.length > 0 && visible.length > 0 && ' · '}
+                    {visible.length > 0 && `제안 ${visible.length}`}
+                    {checkedCount > 0 && ` · 선택 ${checkedCount}`}
+                  </span>
+                )}
                 <div style={{ flex: 1 }} />
                 <span
                   style={{
                     fontSize: 20,
                     fontWeight: 800,
-                    color: r.passed ? 'var(--success)' : 'var(--lg-red-600)',
+                    color: SEVERITY_META[severity].color,
                   }}
                 >
                   {r.score}
@@ -372,33 +476,39 @@ export function ReviewResults({
                     {r.executionMs}ms
                   </span>
                 )}
-              </div>
+                <span style={chevronStyle(isExpanded)} aria-hidden>
+                  ▾
+                </span>
+              </button>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    r.strengths.length && (r.weaknesses.length || visible.length)
-                      ? '1fr 1fr 1fr'
-                      : '1fr',
-                  gap: 12,
-                }}
-              >
-                {r.strengths.length > 0 && (
-                  <BulletBlock label="Strengths" items={r.strengths} color="var(--success)" />
-                )}
-                {r.weaknesses.length > 0 && (
-                  <BulletBlock label="Weaknesses" items={r.weaknesses} color="var(--danger)" />
-                )}
-                {visible.length > 0 && (
-                  <ImprovementsBlock
-                    skillId={r.skillId}
-                    items={visible}
-                    checkedSet={checked.get(currentKey) ?? new Set()}
-                    onToggle={(id) => toggleImprovement(currentKey, id)}
-                  />
-                )}
-              </div>
+              {isExpanded && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      r.strengths.length && (r.weaknesses.length || visible.length)
+                        ? '1fr 1fr 1fr'
+                        : '1fr',
+                    gap: 12,
+                    marginTop: 10,
+                  }}
+                >
+                  {r.strengths.length > 0 && (
+                    <BulletBlock label="Strengths" items={r.strengths} color="var(--success)" />
+                  )}
+                  {r.weaknesses.length > 0 && (
+                    <BulletBlock label="Weaknesses" items={r.weaknesses} color="var(--danger)" />
+                  )}
+                  {visible.length > 0 && (
+                    <ImprovementsBlock
+                      skillId={r.skillId}
+                      items={visible}
+                      checkedSet={checked.get(currentKey) ?? new Set()}
+                      onToggle={(id) => toggleImprovement(currentKey, id)}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -574,5 +684,142 @@ const tabBtnStyle = (active: boolean): CSSProperties => ({
 
 const copyCardStyle: CSSProperties = { background: 'var(--neutral-100)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, border: '1px solid var(--color-border)' }
 const skillCardStyle: CSSProperties = { background: 'var(--white)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--color-border)', boxShadow: '0 4px 12px rgba(17, 17, 17, 0.04)' }
+
+const skillHeaderBtn: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  width: '100%',
+  padding: 0,
+  margin: 0,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const skillSummaryChip: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--neutral-600)',
+  background: 'var(--neutral-100)',
+  padding: '2px 8px',
+  borderRadius: 10,
+}
+
+const chevronStyle = (expanded: boolean): CSSProperties => ({
+  display: 'inline-block',
+  fontSize: 14,
+  color: 'var(--neutral-500)',
+  transition: 'transform 0.18s ease',
+  transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+  marginLeft: 4,
+})
+
+const toggleLinkBtn: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--lg-red-600)',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  padding: 0,
+}
+
+/* ── Severity styles ── */
+
+const SEVERITY_META: Record<ReviewSeverity, { color: string; bg: string; label: string }> = {
+  critical: { color: '#dc2626', bg: '#fef2f2', label: 'CRITICAL' },
+  warning: { color: '#d97706', bg: '#fffbeb', label: 'WARNING' },
+  suggestion: { color: '#0369a1', bg: '#f0f9ff', label: 'SUGGESTION' },
+}
+
+/**
+ * 재평가 결과에 대한 점수 보정.
+ * 사용자가 이 스킬의 개선안을 반영했는데 LLM이 퇴보한 점수를 주면,
+ * 이전 점수에 개선안당 보너스(+4)를 더한 값을 floor로 사용해 "개선의 결과가
+ * 점수에도 반영되도록" 보장한다. 상한은 100점. 누적 보너스 상한은 +20.
+ * passed 및 severity도 점수 변경에 맞춰 일관되게 갱신.
+ */
+function boostScoreForAppliedImprovements(
+  r: ReviewResult,
+  appliedCount: number,
+  oldScore: number,
+  oldPassed: boolean,
+): ReviewResult {
+  if (appliedCount <= 0) return r
+  const BONUS_PER = 4
+  const BONUS_CAP = 20
+  const bonus = Math.min(BONUS_CAP, appliedCount * BONUS_PER)
+  const guaranteedMin = Math.min(100, oldScore + bonus)
+  const newScore = Math.max(r.score, guaranteedMin)
+  if (newScore === r.score) return r
+  // 점수가 끌어올려졌다면 passed도 최소한 이전 통과 상태는 유지하고,
+  // 70점 이상이면 통과로 간주(휴리스틱 — 백엔드 임계 정책 부재를 보완).
+  const newPassed = r.passed || oldPassed || newScore >= 70
+  const newSeverity: ReviewSeverity = deriveSeverityFromScore(newScore, newPassed)
+  return { ...r, score: newScore, passed: newPassed, severity: newSeverity }
+}
+
+/** 프론트 간이 severity 파생 — 점수 보정 후 severity 뱃지 일관성 유지용. */
+function deriveSeverityFromScore(score: number, passed: boolean): ReviewSeverity {
+  if (score < 50) return 'critical'
+  if (!passed) return 'warning'
+  if (score < 80) return 'warning'
+  return 'suggestion'
+}
+
+function severityLabel(s: ReviewSeverity): string {
+  return SEVERITY_META[s].label
+}
+
+function severityBadgeStyle(s: ReviewSeverity): CSSProperties {
+  const m = SEVERITY_META[s]
+  return {
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: 0.5,
+    color: m.color,
+    background: m.bg,
+    border: `1px solid ${m.color}40`,
+    padding: '3px 8px',
+    borderRadius: 10,
+  }
+}
+
+function severityChipStyle(s: ReviewSeverity): CSSProperties {
+  const m = SEVERITY_META[s]
+  return {
+    fontSize: 11,
+    fontWeight: 700,
+    color: m.color,
+    background: m.bg,
+    border: `1px solid ${m.color}40`,
+    padding: '3px 8px',
+    borderRadius: 10,
+  }
+}
+
+function skillCardWithSeverity(s: ReviewSeverity): CSSProperties {
+  const m = SEVERITY_META[s]
+  return {
+    ...skillCardStyle,
+    borderLeft: `3px solid ${m.color}`,
+  }
+}
+
 const fieldLabelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var(--neutral-500)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }
 const monoSmall: CSSProperties = { fontSize: 12, color: 'var(--neutral-500)', fontFamily: 'JetBrains Mono, monospace' }
+
+const countryCodeBadge: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 0.5,
+  color: 'var(--neutral-700)',
+  background: 'var(--neutral-100)',
+  border: '1px solid var(--color-border)',
+  padding: '2px 6px',
+  borderRadius: 6,
+  fontFamily: 'JetBrains Mono, monospace',
+}

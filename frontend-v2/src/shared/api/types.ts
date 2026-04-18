@@ -229,6 +229,8 @@ export interface ReviewRequest {
   enabledSkills: string[]
 }
 
+export type ReviewSeverity = 'critical' | 'warning' | 'suggestion'
+
 export interface ReviewResult {
   type: 'skill_completed'
   skillId: string
@@ -236,6 +238,8 @@ export interface ReviewResult {
   targetCopyKey: string
   score: number
   passed: boolean
+  /** 심각도 라벨. 백엔드에서 레인/점수/통과여부 휴리스틱으로 부여. 구버전 데이터엔 없을 수 있음. */
+  severity?: ReviewSeverity
   strengths: string[]
   weaknesses: string[]
   improvements: string[]

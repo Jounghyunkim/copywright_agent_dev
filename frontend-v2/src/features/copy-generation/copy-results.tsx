@@ -21,7 +21,6 @@ interface Props {
 
 export function CopyResults({ results, diagnostics, onProceed, readOnly = false }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [activeTab, setActiveTab] = useState<Record<string, number>>({})
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
 
   const { translations, pending, translate } = useTranslateCopy()
@@ -29,11 +28,6 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
   useEffect(() => {
     if (!results?.length) return
     setExpanded(new Set(results.map((r) => r.countryCode)))
-    const next: Record<string, number> = {}
-    results.forEach((r) => {
-      next[r.countryCode] = 0
-    })
-    setActiveTab(next)
   }, [results])
 
   // 비한국어 카피에 대해 자동 번역 트리거
@@ -121,13 +115,6 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
         {results.map((result, countryIdx) => {
           const meta = countryMeta(result.countryCode)
           const isOpen = expanded.has(result.countryCode)
-          const tab = activeTab[result.countryCode] ?? 0
-          const activeCopy = result.copies[tab]
-          const activeDiag = diagnostics?.[countryIdx]?.[tab]
-          const copyKey = `${result.countryCode}-${tab}`
-          const isKorean = result.countryCode === 'KR'
-          const translated = isKorean ? undefined : translations.get(copyKey)
-          const isTranslating = isKorean ? false : pending.has(copyKey)
 
           return (
             <div key={result.countryCode} style={countryCardStyle}>
@@ -135,7 +122,7 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                 style={countryHeaderStyle(isOpen)}
                 onClick={() => toggleCountry(result.countryCode)}
               >
-                <span style={{ fontSize: 22 }}>{meta.flag}</span>
+                <span style={countryCodeBadgeStyle}>{result.countryCode}</span>
                 <strong style={{ fontSize: 14, color: 'var(--neutral-900)' }}>
                   {meta.label}
                 </strong>
@@ -149,49 +136,56 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                 </span>
               </div>
               {isOpen && (
-                <div style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <div style={tabBarStyle}>
-                    {result.copies.map((_, idx) => {
-                      const key = `${result.countryCode}-${idx}`
-                      const isActive = tab === idx
-                      const isSelected = selectedKeys.has(key)
-                      return (
-                        <div
-                          key={idx}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                        >
-                          <button
-                            type="button"
-                            style={tabBtnStyle(isActive)}
-                            onClick={() =>
-                              setActiveTab((prev) => ({
-                                ...prev,
-                                [result.countryCode]: idx,
-                              }))
-                            }
-                          >
-                            변형 {idx + 1}
-                          </button>
+                <div style={variantGridStyle}>
+                  {result.copies.map((copy, idx) => {
+                    const key = `${result.countryCode}-${idx}`
+                    const isSelected = selectedKeys.has(key)
+                    const isKr = result.countryCode === 'KR'
+                    const tr = isKr ? undefined : translations.get(key)
+                    const loading = isKr ? false : pending.has(key)
+                    const diag = diagnostics?.[countryIdx]?.[idx]
+                    return (
+                      <div
+                        key={idx}
+                        style={variantCardStyle(isSelected && !readOnly)}
+                      >
+                        <div style={variantHeaderStyle}>
+                          <span style={variantNoStyle}>변형 {idx + 1}</span>
+                          <div style={{ flex: 1 }} />
                           {!readOnly && (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() =>
-                                toggleSelect(result.countryCode, idx)
-                              }
-                              aria-label={`변형 ${idx + 1} 선택`}
-                            />
+                            <label
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 12,
+                                color: 'var(--neutral-700)',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() =>
+                                  toggleSelect(result.countryCode, idx)
+                                }
+                                aria-label={`변형 ${idx + 1} 선택`}
+                              />
+                              선택
+                            </label>
                           )}
                         </div>
-                      )
-                    })}
-                  </div>
-                  <CopyDetail
-                    copy={activeCopy}
-                    translation={translated}
-                    isTranslating={isTranslating}
-                    diagnostic={activeDiag}
-                  />
+                        <CopyDetail
+                          copy={copy}
+                          translation={tr}
+                          isTranslating={loading}
+                          diagnostic={diag}
+                          compact
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -226,21 +220,23 @@ function CopyDetail({
   translation,
   isTranslating,
   diagnostic,
+  compact = false,
 }: {
   copy: CopyItem
   translation?: TranslatedCopy
   isTranslating?: boolean
   diagnostic?: CopyDiagnostic
+  compact?: boolean
 }) {
   if (!copy) return null
   const hasWarnings = diagnostic && diagnostic.warnings.length > 0
   return (
     <div
       style={{
-        padding: '16px 20px',
+        padding: compact ? '12px 14px' : '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: compact ? 10 : 12,
       }}
     >
       {hasWarnings && (
@@ -269,7 +265,7 @@ function CopyDetail({
           ))}
         </div>
       )}
-      <Field label="Headline" value={copy.headline} large translation={translation?.headline} />
+      <Field label="Headline" value={copy.headline} large={!compact} translation={translation?.headline} />
       <Field label="Subheadline" value={copy.subheadline} translation={translation?.subheadline} />
       <Field label="Body Copy" value={copy.bodyCopy} multiline translation={translation?.bodyCopy} />
       <Field label="CTA" value={copy.cta} translation={translation?.cta} />
@@ -362,6 +358,18 @@ const countryCardStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const countryCodeBadgeStyle: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: 0.6,
+  color: 'var(--lg-red-700)',
+  background: 'var(--lg-red-100)',
+  border: '1px solid var(--lg-red-600)',
+  padding: '3px 8px',
+  borderRadius: 6,
+  fontFamily: 'JetBrains Mono, monospace',
+}
+
 const countryHeaderStyle = (isOpen: boolean): CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
@@ -373,24 +381,39 @@ const countryHeaderStyle = (isOpen: boolean): CSSProperties => ({
   transition: 'background-color 0.15s ease',
 })
 
-const tabBarStyle: CSSProperties = {
+const variantGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+  padding: 12,
+  borderTop: '1px solid var(--color-border)',
+  background: 'var(--neutral-50, #fafafa)',
+}
+
+const variantCardStyle = (selected: boolean): CSSProperties => ({
+  background: '#fff',
+  borderRadius: 10,
+  border: `1.5px solid ${selected ? 'var(--lg-red-600)' : 'var(--color-border)'}`,
+  boxShadow: selected
+    ? '0 4px 12px rgba(165,0,52,0.12)'
+    : '0 1px 2px rgba(17,17,17,0.04)',
+  overflow: 'hidden',
+  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+})
+
+const variantHeaderStyle: CSSProperties = {
   display: 'flex',
-  gap: 6,
-  flexWrap: 'wrap',
   alignItems: 'center',
-  padding: '10px 16px 6px',
+  gap: 8,
+  padding: '8px 14px',
+  background: 'var(--neutral-100)',
   borderBottom: '1px solid var(--color-border)',
 }
 
-const tabBtnStyle = (active: boolean): CSSProperties => ({
-  padding: '6px 14px',
-  borderRadius: 8,
-  border: 'none',
-  cursor: 'pointer',
+const variantNoStyle: CSSProperties = {
   fontSize: 12,
-  fontWeight: 600,
-  fontFamily: 'inherit',
-  background: active ? 'var(--lg-red-600)' : 'transparent',
-  color: active ? 'var(--white)' : 'var(--neutral-700)',
-  transition: 'all 0.15s ease',
-})
+  fontWeight: 800,
+  color: 'var(--lg-red-700)',
+  letterSpacing: 0.3,
+  textTransform: 'uppercase',
+}

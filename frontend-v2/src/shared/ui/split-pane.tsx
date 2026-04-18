@@ -11,13 +11,18 @@ interface Props {
   minRightPx?: number
   /** localStorage key — 여러 SplitPane이 같은 페이지에 있을 때 구분. */
   storageKey?: string
+  /** 우측 패널을 접었다 폈다 할 수 있게 토글 버튼 노출. 기본 true. */
+  collapsibleRight?: boolean
 }
+
+/** 접힌 상태의 우측 스트립 폭 */
+const COLLAPSED_STRIP_PX = 40
 
 /**
  * Horizontal 2-pane resizable container.
  * - 가운데 divider를 드래그하여 비율 조정
- * - 비율은 localStorage에 저장되어 새로고침해도 유지
- * - min/max 제약: 각 패널이 최소 폭 이하로 줄지 않음
+ * - 비율·접힘 상태는 localStorage에 저장
+ * - 우측 패널은 우상단 토글 버튼으로 접었다 펼 수 있음 (collapsibleRight)
  */
 export function SplitPane({
   left,
@@ -26,6 +31,7 @@ export function SplitPane({
   minLeftPx = 300,
   minRightPx = 400,
   storageKey = 'copylight-v2:split-pane',
+  collapsibleRight = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [ratio, setRatio] = useState<number>(() => {
@@ -35,20 +41,32 @@ export function SplitPane({
         const v = parseFloat(saved)
         if (!Number.isNaN(v) && v > 0 && v < 1) return v
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
     return defaultRatio
+  })
+  const [rightCollapsed, setRightCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`${storageKey}:right-collapsed`) === '1'
+    } catch {
+      return false
+    }
   })
   const draggingRef = useRef(false)
 
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, ratio.toString())
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [ratio, storageKey])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        `${storageKey}:right-collapsed`,
+        rightCollapsed ? '1' : '0',
+      )
+    } catch {}
+  }, [rightCollapsed, storageKey])
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -85,17 +103,23 @@ export function SplitPane({
     }
   }, [minLeftPx, minRightPx])
 
+  const gridTemplate = rightCollapsed
+    ? `1fr 0px ${COLLAPSED_STRIP_PX}px`
+    : `${ratio * 100}% 6px 1fr`
+
   return (
     <div
       ref={containerRef}
       style={{
         display: 'grid',
-        gridTemplateColumns: `${ratio * 100}% 6px 1fr`,
+        gridTemplateColumns: gridTemplate,
         minHeight: 0,
         height: '100%',
         width: '100%',
+        position: 'relative',
       }}
     >
+      {/* Left pane */}
       <div
         style={{
           minWidth: 0,
@@ -106,19 +130,20 @@ export function SplitPane({
       >
         {left}
       </div>
+
+      {/* Divider (접혀있을 땐 숨김) */}
       <div
-        onMouseDown={onMouseDown}
+        onMouseDown={rightCollapsed ? undefined : onMouseDown}
         style={{
-          cursor: 'col-resize',
+          cursor: rightCollapsed ? 'default' : 'col-resize',
           background: 'transparent',
-          display: 'flex',
+          display: rightCollapsed ? 'none' : 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          position: 'relative',
         }}
         role="separator"
         aria-orientation="vertical"
-        title="드래그하여 너비 조정"
+        title={rightCollapsed ? undefined : '드래그하여 너비 조정'}
       >
         <span
           style={{
@@ -129,16 +154,94 @@ export function SplitPane({
           }}
         />
       </div>
+
+      {/* Right pane */}
       <div
         style={{
           minWidth: 0,
           minHeight: 0,
-          overflow: 'auto',
-          paddingLeft: 4,
+          overflow: rightCollapsed ? 'hidden' : 'auto',
+          paddingLeft: rightCollapsed ? 0 : 4,
+          position: 'relative',
+          height: '100%',
         }}
       >
-        {right}
+        {rightCollapsed ? null : right}
       </div>
+
+      {/* Floating toggle — 루트에 position: absolute, 항상 최상위에 표시 */}
+      {collapsibleRight && (
+        <button
+          type="button"
+          onClick={() => setRightCollapsed((v) => !v)}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 20,
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            border: '1px solid var(--color-border)',
+            background: '#fff',
+            color: 'var(--neutral-700)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(17,17,17,0.10)',
+          }}
+          title={rightCollapsed ? 'AI 어시스턴트 펼치기' : 'AI 어시스턴트 접기'}
+          aria-label={rightCollapsed ? 'AI 어시스턴트 펼치기' : 'AI 어시스턴트 접기'}
+          aria-pressed={rightCollapsed}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width="16"
+            height="16"
+          >
+            {rightCollapsed ? <path d="M15 6l-6 6 6 6" /> : <path d="M9 6l6 6-6 6" />}
+          </svg>
+        </button>
+      )}
+
+      {/* 접힌 상태의 세로 스트립 — 루트 절대 위치, 토글 버튼 아래로 정렬 */}
+      {rightCollapsed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 48,
+            right: 4,
+            width: `${COLLAPSED_STRIP_PX - 8}px`,
+            bottom: 4,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--neutral-400)',
+          }}
+          aria-hidden
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 1,
+              transform: 'rotate(-90deg)',
+              transformOrigin: 'center',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            AI 어시스턴트
+          </span>
+        </div>
+      )}
     </div>
   )
 }
+

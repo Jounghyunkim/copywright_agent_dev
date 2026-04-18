@@ -559,6 +559,54 @@ MAX_CHAT_FILE_BYTES = 5 * 1024 * 1024      # 5 MB per file
 MAX_CHAT_FILE_TEXT_CHARS = 40_000          # truncate extracted text per file
 
 
+# ──────────────────────────────────────────────────────────────
+# Review severity classifier
+# ──────────────────────────────────────────────────────────────
+# 리뷰 결과에 critical/warning/suggestion 심각도를 부여한다.
+# 레인(Risk 여부) + 통과 여부 + 점수 기반 휴리스틱. 향후 LLM 판정으로 대체 가능.
+_RISK_SKILL_IDS = {
+    "ai-washing-risk-check",
+    "compliance-redflag-detector",
+    "environmental-claim-risk-check",
+    "comparative-ad-risk-check",
+    "claim-extractor",
+    "proof-point-checker",
+    "regulatory-copy-validation",
+}
+
+_BRAND_SKILL_IDS = {
+    "lg-brand-fit-check",
+    "lg-brand-voice",
+    "brand-lexicon-check",
+    "tone-and-voice-enforcer",
+    "writer-solmi-check",
+}
+
+
+def _classify_review_severity(skill_id: str, passed: bool, score: int) -> str:
+    """리뷰 결과의 심각도를 반환. 값: 'critical' | 'warning' | 'suggestion'.
+
+    규칙 (위에서 아래로 평가):
+      1) 점수 < 50 → critical (어떤 스킬이든 치명적)
+      2) Risk 스킬 + 미통과 → critical (법무/규제 실패)
+      3) 미통과 (비-Risk) → warning
+      4) Risk 스킬 + 점수 < 80 → warning (통과했지만 주의 필요)
+      5) Brand 스킬 + 점수 < 70 → warning
+      6) 그 외 → suggestion
+    """
+    if score < 50:
+        return "critical"
+    if skill_id in _RISK_SKILL_IDS and not passed:
+        return "critical"
+    if not passed:
+        return "warning"
+    if skill_id in _RISK_SKILL_IDS and score < 80:
+        return "warning"
+    if skill_id in _BRAND_SKILL_IDS and score < 70:
+        return "warning"
+    return "suggestion"
+
+
 def _extract_file_text(filename: str, raw: bytes) -> tuple[str, bool, Optional[str]]:
     """Return (text, truncated, error) for a single uploaded file.
 
@@ -767,6 +815,9 @@ async def submit_review(request: ReviewRequest):
                         execution_ms=r.get("execution_ms", 0),
                     )
                     db.add(db_result)
+                    severity = _classify_review_severity(
+                        r["skill_id"], r["passed"], r["score"]
+                    )
                     yield _sse({
                         "type": "skill_completed",
                         "skillId": r["skill_id"],
@@ -774,6 +825,7 @@ async def submit_review(request: ReviewRequest):
                         "targetCopyKey": r["target_copy_key"],
                         "passed": r["passed"],
                         "score": r["score"],
+                        "severity": severity,
                         "strengths": r.get("strengths", []),
                         "weaknesses": r.get("weaknesses", r.get("findings", [])),
                         "improvements": r.get("improvements", r.get("suggestions", [])),
@@ -868,6 +920,7 @@ async def get_review_session(session_id: str, db: AsyncSession = Depends(get_db)
             "targetCopyKey": r.target_copy_key,
             "passed": r.passed,
             "score": r.score,
+            "severity": _classify_review_severity(r.skill_id, r.passed, r.score),
             "findings": r.findings,
             "suggestions": r.suggestions,
             "executionMs": r.execution_ms,
@@ -897,6 +950,24 @@ async def correct_copy(request: CorrectionRequest):
     from langchain_openai import AzureChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
 
+    copy = request.copyData
+    improvements = request.improvements
+
+    # 가드: 개선안이 하나도 없으면 원본 그대로 반환
+    if not improvements:
+        print(f"[correct_copy] No improvements provided for {request.copyKey} — returning original")
+        return CorrectionResponse(
+            headline=copy.get("headline", ""),
+            subheadline=copy.get("subheadline", ""),
+            bodyCopy=copy.get("bodyCopy", ""),
+            cta=copy.get("cta", ""),
+        )
+
+    print(
+        f"[correct_copy] {request.copyKey} — applying {len(improvements)} improvement(s): "
+        + ", ".join(imp.skillId for imp in improvements)
+    )
+
     llm = AzureChatOpenAI(
         azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
@@ -905,25 +976,27 @@ async def correct_copy(request: CorrectionRequest):
         temperature=0.4,
     )
 
-    copy = request.copyData
     improvements_text = "\n".join(
-        f"- [{imp.skillId}] {imp.text}" for imp in request.improvements
+        f"{i+1}. [{imp.skillId}] {imp.text}"
+        for i, imp in enumerate(improvements)
     )
 
     system_prompt = SystemMessage(content=(
-        "You are an expert LG brand copywriter. You will receive an existing marketing copy "
-        "(headline, subheadline, bodyCopy, cta) and a list of review improvement suggestions "
-        "from quality-check skills.\n\n"
-        "Your task is to revise the copy to address ALL the improvement suggestions.\n\n"
-        "CRITICAL RULES:\n"
-        "1. Apply improvements to EVERY relevant part — headline, subheadline, bodyCopy, AND cta.\n"
-        "2. The HEADLINE is the most visible element. If an improvement relates to tone, brand compliance, "
-        "   keyword usage, or messaging clarity, the headline MUST be updated accordingly.\n"
-        "3. Do NOT leave any field unchanged if the improvement logically applies to it.\n"
-        "4. Preserve the original language, tone intent, and approximate length.\n"
-        "5. Return ONLY a JSON object with these exact keys: headline, subheadline, bodyCopy, cta.\n"
-        "6. Do not include any explanation, markdown, or code fences — just the raw JSON object.\n"
-        "7. Keep the same language as the original copy."
+        "당신은 LG전자 브랜드 카피라이터입니다. 사용자가 기존 광고 카피(headline, subheadline, bodyCopy, cta)와 "
+        "품질 검수 스킬에서 도출된 **선택된 개선 제안 목록**을 전달합니다.\n\n"
+        "## 당신의 임무\n"
+        "전달된 개선 제안을 **빠짐없이 반드시 반영**하여 카피를 다시 쓰십시오. "
+        "원본 카피와 동일하거나 거의 같은 결과를 반환하는 것은 금지합니다.\n\n"
+        "## 절대 규칙\n"
+        "1. 번호가 매겨진 **모든 개선 제안을 실제로 적용**하라. 개선안 각각이 최종 카피에서 체감되어야 한다.\n"
+        "2. **headline, subheadline, bodyCopy, cta 네 필드 전부**를 반환하라. 한 필드라도 빠뜨리지 말 것.\n"
+        "3. 특정 개선안이 특정 필드에만 적용된다면 그 필드를 명확히 수정하고, 나머지 필드는 원본을 유지하거나 자연스럽게 조정하라.\n"
+        "4. **headline**은 가장 가시성이 높다. 톤·브랜드·키워드·메시지 명확성 관련 개선안이면 headline을 반드시 수정하라.\n"
+        "5. 원본 카피와 **동일한 언어·어조·분량**을 유지하라 (한국어는 한국어로, 영어는 영어로).\n"
+        "6. 응답은 **JSON 객체 하나만**으로 반환하라. 코드 펜스, 주석, 설명, 앞뒤 공백 모두 금지.\n"
+        "7. JSON 키는 정확히 `headline`, `subheadline`, `bodyCopy`, `cta` 네 개를 camelCase로 사용하라.\n\n"
+        "## 응답 형식 (이 형식을 엄격히 따를 것)\n"
+        '{"headline": "…", "subheadline": "…", "bodyCopy": "…", "cta": "…"}'
     ))
 
     user_prompt = HumanMessage(content=(
@@ -932,26 +1005,73 @@ async def correct_copy(request: CorrectionRequest):
         f"Subheadline: {copy.get('subheadline', '')}\n"
         f"Body Copy: {copy.get('bodyCopy', '')}\n"
         f"CTA: {copy.get('cta', '')}\n\n"
-        f"=== Improvement Suggestions ===\n{improvements_text}\n\n"
-        f"Revise ALL four fields (headline, subheadline, bodyCopy, cta) to address the improvements above. "
-        f"Pay special attention to updating the HEADLINE — it must reflect the key improvements. "
-        f"Return only a JSON object with all four keys."
+        f"=== 반드시 반영할 개선 제안 ({len(improvements)}건) ===\n"
+        f"{improvements_text}\n\n"
+        "위 모든 개선 제안을 반영하여 네 필드(headline, subheadline, bodyCopy, cta)를 모두 담은 "
+        "JSON 객체만 반환하시오. 원본과 동일하게 두지 말고 개선안이 드러나도록 다시 쓰시오."
     ))
 
     try:
         response = await llm.ainvoke([system_prompt, user_prompt])
-        content = response.content.strip()
+        content = (response.content or "").strip()
         # Strip markdown code fences if present
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        # Remove any leading 'json' tag after fence strip
+        if content.lower().startswith("json"):
+            content = content[4:].strip()
         result = json_module.loads(content)
+
+        # 키 정규화 — LLM이 snake_case나 대소문자 변형을 쓰는 경우까지 흡수
+        def _pick(*keys: str) -> str:
+            for k in keys:
+                if isinstance(result.get(k), str):
+                    return result[k]
+            return ""
+
+        new_headline = _pick("headline", "Headline", "head_line")
+        new_subheadline = _pick("subheadline", "subHeadline", "sub_headline", "Subheadline")
+        new_body = _pick("bodyCopy", "body_copy", "body", "BodyCopy", "Body Copy")
+        new_cta = _pick("cta", "CTA", "Cta", "call_to_action")
+
+        original_headline = copy.get("headline", "")
+        original_subheadline = copy.get("subheadline", "")
+        original_body = copy.get("bodyCopy", "")
+        original_cta = copy.get("cta", "")
+
+        # 파싱된 값이 빈 문자열이면 원본으로 fallback (완전히 비어버리는 것 방지)
+        final_headline = new_headline or original_headline
+        final_subheadline = new_subheadline or original_subheadline
+        final_body = new_body or original_body
+        final_cta = new_cta or original_cta
+
+        # 결과가 원본과 완전히 동일하면 경고 로그 — 프롬프트 품질/LLM 문제 진단에 활용
+        if (
+            final_headline == original_headline
+            and final_subheadline == original_subheadline
+            and final_body == original_body
+            and final_cta == original_cta
+        ):
+            print(
+                f"[correct_copy] WARNING: LLM returned identical copy for {request.copyKey} "
+                f"despite {len(improvements)} improvement(s). Raw response head: "
+                f"{content[:300]}"
+            )
+
         return CorrectionResponse(
-            headline=result.get("headline", copy.get("headline", "")),
-            subheadline=result.get("subheadline", copy.get("subheadline", "")),
-            bodyCopy=result.get("bodyCopy", copy.get("bodyCopy", "")),
-            cta=result.get("cta", copy.get("cta", "")),
+            headline=final_headline,
+            subheadline=final_subheadline,
+            bodyCopy=final_body,
+            cta=final_cta,
+        )
+    except json_module.JSONDecodeError as je:
+        print(f"[correct_copy] JSON parse failed for {request.copyKey}: {je}; raw={content[:500]!r}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM 응답 파싱 실패 — 다시 시도해 주세요. ({je.msg})",
         )
     except Exception as e:
+        print(f"[correct_copy] Unexpected error for {request.copyKey}: {e}")
         raise HTTPException(status_code=500, detail=f"Copy correction failed: {str(e)}")
 
 

@@ -11,7 +11,11 @@ import { ChatPanel, type ChatPanelHandle } from '@/features/chat'
 import { AnalysisReport } from '@/features/analysis'
 import { StrategicMessageView } from '@/features/strategic-message'
 import { CopyResults, GenerationConfig } from '@/features/copy-generation'
-import { ReviewConfig, ReviewResults } from '@/features/review'
+import {
+  ReviewConfig,
+  ReviewResults,
+  recommendSkillsForCountries,
+} from '@/features/review'
 import {
   useAnalyzeSSE,
   useCampaign,
@@ -304,6 +308,28 @@ export function EditorPage() {
     currentStep,
   })
 
+  /** 리뷰 단계에서 사용자가 특정 카피를 보정했을 때 호출.
+   *  copyResults만 최신 보정본으로 갱신해 저장 시 최종값이 반영되도록 한다.
+   *  selectedCopies는 원본을 유지 — ReviewResults의 Before/After 비교 뷰를 보존하기 위함. */
+  const handleCopyCorrected = (copyKey: string, corrected: CopyItem) => {
+    const dashIdx = copyKey.lastIndexOf('-')
+    if (dashIdx < 0) return
+    const countryCode = copyKey.slice(0, dashIdx)
+    const idx = parseInt(copyKey.slice(dashIdx + 1), 10)
+    if (!Number.isFinite(idx)) return
+
+    if (copyResults) {
+      const next = copyResults.map((cr) => {
+        if (cr.countryCode !== countryCode) return cr
+        const copies = cr.copies.map((c, i) =>
+          i === idx ? { ...c, ...corrected } : c,
+        )
+        return { ...cr, copies }
+      })
+      setCopyResults(next)
+    }
+  }
+
   const handleSave = async () => {
     if (!brief.projectName.trim()) {
       alert('저장하려면 프로젝트명이 필요합니다.')
@@ -415,15 +441,17 @@ export function EditorPage() {
               isApproved={analysisApproved}
             />
           </CollapsibleStep>
-          <div style={backBtnRow}>
-            <Button
-              variant="ghost"
-              className="btn-compact"
-              onClick={() => handleGoBack(1)}
-            >
-              ← 이전 단계
-            </Button>
-          </div>
+          {currentStep === 2 && (
+            <div style={backBtnRow}>
+              <Button
+                variant="ghost"
+                className="btn-compact"
+                onClick={() => handleGoBack(1)}
+              >
+                ← 이전 단계
+              </Button>
+            </div>
+          )}
         </>
       )}
 
@@ -442,15 +470,17 @@ export function EditorPage() {
               onApprove={handleApproveStrategy}
             />
           </CollapsibleStep>
-          <div style={backBtnRow}>
-            <Button
-              variant="ghost"
-              className="btn-compact"
-              onClick={handleModifyStrategy}
-            >
-              ← 이전 단계
-            </Button>
-          </div>
+          {currentStep === 3 && (
+            <div style={backBtnRow}>
+              <Button
+                variant="ghost"
+                className="btn-compact"
+                onClick={handleModifyStrategy}
+              >
+                ← 이전 단계
+              </Button>
+            </div>
+          )}
         </>
       )}
 
@@ -489,15 +519,17 @@ export function EditorPage() {
               readOnly={currentStep >= 5}
             />
           </CollapsibleStep>
-          <div style={backBtnRow}>
-            <Button
-              variant="ghost"
-              className="btn-compact"
-              onClick={() => handleGoBack(3)}
-            >
-              ← 이전 단계
-            </Button>
-          </div>
+          {currentStep === 4 && (
+            <div style={backBtnRow}>
+              <Button
+                variant="ghost"
+                className="btn-compact"
+                onClick={() => handleGoBack(3)}
+              >
+                ← 이전 단계
+              </Button>
+            </div>
+          )}
         </>
       )}
 
@@ -513,6 +545,16 @@ export function EditorPage() {
               isLoadingSkills={skillsQuery.isLoading}
               isReviewing={runReview.isPending}
               onRunReview={handleRunReview}
+              recommendedSkillIds={(() => {
+                const countries = [
+                  ...new Set(selectedCopies.map((c) => c.countryCode)),
+                ]
+                const recs = recommendSkillsForCountries(countries)
+                const avail = new Set(
+                  (skillsQuery.data ?? []).map((s) => s.id),
+                )
+                return recs.filter((id) => avail.has(id))
+              })()}
             />
             <div style={backBtnRow}>
               <Button variant="ghost" className="btn-compact" onClick={() => handleGoBack(4)}>
@@ -540,6 +582,7 @@ export function EditorPage() {
             results={reviewResults}
             selectedCopies={selectedCopies}
             onReReview={handleReReview}
+            onCopyCorrected={handleCopyCorrected}
             onSaveAndFinish={async () => {
               setReviewCompleted(true)
               await handleSave()
