@@ -8,6 +8,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
 from .loader import SkillLoader
+from .rate_limit import invoke_llm
 
 _loader = SkillLoader()
 
@@ -77,7 +78,7 @@ strengths, weaknesses, improvements는 한국어 문자열 배열입니다. 해�
         HumanMessage(content=f"## 평가 대상 카피\n{copy_text}"),
     ]
 
-    response = await llm.ainvoke(messages)
+    response = await invoke_llm(llm, messages, skill_id=skill_name)
     result = parser.parse(response.content)
     elapsed = int((time.perf_counter() - start) * 1000)
 

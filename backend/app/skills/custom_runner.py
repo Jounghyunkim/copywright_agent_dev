@@ -6,6 +6,8 @@ from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
+from .rate_limit import invoke_llm
+
 
 OUTPUT_INSTRUCTION = """
 
@@ -55,7 +57,7 @@ async def run_custom_skill(prompt_template: str, copy_text: str, context: dict) 
         SystemMessage(content=rendered_prompt + OUTPUT_INSTRUCTION),
         HumanMessage(content=f"## Copy to review\n{copy_text}"),
     ]
-    response = await llm.ainvoke(messages)
+    response = await invoke_llm(llm, messages, skill_id="custom")
     result = parser.parse(response.content)
     elapsed = int((time.perf_counter() - start) * 1000)
 

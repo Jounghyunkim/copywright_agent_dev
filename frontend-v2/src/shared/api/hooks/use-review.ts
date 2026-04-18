@@ -76,6 +76,11 @@ export function useRunReviewSSE() {
                 targetCopyKey: event.targetCopyKey as string,
                 score: event.score as number,
                 passed: event.passed as boolean,
+                severity: event.severity as
+                  | 'critical'
+                  | 'warning'
+                  | 'suggestion'
+                  | undefined,
                 strengths: (event.strengths as string[]) ?? [],
                 weaknesses: (event.weaknesses as string[]) ?? [],
                 improvements: (event.improvements as string[]) ?? [],
@@ -84,6 +89,20 @@ export function useRunReviewSSE() {
               setProgressMessages((prev) => [
                 ...prev,
                 `✓ ${event.skillId} → ${event.targetCopyKey} : ${event.passed ? 'PASS' : 'FAIL'} (${event.score})`,
+              ])
+            } else if (type === 'skill_retrying') {
+              // LLM rate-limit/transient 재시도 알림 — 사용자에게 진행 중임을 표시
+              const reason =
+                (event.reason as string) === 'rate_limit'
+                  ? 'Rate limit'
+                  : '일시 오류'
+              const skillId = (event.skillId as string) || 'llm'
+              const attempt = event.attempt as number
+              const maxAttempts = event.maxAttempts as number
+              const waitSeconds = event.waitSeconds as number
+              setProgressMessages((prev) => [
+                ...prev,
+                `⏳ ${skillId} ${reason} — ${waitSeconds}s 대기 후 재시도 (${attempt}/${maxAttempts})`,
               ])
             } else if (type === 'review_done') {
               setProgressMessages((prev) => [...prev, '리뷰 완료'])

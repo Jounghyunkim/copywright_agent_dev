@@ -136,7 +136,7 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                 </span>
               </div>
               {isOpen && (
-                <div style={variantGridStyle}>
+                <div style={variantGridStyle(result.copies.length)}>
                   {result.copies.map((copy, idx) => {
                     const key = `${result.countryCode}-${idx}`
                     const isSelected = selectedKeys.has(key)
@@ -381,14 +381,18 @@ const countryHeaderStyle = (isOpen: boolean): CSSProperties => ({
   transition: 'background-color 0.15s ease',
 })
 
-const variantGridStyle: CSSProperties = {
+/**
+ * 한 행 최대 3개. 변형 개수가 3개 이하이면 행을 꽉 채우도록 컬럼을 그만큼만 배치.
+ * 예: 1개 → 1fr / 2개 → 1fr 1fr / 3개 → 1fr 1fr 1fr / 4개 이상 → 3열 그리드 + 줄바꿈
+ */
+const variantGridStyle = (count: number): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, count))}, minmax(0, 1fr))`,
   gap: 12,
   padding: 12,
   borderTop: '1px solid var(--color-border)',
   background: 'var(--neutral-50, #fafafa)',
-}
+})
 
 const variantCardStyle = (selected: boolean): CSSProperties => ({
   background: '#fff',

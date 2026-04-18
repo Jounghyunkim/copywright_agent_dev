@@ -732,6 +732,7 @@ async def submit_review(request: ReviewRequest):
     import asyncio as _aio
     from .skills.runner import _get_skillmd_ids, _build_copy_text, _run_single
     from .skills.custom import get_custom_skill
+    from .skills.rate_limit import set_retry_event_callback
 
     async def event_stream():
         async with async_session() as db:
@@ -764,8 +765,16 @@ async def submit_review(request: ReviewRequest):
                             custom_templates[sid] = skill_data["prompt_template"]
 
                 # 3. Queue 기반 실시간 스트리밍
+                #    result_queue는 두 종류 이벤트를 혼합 전달:
+                #      - {"_event": "retry", ...}: rate_limit 재시도 알림
+                #      - {"skill_id": ..., ...}: 스킬 실행 최종 결과 (total_tasks에 카운트됨)
                 result_queue: _aio.Queue = _aio.Queue()
                 total_tasks = 0
+
+                async def _retry_cb(event: dict):
+                    await result_queue.put({"_event": "retry", **event})
+
+                set_retry_event_callback(_retry_cb)
 
                 async def _wrapped(skill_id, skill_type, copy_key, copy_text, context, prompt_template):
                     raw = await _run_single(skill_id, skill_type, copy_text, context, prompt_template)
@@ -796,41 +805,60 @@ async def submit_review(request: ReviewRequest):
                 # 모든 태스크를 백그라운드로 시작
                 gather_task = _aio.ensure_future(_aio.gather(*tasks, return_exceptions=True))
 
-                # 4. 완료되는 순서대로 SSE 전송
+                # 4. 완료되는 순서대로 SSE 전송 (재시도 이벤트와 결과를 혼합 처리)
                 results_collected = []
-                for _ in range(total_tasks):
-                    r = await result_queue.get()
-                    results_collected.append(r)
-                    # DB에 저장
-                    db_result = ReviewResult(
-                        session_id=session.id,
-                        skill_id=r["skill_id"],
-                        skill_type=r["skill_type"],
-                        target_copy_key=r["target_copy_key"],
-                        passed=r["passed"],
-                        score=r["score"],
-                        findings=r.get("weaknesses", r.get("findings", [])),
-                        suggestions=r.get("improvements", r.get("suggestions", [])),
-                        raw_llm_response=r.get("raw_llm_response"),
-                        execution_ms=r.get("execution_ms", 0),
-                    )
-                    db.add(db_result)
-                    severity = _classify_review_severity(
-                        r["skill_id"], r["passed"], r["score"]
-                    )
-                    yield _sse({
-                        "type": "skill_completed",
-                        "skillId": r["skill_id"],
-                        "skillType": r["skill_type"],
-                        "targetCopyKey": r["target_copy_key"],
-                        "passed": r["passed"],
-                        "score": r["score"],
-                        "severity": severity,
-                        "strengths": r.get("strengths", []),
-                        "weaknesses": r.get("weaknesses", r.get("findings", [])),
-                        "improvements": r.get("improvements", r.get("suggestions", [])),
-                        "executionMs": r.get("execution_ms", 0),
-                    })
+                try:
+                    completed_count = 0
+                    while completed_count < total_tasks:
+                        item = await result_queue.get()
+                        # 재시도 이벤트는 완료 카운트에 포함시키지 않고 그대로 SSE로 전달
+                        if item.get("_event") == "retry":
+                            yield _sse({
+                                "type": item.get("type", "skill_retrying"),
+                                "skillId": item.get("skillId", ""),
+                                "attempt": item.get("attempt"),
+                                "maxAttempts": item.get("maxAttempts"),
+                                "waitSeconds": item.get("waitSeconds"),
+                                "reason": item.get("reason"),
+                            })
+                            continue
+
+                        r = item
+                        results_collected.append(r)
+                        completed_count += 1
+                        # DB에 저장
+                        db_result = ReviewResult(
+                            session_id=session.id,
+                            skill_id=r["skill_id"],
+                            skill_type=r["skill_type"],
+                            target_copy_key=r["target_copy_key"],
+                            passed=r["passed"],
+                            score=r["score"],
+                            findings=r.get("weaknesses", r.get("findings", [])),
+                            suggestions=r.get("improvements", r.get("suggestions", [])),
+                            raw_llm_response=r.get("raw_llm_response"),
+                            execution_ms=r.get("execution_ms", 0),
+                        )
+                        db.add(db_result)
+                        severity = _classify_review_severity(
+                            r["skill_id"], r["passed"], r["score"]
+                        )
+                        yield _sse({
+                            "type": "skill_completed",
+                            "skillId": r["skill_id"],
+                            "skillType": r["skill_type"],
+                            "targetCopyKey": r["target_copy_key"],
+                            "passed": r["passed"],
+                            "score": r["score"],
+                            "severity": severity,
+                            "strengths": r.get("strengths", []),
+                            "weaknesses": r.get("weaknesses", r.get("findings", [])),
+                            "improvements": r.get("improvements", r.get("suggestions", [])),
+                            "executionMs": r.get("execution_ms", 0),
+                        })
+                finally:
+                    # 현재 요청 컨텍스트의 재시도 콜백을 해제 — 이후 요청과 격리
+                    set_retry_event_callback(None)
 
                 # gather 대기 (이미 완료되었을 것이지만 예외 처리용)
                 await gather_task
