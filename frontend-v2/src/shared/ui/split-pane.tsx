@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   left: ReactNode
@@ -33,6 +34,7 @@ export function SplitPane({
   storageKey = 'copylight-v2:split-pane',
   collapsibleRight = true,
 }: Props) {
+  const { t } = useTranslation(['common'])
   const containerRef = useRef<HTMLDivElement>(null)
   const [ratio, setRatio] = useState<number>(() => {
     try {
@@ -143,7 +145,7 @@ export function SplitPane({
         }}
         role="separator"
         aria-orientation="vertical"
-        title={rightCollapsed ? undefined : '드래그하여 너비 조정'}
+        title={rightCollapsed ? undefined : t('common:tooltip.dragToResize')}
       >
         <span
           style={{

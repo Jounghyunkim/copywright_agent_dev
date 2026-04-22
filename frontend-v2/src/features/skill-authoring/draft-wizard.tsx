@@ -1,4 +1,5 @@
 import { CSSProperties, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Modal } from '@/shared/ui/modal'
 import { Button } from '@/shared/ui/button'
@@ -18,6 +19,7 @@ interface Props {
  * 이름/목적/목표/예시를 입력 → `/api/v1/skills/generate-draft` → 초안 모달에 전달.
  */
 export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
+  const { t } = useTranslation(['skills', 'common'])
   const [name, setName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [goal, setGoal] = useState('')
@@ -51,11 +53,11 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
         setBadExample('')
         onClose()
       } else {
-        alert('초안을 생성하지 못했습니다.')
+        alert(t('skills:wizard.error.draftFailedNull'))
       }
     } catch (err) {
       console.error('[SkillDraftWizard] generate failed', err)
-      alert('초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      alert(t('skills:wizard.error.draftFailed'))
     }
   }
 
@@ -63,7 +65,7 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
     <Modal
       open={open}
       onClose={generate.isPending ? () => {} : onClose}
-      title="AI 스킬 초안 생성"
+      title={t('skills:wizard.title')}
       width={680}
     >
       <p
@@ -74,34 +76,33 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
           lineHeight: 1.6,
         }}
       >
-        간단한 정보를 입력하면 AI가 ID/라벨/설명/프롬프트 템플릿/Output Schema
-        초안을 생성합니다. 생성 후 편집 화면에서 자유롭게 수정할 수 있습니다.
+        {t('skills:wizard.intro')}
       </p>
 
       <div style={{ display: 'grid', gap: 12 }}>
         <div>
           <FieldLabel>
-            스킬 이름 <span style={req}>*</span>
+            {t('skills:wizard.nameLabel')} <span style={req}>*</span>
           </FieldLabel>
           <input
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예: 프로모션 법률 검증"
+            placeholder={t('skills:wizard.namePlaceholder')}
             disabled={generate.isPending}
           />
         </div>
 
         <div>
           <FieldLabel>
-            작성 목적 <span style={req}>*</span>{' '}
-            <span style={hint}>왜 이 스킬을 만드는지</span>
+            {t('skills:wizard.purposeLabel')} <span style={req}>*</span>{' '}
+            <span style={hint}>{t('skills:wizard.purposeHint')}</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder="예: 프로모션 카피에 포함된 법적 리스크 표현을 사전 필터링해 컴플라이언스 리뷰 부담을 줄이기 위함"
+            placeholder={t('skills:wizard.purposePlaceholder')}
             rows={3}
             style={{ minHeight: 80 }}
             disabled={generate.isPending}
@@ -110,14 +111,14 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
 
         <div>
           <FieldLabel>
-            스킬 목적 <span style={req}>*</span>{' '}
-            <span style={hint}>이 스킬이 달성해야 하는 것</span>
+            {t('skills:wizard.goalLabel')} <span style={req}>*</span>{' '}
+            <span style={hint}>{t('skills:wizard.goalHint')}</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
-            placeholder="예: 과장 광고, 허위 비교, 불법 보증 등 법적 위험 표현을 식별하고 점수/강점/개선안을 제공"
+            placeholder={t('skills:wizard.goalPlaceholder')}
             rows={3}
             style={{ minHeight: 80 }}
             disabled={generate.isPending}
@@ -126,13 +127,14 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
 
         <div>
           <FieldLabel>
-            좋은 예시 <span style={hint}>(선택)</span>
+            {t('skills:wizard.goodExampleLabel')}{' '}
+            <span style={hint}>{t('skills:wizard.goodExampleHint')}</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={goodExample}
             onChange={(e) => setGoodExample(e.target.value)}
-            placeholder="예: '동급 대비 우수한 화질'"
+            placeholder={t('skills:wizard.goodExamplePlaceholder')}
             rows={2}
             style={{ minHeight: 60 }}
             disabled={generate.isPending}
@@ -141,13 +143,14 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
 
         <div>
           <FieldLabel>
-            나쁜 예시 <span style={hint}>(선택)</span>
+            {t('skills:wizard.badExampleLabel')}{' '}
+            <span style={hint}>{t('skills:wizard.badExampleHint')}</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={badExample}
             onChange={(e) => setBadExample(e.target.value)}
-            placeholder="예: '세계 최고의 화질, 다른 모든 제품을 압도'"
+            placeholder={t('skills:wizard.badExamplePlaceholder')}
             rows={2}
             style={{ minHeight: 60 }}
             disabled={generate.isPending}
@@ -161,13 +164,15 @@ export function SkillDraftWizard({ open, onClose, onDraftReady }: Props) {
           onClick={onClose}
           disabled={generate.isPending}
         >
-          취소
+          {t('common:button.cancel')}
         </Button>
         <Button
           onClick={handleGenerate}
           disabled={!canSubmit || generate.isPending}
         >
-          {generate.isPending ? '초안 생성 중…' : '✦ 초안 생성'}
+          {generate.isPending
+            ? t('skills:button.draftGenerating')
+            : t('skills:button.draftGenerate')}
         </Button>
       </div>
     </Modal>

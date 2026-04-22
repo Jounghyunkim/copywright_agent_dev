@@ -43,35 +43,44 @@ export const AGE_GROUPS: AgeGroup[] = [
 
 export interface TargetPersona {
   id: string
+  /** i18n resource key (generation:persona.<key>.{label,desc}) */
+  i18nKey: 'techEnthusiast' | 'premiumLifestyle' | 'valueSeeker' | 'familyFirst' | 'ecoConscious'
+  /** 번역 누락 시 fallback용 원문 label */
   label: string
+  /** 번역 누락 시 fallback용 원문 desc */
   desc: string
 }
 
 export const TARGET_PERSONAS: TargetPersona[] = [
   {
     id: 'tech-enthusiast',
+    i18nKey: 'techEnthusiast',
     label: 'Tech Enthusiast',
-    desc: '최신 기술에 민감한 얼리어답터',
+    desc: 'Early adopter attuned to the latest technology',
   },
   {
     id: 'premium-lifestyle',
+    i18nKey: 'premiumLifestyle',
     label: 'Premium Lifestyle',
-    desc: '프리미엄 라이프스타일 지향',
+    desc: 'Oriented toward premium lifestyle',
   },
   {
     id: 'value-seeker',
+    i18nKey: 'valueSeeker',
     label: 'Value Seeker',
-    desc: '가성비를 중시하는 합리적 소비자',
+    desc: 'Rational shopper focused on value for money',
   },
   {
     id: 'family-first',
+    i18nKey: 'familyFirst',
     label: 'Family First',
-    desc: '가족 중심의 실용적 소비자',
+    desc: 'Practical, family-centered buyer',
   },
   {
     id: 'eco-conscious',
+    i18nKey: 'ecoConscious',
     label: 'Eco Conscious',
-    desc: '환경과 지속가능성에 관심',
+    desc: 'Cares about environment and sustainability',
   },
 ]
 

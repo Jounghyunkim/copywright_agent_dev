@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import i18n from 'i18next'
 
 import { apiClient } from '@/shared/api/client'
 import type {
@@ -11,7 +12,10 @@ export function useStrategicMessage() {
     mutationFn: (body: StrategicMessageRequest) =>
       apiClient.post<StrategicMessageResponse>(
         '/api/v1/campaigns/strategic-message',
-        body,
+        {
+          ...body,
+          locale: body.locale ?? i18n.language ?? 'ko',
+        },
       ),
   })
 }

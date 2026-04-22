@@ -1,0 +1,32 @@
+{
+  "period": {
+    "label": "Period:",
+    "7d": "7 days",
+    "14d": "14 days",
+    "30d": "30 days",
+    "90d": "90 days"
+  },
+  "kpi": {
+    "dauToday": "DAU today",
+    "mauThisMonth": "MAU this month",
+    "totalUsers": "Cumulative users",
+    "totalLogins": "Cumulative logins",
+    "loginSuccessRate": "Login success rate"
+  },
+  "dauTrend": "DAU trend (last {{days}} days)",
+  "mauTrend": "MAU trend (last 12 months)",
+  "deptActivity": "Activity by organization (last {{days}} days)",
+  "userActivity": "Activity by user (last {{days}} days, {{count}})",
+  "table": {
+    "department": "Organization",
+    "uniqueUsers": "Users",
+    "loginCount": "Logins",
+    "activeDaysAvg": "Avg active days",
+    "activeDays": "Active days",
+    "logins": "Logins",
+    "lastLogin": "Last seen"
+  },
+  "error": {
+    "loadFailed": "Failed to load statistics."
+  }
+}

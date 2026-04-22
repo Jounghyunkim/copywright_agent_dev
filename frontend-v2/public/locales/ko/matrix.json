@@ -1,0 +1,30 @@
+{
+  "dropzone": {
+    "prompt": "Message Matrix 파일을 드래그하거나 클릭해 업로드",
+    "supportedFormats": ".xlsx / .xls 형식 지원"
+  },
+  "phase": {
+    "loadingSheets": "시트 목록 로드 중…",
+    "parsing": "시트 파싱 중…"
+  },
+  "error": {
+    "format": ".xlsx / .xls 형식만 지원합니다.",
+    "empty": "시트가 비어 있습니다.",
+    "sheetsLoadFailed": "시트 목록 로드 실패: {{message}}",
+    "parsingFailed": "파싱 실패: {{message}}",
+    "sampleLoadFailed": "샘플 파일을 불러오지 못했습니다."
+  },
+  "sheetList": {
+    "count_one": "({{count}}개 시트)",
+    "count_other": "({{count}}개 시트)",
+    "selectPrompt": "파싱할 시트를 선택해 주세요."
+  },
+  "button": {
+    "cancel": "취소",
+    "startParsing": "✓ 파싱 시작",
+    "remove": "제거",
+    "sample": "샘플 파일",
+    "sampleTitle": "번들된 DUALCOOL AI Air 샘플 매트릭스 불러오기"
+  },
+  "summary": "{{sheetCount}}개 시트 · {{uspCount}}개 USP 추출"
+}

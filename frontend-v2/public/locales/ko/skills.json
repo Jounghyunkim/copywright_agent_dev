@@ -1,0 +1,80 @@
+{
+  "button": {
+    "newSkill": "+ 새 스킬",
+    "aiDraft": "✦ AI 초안 생성",
+    "draftGenerate": "✦ 초안 생성",
+    "draftGenerating": "초안 생성 중…"
+  },
+  "filter": {
+    "all": "전체",
+    "builtin": "built-in",
+    "custom": "custom"
+  },
+  "searchPlaceholder": "ID/라벨/설명 검색",
+  "loading": "스킬을 불러오는 중…",
+  "loadError": "스킬 목록을 불러오지 못했습니다.",
+  "empty": "등록된 스킬이 없습니다.",
+  "card": {
+    "typeBuiltin": "built-in",
+    "typeCustom": "custom",
+    "inactive": "inactive"
+  },
+  "detail": {
+    "idLabel": "ID",
+    "descriptionLabel": "설명",
+    "actionTags": "액션 태그",
+    "roleTags": "역할 태그",
+    "referenceDocs": "참조 문서",
+    "promptTemplate": "프롬프트 템플릿",
+    "outputSchema": "Output Schema",
+    "riskLabel": "risk: {{level}}"
+  },
+  "editor": {
+    "titleNew": "새 스킬",
+    "titleEdit": "스킬 편집",
+    "idLabel": "ID",
+    "idHint": "(kebab-case, 3자 이상, 저장 후 변경 불가)",
+    "idPlaceholder": "promo-legal-check",
+    "labelLabel": "라벨",
+    "labelPlaceholder": "예: 프로모션 법률 검증",
+    "descriptionLabel": "설명",
+    "descriptionPlaceholder": "이 스킬이 무엇을 하는지 간결히 설명",
+    "categoryLabel": "카테고리",
+    "promptLabel": "Prompt Template",
+    "promptPlaceholder": "LLM에 전달될 프롬프트 템플릿. {{copy}} 등 변수 사용 가능.",
+    "outputSchemaLabel": "Output Schema (JSON, 선택)",
+    "activateLabel": "활성화",
+    "error": {
+      "invalidSchema": "Output Schema가 올바른 JSON 객체가 아닙니다.",
+      "saveFailed": "저장에 실패했습니다. ID가 중복되지 않는지 확인해 주세요."
+    }
+  },
+  "wizard": {
+    "title": "AI 스킬 초안 생성",
+    "intro": "간단한 정보를 입력하면 AI가 ID/라벨/설명/프롬프트 템플릿/Output Schema 초안을 생성합니다. 생성 후 편집 화면에서 자유롭게 수정할 수 있습니다.",
+    "nameLabel": "스킬 이름",
+    "namePlaceholder": "예: 프로모션 법률 검증",
+    "purposeLabel": "작성 목적",
+    "purposeHint": "왜 이 스킬을 만드는지",
+    "purposePlaceholder": "예: 프로모션 카피에 포함된 법적 리스크 표현을 사전 필터링해 컴플라이언스 리뷰 부담을 줄이기 위함",
+    "goalLabel": "스킬 목적",
+    "goalHint": "이 스킬이 달성해야 하는 것",
+    "goalPlaceholder": "예: 과장 광고, 허위 비교, 불법 보증 등 법적 위험 표현을 식별하고 점수/강점/개선안을 제공",
+    "goodExampleLabel": "좋은 예시",
+    "goodExampleHint": "(선택)",
+    "goodExamplePlaceholder": "예: '동급 대비 우수한 화질'",
+    "badExampleLabel": "나쁜 예시",
+    "badExampleHint": "(선택)",
+    "badExamplePlaceholder": "예: '세계 최고의 화질, 다른 모든 제품을 압도'",
+    "error": {
+      "draftFailedNull": "초안을 생성하지 못했습니다.",
+      "draftFailed": "초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요."
+    }
+  },
+  "confirm": {
+    "delete": "\"{{label}}\" 스킬을 삭제할까요?"
+  },
+  "error": {
+    "deleteFailed": "삭제에 실패했습니다."
+  }
+}

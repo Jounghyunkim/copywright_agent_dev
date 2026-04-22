@@ -1,0 +1,12 @@
+{
+  "home": { "title": "홈", "subtitle": "LG 브랜드 캠페인을 위한 AI 카피라이팅 플랫폼" },
+  "settings": { "title": "일반 설정", "subtitle": "플랫폼 구성 및 연동 상태" },
+  "editor": { "title": "카피라이트 생성" },
+  "copyReview": { "title": "카피라이트 검토" },
+  "workflowList": { "title": "카피라이트 작업 목록", "subtitle": "저장된 캠페인을 열어 이어서 작업하거나 삭제하세요." },
+  "approvals": { "title": "승인 대기", "subtitle": "사용자 확인이 필요한 단계에 멈춰있는 캠페인을 모아 보세요." },
+  "skills": { "title": "스킬 관리", "subtitle": "카피 검증/생성/분석에 사용되는 built-in 및 custom 스킬을 관리하세요." },
+  "adminUsers": { "title": "관리자 설정", "subtitle": "관리자 추가/제거 및 사용자 검색" },
+  "stats": { "title": "사용 통계", "subtitle": "DAU / MAU, 조직별 / 개인별 활동 대시보드" },
+  "knowledge": { "title": "지식 구축", "subtitle": "Copywriter 페르소나 RAG 지식 베이스 관리 — 업로드된 텍스트는 청킹 후 벡터 인덱스에 저장되어 카피 생성 시 자동 검색됩니다." }
+}

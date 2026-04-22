@@ -61,6 +61,7 @@ class AnalysisResponse(BaseModel):
 class GenerateBriefRequest(BaseModel):
     projectName: str
     projectContext: str
+    locale: Optional[str] = "ko"  # AI 자동 생성 결과 출력 언어
 
     @field_validator("projectName")
     @classmethod
@@ -111,6 +112,7 @@ class GenerateCopyRequest(BaseModel):
     analysisReport: dict
     strategicMessage: dict
     config: GenerationConfig
+    locale: Optional[str] = "ko"  # methodology/culturalNotes/toneAnalysis 같은 AI 메타 주석 출력 언어
 
 class GenerateCopyResponse(BaseModel):
     status: str
@@ -164,6 +166,7 @@ class ReviewRequest(BaseModel):
     strategicMessage: dict
     selectedCopies: List[SelectedCopy]
     enabledSkills: List[str]
+    locale: Optional[str] = "ko"  # 리뷰 결과(strengths/weaknesses/improvements) 출력 언어
 
 class CorrectionImprovement(BaseModel):
     skillId: str

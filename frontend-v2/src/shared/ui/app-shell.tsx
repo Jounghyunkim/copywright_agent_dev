@@ -8,9 +8,11 @@
 
 import { NavLink, useNavigate } from 'react-router-dom'
 import { ReactNode, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Toast } from '@/shared/ui/toast'
 import { Badge } from '@/shared/ui/badge'
+import { LanguageSwitcher } from '@/shared/ui/language-switcher'
 import { useHealth } from '@/shared/api/hooks'
 import { apiClient } from '@/shared/api/client'
 import { useAuthStore } from '@/shared/state/auth-store'
@@ -65,19 +67,25 @@ const NavIcons = {
   ),
 } as const
 
-const mainNav: { to: string; label: string; icon: keyof typeof NavIcons }[] = [
-  { to: '/', label: '홈', icon: 'home' },
-  { to: '/copy-review', label: '카피라이트 검토', icon: 'review' },
-  { to: '/workflow', label: '카피라이트 생성', icon: 'create' },
-  { to: '/workflow-list', label: '카피라이트 목록', icon: 'list' },
-  { to: '/approvals', label: '승인 대기', icon: 'approval' },
-  { to: '/skills', label: '스킬', icon: 'skills' },
+interface NavItem {
+  to: string
+  i18nKey: string
+  icon: keyof typeof NavIcons
+}
+const mainNav: NavItem[] = [
+  { to: '/', i18nKey: 'navigation:home', icon: 'home' },
+  { to: '/copy-review', i18nKey: 'navigation:copyReview', icon: 'review' },
+  { to: '/workflow', i18nKey: 'navigation:copyGeneration', icon: 'create' },
+  { to: '/workflow-list', i18nKey: 'navigation:workflowList', icon: 'list' },
+  { to: '/approvals', i18nKey: 'navigation:approvals', icon: 'approval' },
+  { to: '/skills', i18nKey: 'navigation:skills', icon: 'skills' },
 ]
 
 function GearMenu() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -93,12 +101,12 @@ function GearMenu() {
   const menuItems = [
     ...(isAdmin
       ? [
-          { label: '관리자 설정', path: '/admin/users' },
-          { label: '사용 통계', path: '/admin/stats' },
-          { label: '지식 구축', path: '/admin/knowledge' },
+          { label: t('navigation:adminUsers'), path: '/admin/users' },
+          { label: t('navigation:adminStats'), path: '/admin/stats' },
+          { label: t('navigation:adminKnowledge'), path: '/admin/knowledge' },
         ]
       : []),
-    { label: '일반 설정', path: '/settings' },
+    { label: t('navigation:settings'), path: '/settings' },
   ]
 
   return (
@@ -119,7 +127,7 @@ function GearMenu() {
           fontSize: 18,
           color: '#fff',
         }}
-        title="설정 메뉴"
+        title={t('common:tooltip.settingsMenu')}
       >
         &#9881;
       </button>
@@ -178,6 +186,7 @@ const SIDEBAR_STATE_KEY = 'copylight-v2:sidebar-collapsed'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const health = useHealth()
+  const { t } = useTranslation()
   // isError → 네트워크 실패 또는 non-2xx. 초기 idle 상태(isPending && !isFetching) 전까지는
   // 토스트를 띄우지 않도록 isError로만 판단.
   const backendOffline = health.isError
@@ -208,21 +217,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="brand-sub">{BRAND_SUB}</p>
         </div>
         <nav className="nav-list">
-          {mainNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end
-              onClick={handleNavClick}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <span className="nav-icon" aria-hidden>
-                {NavIcons[item.icon]}
-              </span>
-              <span className="nav-label">{item.label}</span>
-            </NavLink>
-          ))}
+          {mainNav.map((item) => {
+            const label = t(item.i18nKey)
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end
+                onClick={handleNavClick}
+                title={collapsed ? label : undefined}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="nav-icon" aria-hidden>
+                  {NavIcons[item.icon]}
+                </span>
+                <span className="nav-label">{label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
         <div style={{ flex: 1 }} />
         <div
@@ -238,13 +250,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="sidebar-footer-gear">
             <GearMenu />
           </div>
+          <div className="sidebar-footer-lang">
+            <LanguageSwitcher />
+          </div>
           <div style={{ flex: 1 }} />
           <button
             type="button"
             className="sidebar-toggle"
             onClick={() => setCollapsed((v) => !v)}
-            title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-            aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            title={collapsed ? t('common:tooltip.sidebarExpand') : t('common:tooltip.sidebarCollapse')}
+            aria-label={collapsed ? t('common:tooltip.sidebarExpand') : t('common:tooltip.sidebarCollapse')}
             aria-pressed={collapsed}
           >
             {collapsed ? (
@@ -271,8 +286,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Toast
         open={backendOffline}
         variant="destructive"
-        title="서버 연결 끊김"
-        description="백엔드(:5000) 응답이 없습니다. 데이터가 자동 갱신되지 않을 수 있습니다."
+        title={t('common:toast.serverOffline.title')}
+        description={t('common:toast.serverOffline.description')}
       />
     </div>
   )
@@ -282,6 +297,7 @@ function TopbarUser() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const clearUser = useAuthStore((s) => s.clearUser)
+  const { t } = useTranslation()
 
   const handleLogout = async () => {
     try {
@@ -317,7 +333,7 @@ function TopbarUser() {
           cursor: 'pointer',
         }}
       >
-        로그아웃
+        {t('common:button.logout')}
       </button>
     </div>
   )

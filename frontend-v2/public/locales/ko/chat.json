@@ -1,0 +1,18 @@
+{
+  "panelTitle": "AI 어시스턴트",
+  "greeting": "안녕하세요, **{{userName}}**님! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.",
+  "greetingAnon": "안녕하세요! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.",
+  "messagePlaceholder": "메시지를 입력하세요",
+  "send": "전송",
+  "fileOnly": "(첨부 파일만 전송)",
+  "processing": "파일 처리 중…",
+  "thinking": "생각 중…",
+  "removeFileAria": "{{filename}} 제거",
+  "truncatedFileTooltip": "일부만 전달됨 (내용이 길어 잘림)",
+  "error": {
+    "fileSizeExceeded": "{{filename}} (용량 초과)",
+    "attachFailed": "첨부 불가: {{files}}. 파일당 최대 5MB.",
+    "fileProcessFailed": "파일을 처리하지 못했습니다. 다시 시도해 주세요.",
+    "responseFailed": "응답을 가져오지 못했습니다. 백엔드 연결을 확인해 주세요."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "heading": "Copy Results ({{countries}} countries · {{copies}} copies)",
+  "selectedCount": "{{count}} selected",
+  "variantCount_one": "{{count}} variant",
+  "variantCount_other": "{{count}} variants",
+  "variant": "Variant {{index}}",
+  "selectVariantAria": "Select variant {{index}}",
+  "select": "Select",
+  "reviewSelected": "⑤ Review selected copies",
+  "qualityFilter": "Quality Filter",
+  "warningsDetected_one": "{{count}} warning detected",
+  "warningsDetected_other": "{{count}} warnings detected",
+  "translating": "Translating to Korean…",
+  "field": {
+    "headline": "Headline",
+    "subheadline": "Subheadline",
+    "bodyCopy": "Body Copy",
+    "cta": "CTA",
+    "methodology": "Methodology",
+    "culturalNotes": "Cultural Notes",
+    "toneAnalysis": "Tone Analysis"
+  }
+}

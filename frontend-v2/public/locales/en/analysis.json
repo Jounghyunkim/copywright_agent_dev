@@ -1,0 +1,19 @@
+{
+  "sectionHelp": {
+    "Research Summary & AI Direction": "Summarizes the campaign brief and surfaces the core challenge and creative direction the AI recommends.\n- Objective: the campaign goal\n- Core Challenge: the central problem to solve\n- AI Direction: the strategic direction suggested by AI",
+    "Deep-dive Persona": "A deep profile of the target audience — name, beliefs, pain points, motivations. Makes clear who the copy is speaking to.\nEmotional trigger keywords are the core vocabulary to leverage in copy.",
+    "Brand Fit Score": "A 0-100% score for brand-to-campaign fit.\n- Functional: functional fit\n- Emotional: emotional fit\n- Cultural: cultural fit",
+    "Market Opportunity & Risk": "Analysis of opportunities and risks in the market.\n- Opportunity Gap: the space competitors are missing\n- Risk: keywords or trends to watch out for",
+    "Competitive Keywords": "Keywords competitors have already claimed. Using them verbatim in your copy makes differentiation hard — avoid or redefine them.",
+    "Untapped Keywords": "Sensory and emotional keyword spaces no competitor has claimed yet. Lean on these to build a distinctive brand language.",
+    "Category Narrative Shift": "Shows the shift from the old narrative in the category to a new one.\nYour copy should be written on top of this new narrative.",
+    "Emotional Job To Be Done": "The emotional job the customer truly wants your product to handle.\nThis sentence is the starting point for every copy. Write it in the form \"I want to ___\".",
+    "Cultural Tension Map": "Cultural tensions present in the target market. Understanding and leveraging them creates resonant copy.",
+    "Copy Implications & Guardrails": "Mandatory guidelines for copywriting.\n- DO: elements the copy must include\n- DON'T: elements to avoid",
+    "Recommended Keywords": "Core keywords the AI recommends for your copy, synthesized from the analysis. Weave them in naturally."
+  },
+  "button": {
+    "approve": "③ Generate strategic message"
+  },
+  "helpTooltip": "Click for an AI assistant explanation"
+}

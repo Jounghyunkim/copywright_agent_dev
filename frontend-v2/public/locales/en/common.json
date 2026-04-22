@@ -1,0 +1,72 @@
+{
+  "button": {
+    "save": "Save",
+    "saving": "Saving…",
+    "saveAndExit": "Save & Exit",
+    "update": "Update",
+    "delete": "Delete",
+    "remove": "Remove",
+    "add": "Add",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "retry": "Retry",
+    "reset": "Reset",
+    "edit": "Edit",
+    "detail": "Details",
+    "logout": "Log out",
+    "open": "Open",
+    "send": "Send",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "clearCache": "Clear cache",
+    "previousStep": "← Previous step",
+    "nextStep": "Next step",
+    "clearAll": "Clear all"
+  },
+  "link": {
+    "viewAll": "View all →"
+  },
+  "status": {
+    "completed": "Completed",
+    "inProgress": "In progress",
+    "failed": "Failed",
+    "stepOfTotal": "{{current}}/{{total}}"
+  },
+  "loading": "Loading…",
+  "searching": "Searching…",
+  "processing": "Processing…",
+  "translating": "Translating to Korean…",
+  "noData": "No data.",
+  "noResults": "No results.",
+  "charCount": "{{count}} characters",
+  "authenticating": "Authenticating…",
+  "category": "Category",
+  "title": "Title",
+  "password": "Password",
+  "admin": "Admin",
+  "tooltip": {
+    "settingsMenu": "Settings menu",
+    "sidebarExpand": "Expand sidebar",
+    "sidebarCollapse": "Collapse sidebar",
+    "guide": "View guide",
+    "help": "Click to have the AI assistant explain",
+    "expandCollapse": "Expand / Collapse",
+    "attachFiles": "Attach files (docs: txt·md·csv·json·pdf·docx·xlsx / images: png·jpg·gif·webp)",
+    "fileTruncated": "Partial content only (truncated due to length)",
+    "dragToResize": "Drag to resize width"
+  },
+  "toast": {
+    "serverOffline": {
+      "title": "Server connection lost",
+      "description": "Backend (:5000) is not responding. Data may not refresh automatically."
+    }
+  },
+  "error": {
+    "saveFailed": "Save failed.",
+    "deleteFailed": "Delete failed.",
+    "loadFailed": "Failed to load."
+  }
+}

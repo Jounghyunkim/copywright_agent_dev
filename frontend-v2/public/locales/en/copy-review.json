@@ -1,0 +1,122 @@
+{
+  "page": {
+    "title": "Copy Review",
+    "subtitle": "Enter copy and review results on the left; chat with the AI assistant on the right."
+  },
+  "step": {
+    "input": "Copy Input",
+    "review": "Review"
+  },
+  "intent": {
+    "branding": {
+      "label": "Branding",
+      "hint": "Build brand awareness and preference"
+    },
+    "promotion": {
+      "label": "Promotion",
+      "hint": "Sale, event, and discount messaging"
+    },
+    "performance": {
+      "label": "Performance",
+      "hint": "Optimize conversion and ROAS"
+    },
+    "launch": {
+      "label": "Product Launch",
+      "hint": "New product launch communications"
+    }
+  },
+  "context": {
+    "heading": "Campaign Context",
+    "help": "Shared context to improve review quality. Applied to every copy.",
+    "intent": {
+      "label": "Campaign objective",
+      "help": "Choose the purpose of this review. It changes how the review skills weigh appeal direction, tone, and KPIs."
+    },
+    "productCategory": {
+      "label": "Product category",
+      "help": "E.g., TV, refrigerator, smartphone, air conditioner. Category changes regulatory, cultural, and claim review baselines.",
+      "placeholder": "e.g., OLED TV, wireless earbuds"
+    },
+    "originalCopy": {
+      "label": "Original / master copy (optional)",
+      "help": "If you have a reference original (e.g., English master copy before localization), paste it here. Transcreation and localization skills will reference it.",
+      "placeholder": "Global master copy or reference version"
+    }
+  },
+  "entry": {
+    "heading": "Copy #{{index}}",
+    "delete": "Delete",
+    "addCopy": "+ Add copy",
+    "count_one": "{{count}} copy",
+    "count_other": "{{count}} copies",
+    "inputDone": "Confirm input"
+  },
+  "field": {
+    "country": {
+      "label": "Country",
+      "help": "Pick the target country. Language and cultural context differ by country."
+    },
+    "headline": {
+      "label": "Headline",
+      "help": "The first impression of the ad. Keep it short and strong while delivering the core message.",
+      "placeholder": "Main headline"
+    },
+    "subheadline": {
+      "label": "Subheadline",
+      "help": "Supports the headline with additional context or explanation.",
+      "placeholder": "Supporting headline"
+    },
+    "bodyCopy": {
+      "label": "Body Copy",
+      "help": "The main body that delivers product or campaign detail. Lead with information that matters to the target audience.",
+      "placeholder": "Body copy"
+    },
+    "cta": {
+      "label": "CTA",
+      "help": "The call that drives user action. E.g., 'Buy now', 'Learn More'.",
+      "placeholder": "Call to Action"
+    },
+    "optionalSection": "Optional (Methodology / Cultural Notes / Tone Analysis)",
+    "methodology": {
+      "label": "Methodology",
+      "help": "The method or strategy used to write the copy. E.g., AIDA, PAS, storytelling.",
+      "placeholder": "Copywriting methodology (optional)"
+    },
+    "culturalNotes": {
+      "label": "Cultural Notes",
+      "help": "Specific cultural considerations — local customs, taboos, linguistic nuance.",
+      "placeholder": "Cultural notes (optional)"
+    },
+    "toneAnalysis": {
+      "label": "Tone Analysis",
+      "help": "Overall tone and mood of the copy. E.g., formal, humorous, emotional, professional.",
+      "placeholder": "Tone analysis (optional)"
+    }
+  },
+  "review": {
+    "running": "Running skill-based review…",
+    "backConfirm": "Going back to input will reset the current review result. Continue?",
+    "saveFailed": "Save failed."
+  },
+  "helpTooltip": "Click for an AI assistant explanation",
+  "helpChatMessage": "**About '{{label}}'**\n{{text}}",
+  "brief": {
+    "context": {
+      "productCategoryLine": "Product category: {{value}}",
+      "originalCopyLine": "Original / master copy:\n{{value}}",
+      "representativeCopyLine": "Representative body copy:\n{{value}}",
+      "defaultLine": "Skill-based review of user-supplied copy"
+    },
+    "objective": {
+      "brandingBehavior": "Drive brand search and repeat visits",
+      "brandingAttitudinal": "Strengthen brand awareness and preference",
+      "promotionCommercial": "Grow promotion revenue and engagement",
+      "promotionBehavior": "Convert purchases during the sale window",
+      "performanceCommercial": "Improve conversion rate and ROAS",
+      "performanceBehavior": "Drive clicks, sign-ups, and purchases",
+      "launchCommercial": "Secure launch-period revenue",
+      "launchBehavior": "Drive product trials and pre-orders",
+      "launchAttitudinal": "Build awareness and anticipation for the launch"
+    }
+  }
+}

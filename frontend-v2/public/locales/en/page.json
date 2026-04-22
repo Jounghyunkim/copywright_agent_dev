@@ -1,0 +1,12 @@
+{
+  "home": { "title": "Home", "subtitle": "AI copywriting platform for LG brand campaigns" },
+  "settings": { "title": "General Settings", "subtitle": "Platform configuration and integration status" },
+  "editor": { "title": "Copy Generation" },
+  "copyReview": { "title": "Copy Review" },
+  "workflowList": { "title": "Copy Work List", "subtitle": "Open saved campaigns to continue working, or delete them." },
+  "approvals": { "title": "Approvals", "subtitle": "Campaigns paused at a step that requires user confirmation." },
+  "skills": { "title": "Skill Management", "subtitle": "Manage built-in and custom skills used for copy validation, generation, and analysis." },
+  "adminUsers": { "title": "Admin Settings", "subtitle": "Manage administrators and search users" },
+  "stats": { "title": "Usage Stats", "subtitle": "DAU / MAU, by department and by user activity dashboards" },
+  "knowledge": { "title": "Knowledge Base", "subtitle": "Copywriter persona RAG knowledge base — uploaded text is chunked and stored in the vector index, then retrieved automatically during copy generation." }
+}

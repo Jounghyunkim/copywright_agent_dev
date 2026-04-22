@@ -1,0 +1,80 @@
+{
+  "button": {
+    "newSkill": "+ New skill",
+    "aiDraft": "✦ AI draft",
+    "draftGenerate": "✦ Generate draft",
+    "draftGenerating": "Generating draft…"
+  },
+  "filter": {
+    "all": "All",
+    "builtin": "built-in",
+    "custom": "custom"
+  },
+  "searchPlaceholder": "Search ID / label / description",
+  "loading": "Loading skills…",
+  "loadError": "Failed to load skills.",
+  "empty": "No skills registered.",
+  "card": {
+    "typeBuiltin": "built-in",
+    "typeCustom": "custom",
+    "inactive": "inactive"
+  },
+  "detail": {
+    "idLabel": "ID",
+    "descriptionLabel": "Description",
+    "actionTags": "Action Tags",
+    "roleTags": "Role Tags",
+    "referenceDocs": "Reference Docs",
+    "promptTemplate": "Prompt Template",
+    "outputSchema": "Output Schema",
+    "riskLabel": "risk: {{level}}"
+  },
+  "editor": {
+    "titleNew": "New skill",
+    "titleEdit": "Edit skill",
+    "idLabel": "ID",
+    "idHint": "(kebab-case, 3+ chars, cannot change after save)",
+    "idPlaceholder": "promo-legal-check",
+    "labelLabel": "Label",
+    "labelPlaceholder": "e.g., Promotion Legal Check",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Briefly describe what this skill does",
+    "categoryLabel": "Category",
+    "promptLabel": "Prompt Template",
+    "promptPlaceholder": "Prompt template sent to the LLM. Use variables like {{copy}}.",
+    "outputSchemaLabel": "Output Schema (JSON, optional)",
+    "activateLabel": "Active",
+    "error": {
+      "invalidSchema": "Output Schema is not a valid JSON object.",
+      "saveFailed": "Save failed. Please check if the ID is unique."
+    }
+  },
+  "wizard": {
+    "title": "Generate AI skill draft",
+    "intro": "Enter brief info and the AI will draft ID/label/description/prompt template/output schema. You can edit freely afterward.",
+    "nameLabel": "Skill name",
+    "namePlaceholder": "e.g., Promotion Legal Check",
+    "purposeLabel": "Writing purpose",
+    "purposeHint": "Why you are creating this skill",
+    "purposePlaceholder": "e.g., Pre-filter legal-risk expressions in promotion copy to ease compliance review",
+    "goalLabel": "Skill goal",
+    "goalHint": "What this skill must achieve",
+    "goalPlaceholder": "e.g., Detect exaggeration, false comparison, illegal guarantees and return score / strengths / improvements",
+    "goodExampleLabel": "Good example",
+    "goodExampleHint": "(optional)",
+    "goodExamplePlaceholder": "e.g., 'Best-in-class picture quality'",
+    "badExampleLabel": "Bad example",
+    "badExampleHint": "(optional)",
+    "badExamplePlaceholder": "e.g., 'World's best picture quality, overwhelming every other product'",
+    "error": {
+      "draftFailedNull": "Could not generate a draft.",
+      "draftFailed": "Draft generation failed. Please try again later."
+    }
+  },
+  "confirm": {
+    "delete": "Delete \"{{label}}\" skill?"
+  },
+  "error": {
+    "deleteFailed": "Delete failed."
+  }
+}

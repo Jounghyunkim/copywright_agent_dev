@@ -1,4 +1,5 @@
 import { CSSProperties, ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -42,6 +43,7 @@ export function StrategicMessageView({
   onModify,
   isApproved = false,
 }: Props) {
+  const { t } = useTranslation()
   return (
     <Card style={{ padding: '1.2rem' }}>
       <h3
@@ -158,7 +160,7 @@ export function StrategicMessageView({
               borderTop: '1px solid var(--color-border)',
             }}
           >
-            <Button onClick={onApprove}>④ 카피 후보 생성</Button>
+            <Button onClick={onApprove}>{t('strategic-message:view.approve')}</Button>
           </div>
         )}
       </div>

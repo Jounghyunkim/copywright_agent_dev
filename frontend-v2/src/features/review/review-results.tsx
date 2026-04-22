@@ -1,4 +1,5 @@
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -38,6 +39,7 @@ export function ReviewResults({
   onReReview,
   onSaveAndFinish,
 }: Props) {
+  const { t } = useTranslation()
   // 로컬 결과 — 재평가 시 특정 카피의 결과만 교체됨
   const [localResults, setLocalResults] = useState<ReviewResult[]>(initialResults)
 
@@ -231,7 +233,7 @@ export function ReviewResults({
       }
     } catch (err) {
       console.error('[ReviewResults] correct failed', err)
-      alert('카피 보정에 실패했습니다.')
+      alert(t('review:result.correct.failed'))
     }
   }
 
@@ -242,7 +244,7 @@ export function ReviewResults({
     return (
       <Card>
         <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-          리뷰 결과가 없습니다.
+          {t('review:result.emptyState')}
         </p>
       </Card>
     )
@@ -272,21 +274,21 @@ export function ReviewResults({
           }}
         >
           <span style={{ color: 'var(--lg-red-600)' }}>⚖</span>
-          Review Results
+          {t('review:result.heading')}
         </h3>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <Badge tone="neutral">Avg {summary.avg.toFixed(1)}</Badge>
+          <Badge tone="neutral">{t('review:result.summary.avg', { value: summary.avg.toFixed(1) })}</Badge>
           {summary.critical > 0 && (
             <span style={severityChipStyle('critical')}>
-              ● Critical {summary.critical}
+              {t('review:result.summary.critical', { count: summary.critical })}
             </span>
           )}
           {summary.warning > 0 && (
             <span style={severityChipStyle('warning')}>
-              ● Warning {summary.warning}
+              {t('review:result.summary.warning', { count: summary.warning })}
             </span>
           )}
-          <Badge tone="primary">Review {summary.total}</Badge>
+          <Badge tone="primary">{t('review:result.summary.review', { count: summary.total })}</Badge>
         </div>
       </div>
 
@@ -308,7 +310,7 @@ export function ReviewResults({
               <span>{key}</span>
               {hasCorrected && (
                 <Badge tone="primary" style={{ fontSize: 10 }}>
-                  보정됨
+                  {t('review:result.correctedBadge')}
                 </Badge>
               )}
             </button>
@@ -332,7 +334,7 @@ export function ReviewResults({
         >
           <Spinner />
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--lg-red-700)', margin: 0 }}>
-            보정된 카피로 스킬 재평가 중…
+            {t('review:result.reReviewing')}
           </p>
         </div>
       )}
@@ -352,7 +354,7 @@ export function ReviewResults({
               {countryMeta(currentCopy.countryCode).label}
             </Badge>
             <span style={monoSmall}>{currentCopy.key}</span>
-            {currentCorrection && <Badge tone="success">보정 완료</Badge>}
+            {currentCorrection && <Badge tone="success">{t('review:result.correctionDone')}</Badge>}
           </div>
 
           {currentCorrection ? (
@@ -365,7 +367,7 @@ export function ReviewResults({
             >
               <div style={{ paddingRight: 16 }}>
                 <p style={{ ...fieldLabelStyle, color: 'var(--neutral-500)' }}>
-                  Before
+                  {t('review:result.before')}
                 </p>
                 <CopyBlock copy={currentCopy.copyData} />
               </div>
@@ -378,7 +380,7 @@ export function ReviewResults({
               />
               <div style={{ paddingLeft: 16 }}>
                 <p style={{ ...fieldLabelStyle, color: 'var(--lg-red-700)' }}>
-                  After (보정)
+                  {t('review:result.after')}
                 </p>
                 <CopyBlock copy={currentCorrection} />
               </div>
@@ -422,8 +424,8 @@ export function ReviewResults({
             {currentResults.every((r, i) =>
               expandedSkills.has(`${currentKey}::${r.skillId}::${i}`),
             )
-              ? '모두 접기'
-              : '모두 펼치기'}
+              ? t('review:result.toggleAll.collapse')
+              : t('review:result.toggleAll.expand')}
           </button>
         </div>
         {currentResults.map((r, i) => {
@@ -455,10 +457,10 @@ export function ReviewResults({
                 {/* 접힘 상태 요약 — 건수 표시 */}
                 {!isExpanded && (
                   <span style={skillSummaryChip}>
-                    {r.weaknesses.length > 0 && `이슈 ${r.weaknesses.length}`}
+                    {r.weaknesses.length > 0 && t('review:result.summaryChip.issues', { count: r.weaknesses.length })}
                     {r.weaknesses.length > 0 && visible.length > 0 && ' · '}
-                    {visible.length > 0 && `제안 ${visible.length}`}
-                    {checkedCount > 0 && ` · 선택 ${checkedCount}`}
+                    {visible.length > 0 && t('review:result.summaryChip.suggestions', { count: visible.length })}
+                    {checkedCount > 0 && ` · ${t('review:result.summaryChip.selected', { count: checkedCount })}`}
                   </span>
                 )}
                 <div style={{ flex: 1 }} />
@@ -494,10 +496,10 @@ export function ReviewResults({
                   }}
                 >
                   {r.strengths.length > 0 && (
-                    <BulletBlock label="Strengths" items={r.strengths} color="var(--success)" />
+                    <BulletBlock label={t('review:result.block.strengths')} items={r.strengths} color="var(--success)" />
                   )}
                   {r.weaknesses.length > 0 && (
-                    <BulletBlock label="Weaknesses" items={r.weaknesses} color="var(--danger)" />
+                    <BulletBlock label={t('review:result.block.weaknesses')} items={r.weaknesses} color="var(--danger)" />
                   )}
                   {visible.length > 0 && (
                     <ImprovementsBlock
@@ -528,7 +530,7 @@ export function ReviewResults({
       >
         {selectedCount > 0 && (
           <span style={{ fontSize: 13, color: 'var(--neutral-700)' }}>
-            {selectedCount}개 개선안 선택됨
+            {t('review:result.correct.selectedCount', { count: selectedCount })}
           </span>
         )}
         <Button
@@ -536,14 +538,14 @@ export function ReviewResults({
           disabled={selectedCount === 0 || isBusy || !currentCopy}
         >
           {correctCopy.isPending
-            ? '보정 중…'
+            ? t('review:result.correct.correcting')
             : reReviewing === currentKey
-              ? '재평가 중…'
-              : '선택한 개선안으로 카피 보정'}
+              ? t('review:result.correct.reReviewing')
+              : t('review:result.correct.button')}
         </Button>
         {onSaveAndFinish && (
           <Button onClick={onSaveAndFinish} disabled={isBusy}>
-            저장 및 종료
+            {t('review:result.correct.saveAndFinish')}
           </Button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -25,6 +26,12 @@ interface LdapResult {
 }
 
 export function AdminUsersPage() {
+  const { t } = useTranslation([
+    'admin',
+    'auth',
+    'common',
+    'page',
+  ])
   const currentUser = useAuthStore((s) => s.user)
 
   const [admins, setAdmins] = useState<AdminUser[]>([])
@@ -90,11 +97,11 @@ export function AdminUsersPage() {
       if (msg.includes('401')) {
         setPasswordVerified(false)
         setPassword('')
-        setSearchError('비밀번호가 올바르지 않습니다. 다시 입력해 주세요.')
+        setSearchError(t('auth:error.passwordInvalid'))
       } else if (msg.includes('503')) {
-        setSearchError('LDAP 서버에 연결할 수 없습니다.')
+        setSearchError(t('auth:error.ldapUnreachable'))
       } else {
-        setSearchError('검색에 실패했습니다.')
+        setSearchError(t('admin:error.searchFailed'))
       }
     } finally {
       setSearching(false)
@@ -120,9 +127,9 @@ export function AdminUsersPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('409')) {
-        alert('이미 관리자로 등록된 사용자입니다.')
+        alert(t('admin:error.alreadyAdmin'))
       } else {
-        alert('관리자 추가에 실패했습니다.')
+        alert(t('admin:error.addFailed'))
       }
     } finally {
       setActionLoading(null)
@@ -132,8 +139,11 @@ export function AdminUsersPage() {
   const handleRemove = async (admin: AdminUser) => {
     const isSelf = admin.user_id === currentUser?.user_id
     const msg = isSelf
-      ? `자신(${admin.display_name})을 관리자에서 제거하시겠습니까?\n다음 로그인부터 관리자 권한이 해제됩니다.`
-      : `${admin.display_name}(${admin.user_id})을 관리자에서 제거하시겠습니까?`
+      ? t('admin:confirm.removeSelf', { name: admin.display_name })
+      : t('admin:confirm.removeOther', {
+          name: admin.display_name,
+          id: admin.user_id,
+        })
     if (!confirm(msg)) return
 
     setActionLoading(admin.user_id)
@@ -149,9 +159,9 @@ export function AdminUsersPage() {
     } catch (err) {
       const msg2 = err instanceof Error ? err.message : ''
       if (msg2.includes('409')) {
-        alert('마지막 관리자는 제거할 수 없습니다.')
+        alert(t('admin:error.lastAdmin'))
       } else {
-        alert('관리자 제거에 실패했습니다.')
+        alert(t('admin:error.removeFailed'))
       }
     } finally {
       setActionLoading(null)
@@ -161,31 +171,33 @@ export function AdminUsersPage() {
   return (
     <>
       <div>
-        <h2 className="page-title">관리자 설정</h2>
-        <p className="page-subtitle">관리자 추가/제거 및 사용자 검색</p>
+        <h2 className="page-title">{t('page:adminUsers.title')}</h2>
+        <p className="page-subtitle">{t('page:adminUsers.subtitle')}</p>
       </div>
 
       {/* Current admin list */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          현재 관리자 ({admins.length}명)
+          {t('admin:currentAdmins', { count: admins.length })}
         </h3>
         {loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>로드 중…</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:loading')}
+          </p>
         ) : admins.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            등록된 관리자가 없습니다.
+            {t('admin:noAdmins')}
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>이름</th>
-                  <th>ID</th>
-                  <th>조직</th>
-                  <th>추가일</th>
-                  <th>추가자</th>
+                  <th>{t('admin:table.name')}</th>
+                  <th>{t('admin:table.id')}</th>
+                  <th>{t('admin:table.department')}</th>
+                  <th>{t('admin:table.addedAt')}</th>
+                  <th>{t('admin:table.addedBy')}</th>
                   <th />
                 </tr>
               </thead>
@@ -208,7 +220,7 @@ export function AdminUsersPage() {
                         onClick={() => handleRemove(a)}
                         disabled={actionLoading === a.user_id}
                       >
-                        제거
+                        {t('common:button.remove')}
                       </Button>
                     </td>
                   </tr>
@@ -221,21 +233,23 @@ export function AdminUsersPage() {
 
       {/* LDAP user search */}
       <Card className="stack">
-        <h3 style={{ fontSize: 14, fontWeight: 700 }}>사용자 검색 (LDAP)</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 700 }}>
+          {t('admin:userSearchLdap')}
+        </h3>
 
         {!passwordVerified ? (
           /* Phase 1: Password gate */
           <div style={{ display: 'grid', gap: 10, maxWidth: 400 }}>
             <p style={{ fontSize: 13, color: 'var(--neutral-700)' }}>
-              LDAP 검색을 위해 본인 비밀번호를 입력해 주세요.
+              {t('admin:ldapPasswordRequired')}
             </p>
             <div>
-              <FieldLabel>비밀번호</FieldLabel>
+              <FieldLabel>{t('auth:label.password')}</FieldLabel>
               <TextInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="LDAP 비밀번호"
+                placeholder={t('auth:placeholder.ldapPassword')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && password) setPasswordVerified(true)
                 }}
@@ -246,7 +260,7 @@ export function AdminUsersPage() {
             )}
             <div>
               <Button onClick={() => setPasswordVerified(true)} disabled={!password}>
-                확인
+                {t('common:button.confirm')}
               </Button>
             </div>
           </div>
@@ -257,11 +271,13 @@ export function AdminUsersPage() {
               <TextInput
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="이름 또는 ID로 검색 (2글자 이상)"
+                placeholder={t('admin:searchPlaceholder')}
                 style={{ maxWidth: 400 }}
               />
               {searching && (
-                <span style={{ fontSize: 13, color: 'var(--neutral-500)' }}>검색 중…</span>
+                <span style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+                  {t('common:searching')}
+                </span>
               )}
               <div style={{ flex: 1 }} />
               <button
@@ -281,7 +297,7 @@ export function AdminUsersPage() {
                   cursor: 'pointer',
                 }}
               >
-                비밀번호 재입력
+                {t('admin:button.redoPassword')}
               </button>
             </div>
 
@@ -294,9 +310,9 @@ export function AdminUsersPage() {
                 <table className="table" style={{ width: '100%' }}>
                   <thead>
                     <tr>
-                      <th>이름</th>
-                      <th>ID</th>
-                      <th>조직</th>
+                      <th>{t('admin:table.name')}</th>
+                      <th>{t('admin:table.id')}</th>
+                      <th>{t('admin:table.department')}</th>
                       <th />
                     </tr>
                   </thead>
@@ -310,14 +326,14 @@ export function AdminUsersPage() {
                         <td style={{ color: 'var(--neutral-700)' }}>{r.department || '-'}</td>
                         <td style={{ textAlign: 'right' }}>
                           {r.is_admin ? (
-                            <Badge tone="neutral">관리자</Badge>
+                            <Badge tone="neutral">{t('common:admin')}</Badge>
                           ) : (
                             <Button
                               className="btn-compact"
                               onClick={() => handleAdd(r)}
                               disabled={actionLoading === r.user_id}
                             >
-                              추가
+                              {t('common:button.add')}
                             </Button>
                           )}
                         </td>
@@ -330,7 +346,7 @@ export function AdminUsersPage() {
 
             {!searching && query.trim().length >= 2 && results.length === 0 && !searchError && (
               <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-                검색 결과가 없습니다.
+                {t('admin:noResults')}
               </p>
             )}
           </div>
@@ -339,7 +355,7 @@ export function AdminUsersPage() {
 
       <Card>
         <p style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-          관리자 추가/제거는 다음 로그인부터 반영됩니다.
+          {t('admin:changesNextLogin')}
         </p>
       </Card>
     </>

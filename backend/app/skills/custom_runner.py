@@ -7,19 +7,28 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
 from .rate_limit import invoke_llm
+from .skillmd_runner import _language_name
 
 
-OUTPUT_INSTRUCTION = """
+_OUTPUT_INSTRUCTION_TEMPLATE = """
 
-IMPORTANT: You MUST respond ONLY with a valid JSON object in Korean with this exact format:
-{
+## Output Format (strict)
+Respond ONLY with a single JSON object of this shape:
+{{
   "passed": true/false,
   "score": 0-100,
-  "strengths": ["강점 내용 — 잘 된 부분 설명"],
-  "weaknesses": ["약점 내용 — 문제가 있는 부분 설명"],
-  "improvements": ["보완 내용 — 구체적인 수정 제안"]
-}
-strengths, weaknesses, improvements 각각 한국어 문자열 배열로 작성하세요. 해당 항목이 없으면 빈 배열 []."""
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "improvements": ["..."]
+}}
+
+## Output Language (MANDATORY)
+- Write every element of `strengths`, `weaknesses`, `improvements`
+  in **{output_lang}** only.
+- Do NOT mix other languages.
+- Keep brand names (LG, ThinQ, Life's Good, OLED, gram) and technical
+  identifiers untranslated.
+- If an array has no content, return []."""
 
 
 def _render_template(template: str, variables: dict) -> str:
@@ -45,6 +54,10 @@ async def run_custom_skill(prompt_template: str, copy_text: str, context: dict) 
 
     rendered_prompt = _render_template(prompt_template, variables)
 
+    output_instruction = _OUTPUT_INSTRUCTION_TEMPLATE.format(
+        output_lang=_language_name(context.get("output_locale") or "ko"),
+    )
+
     llm = AzureChatOpenAI(
         azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
@@ -54,7 +67,7 @@ async def run_custom_skill(prompt_template: str, copy_text: str, context: dict) 
     )
     parser = JsonOutputParser()
     messages = [
-        SystemMessage(content=rendered_prompt + OUTPUT_INSTRUCTION),
+        SystemMessage(content=rendered_prompt + output_instruction),
         HumanMessage(content=f"## Copy to review\n{copy_text}"),
     ]
     response = await invoke_llm(llm, messages, skill_id="custom")

@@ -1,0 +1,20 @@
+{
+  "pending": "승인 대기",
+  "noPending": "승인 대기 중인 항목이 없습니다.",
+  "loadFailed": "대시보드를 불러오지 못했습니다.",
+  "stage": {
+    "analysis": {
+      "label": "분석 승인",
+      "hint": "Market Analyst Report 승인/수정 필요"
+    },
+    "strategy": {
+      "label": "전략 승인",
+      "hint": "Copywriting Strategy 승인/재추출 필요"
+    },
+    "copyReview": {
+      "label": "카피 리뷰",
+      "hint": "생성된 카피를 선택해 리뷰를 진행"
+    }
+  },
+  "stepLabel": "Step {{current}}/{{total}}"
+}

@@ -1,5 +1,6 @@
 import { CSSProperties, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -62,32 +63,26 @@ export function derivePendingApprovals(
   return out
 }
 
-const STAGE_META: Record<
+const STAGE_TONE: Record<
   PendingApproval['stage'],
-  { label: string; tone: 'primary' | 'warning' | 'success'; hint: string }
+  'primary' | 'warning' | 'success'
 > = {
-  analysis: {
-    label: '분석 승인',
-    tone: 'warning',
-    hint: 'Market Analyst Report 승인/수정 필요',
-  },
-  strategy: {
-    label: '전략 승인',
-    tone: 'primary',
-    hint: 'Copywriting Strategy 승인/재추출 필요',
-  },
-  'copy-review': {
-    label: '카피 리뷰',
-    tone: 'success',
-    hint: '생성된 카피를 선택해 리뷰를 진행',
-  },
+  analysis: 'warning',
+  strategy: 'primary',
+  'copy-review': 'success',
+}
+
+const STAGE_I18N_KEY: Record<PendingApproval['stage'], string> = {
+  analysis: 'approval:stage.analysis',
+  strategy: 'approval:stage.strategy',
+  'copy-review': 'approval:stage.copyReview',
 }
 
 interface Props {
   /** 최대 표시 개수. undefined 면 전체. */
   limit?: number
-  /** 헤더의 제목. 기본값: "승인 대기". */
-  title?: string
+  /** 헤더의 제목 오버라이드 (i18n 키). 지정하지 않으면 'approval:pending' 사용. */
+  titleKey?: string
   /** "전체 보기" 링크 표시 여부 (Home 위젯에서 true). */
   showAllLink?: boolean
 }
@@ -95,11 +90,12 @@ interface Props {
 /** 공용 위젯 — Home 및 Approvals 페이지에서 재사용. */
 export function PendingApprovals({
   limit,
-  title = '승인 대기',
+  titleKey = 'approval:pending',
   showAllLink = false,
 }: Props) {
   const navigate = useNavigate()
   const dashboard = useDashboard()
+  const { t } = useTranslation()
 
   const items = useMemo(
     () => derivePendingApprovals(dashboard.data?.campaigns ?? []),
@@ -118,7 +114,7 @@ export function PendingApprovals({
         }}
       >
         <h3 style={{ fontSize: 14, fontWeight: 700 }}>
-          {title} <Badge tone="primary">{items.length}</Badge>
+          {t(titleKey)} <Badge tone="primary">{items.length}</Badge>
         </h3>
         {showAllLink && items.length > 0 && (
           <Button
@@ -126,28 +122,29 @@ export function PendingApprovals({
             className="btn-compact"
             onClick={() => navigate('/approvals')}
           >
-            전체 보기 →
+            {t('common:link.viewAll')}
           </Button>
         )}
       </div>
 
       {dashboard.isLoading && (
-        <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>로드 중…</p>
+        <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>{t('common:loading')}</p>
       )}
       {dashboard.isError && (
         <p style={{ fontSize: 13, color: 'var(--danger)' }}>
-          대시보드를 불러오지 못했습니다.
+          {t('approval:loadFailed')}
         </p>
       )}
       {!dashboard.isLoading && !dashboard.isError && items.length === 0 && (
         <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-          승인 대기 중인 항목이 없습니다.
+          {t('approval:noPending')}
         </p>
       )}
       {shown.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {shown.map((item) => {
-            const meta = STAGE_META[item.stage]
+            const tone = STAGE_TONE[item.stage]
+            const stageBase = STAGE_I18N_KEY[item.stage]
             return (
               <div
                 key={`${item.campaignId}-${item.stage}`}
@@ -172,14 +169,14 @@ export function PendingApprovals({
                     }}
                   >
                     <strong style={{ fontSize: 14 }}>{item.title}</strong>
-                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                    <Badge tone={tone}>{t(`${stageBase}.label`)}</Badge>
                     <span
                       style={{
                         fontSize: 12,
                         color: 'var(--neutral-500)',
                       }}
                     >
-                      Step {item.targetStep}/5
+                      {t('approval:stepLabel', { current: item.targetStep, total: 5 })}
                     </span>
                   </div>
                   <p
@@ -189,7 +186,7 @@ export function PendingApprovals({
                       margin: '4px 0 0 0',
                     }}
                   >
-                    {meta.hint}
+                    {t(`${stageBase}.hint`)}
                     {item.summary && ` · ${item.summary}`}
                   </p>
                 </div>

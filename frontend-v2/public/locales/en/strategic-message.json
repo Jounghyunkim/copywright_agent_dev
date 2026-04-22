@@ -1,0 +1,11 @@
+{
+  "trigger": {
+    "extracting": "Extracting the copywriting strategy…",
+    "heading": "Next step: Extract copywriting strategy",
+    "description": "Derives Core Message, Message Pillars, Emotional Hook, Tone Direction, and Key Phrases from the approved Market Analyst Report.",
+    "start": "Start extraction →"
+  },
+  "view": {
+    "approve": "④ Generate copy candidates"
+  }
+}

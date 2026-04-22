@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -8,40 +9,42 @@ import type { CampaignListItem } from '@/shared/api/types'
 import { useWorkflowStore } from '@/shared/state/workflow-store'
 import { campaignRoute } from '@/shared/lib/campaign-route'
 
-const STEP_LABEL: Record<number, string> = {
-  1: '브리핑',
-  2: '분석',
-  3: '전략 메시지',
-  4: '카피 생성',
-  5: '검토',
+/** 캠페인 currentStep(1~5) → workflow 단계 라벨용 i18n 키. */
+const STEP_I18N_KEY: Record<number, string> = {
+  1: 'workflow:step.brief',
+  2: 'workflow:step.analysis',
+  3: 'workflow:step.strategy',
+  4: 'workflow:step.generation',
+  5: 'workflow:step.review',
 }
 
 function statusTone(status: CampaignListItem['status']): 'success' | 'warning' {
   return status === 'completed' ? 'success' : 'warning'
 }
 
-function statusLabel(status: CampaignListItem['status']): string {
-  return status === 'completed' ? '완료' : '진행 중'
-}
-
 export function WorkflowListPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const dashboard = useDashboard()
   const deleteCampaign = useDeleteCampaign()
   const reset = useWorkflowStore((s) => s.reset)
+
+  const statusLabel = (status: CampaignListItem['status']): string =>
+    status === 'completed'
+      ? t('common:status.completed')
+      : t('common:status.inProgress')
 
   const handleOpen = (c: CampaignListItem) => {
     navigate(campaignRoute(c))
   }
 
   const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`"${title}" 캠페인을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`))
-      return
+    if (!confirm(t('workflow-list:deleteConfirm', { title }))) return
     try {
       await deleteCampaign.mutateAsync(id)
     } catch (err) {
       console.error('[WorkflowListPage] delete failed', err)
-      alert('삭제에 실패했습니다.')
+      alert(t('common:error.deleteFailed'))
     }
   }
 
@@ -62,12 +65,10 @@ export function WorkflowListPage() {
         }}
       >
         <div>
-          <h2 className="page-title">카피라이트 작업 목록</h2>
-          <p className="page-subtitle">
-            저장된 캠페인을 열어 이어서 작업하거나 삭제하세요.
-          </p>
+          <h2 className="page-title">{t('page:workflowList.title')}</h2>
+          <p className="page-subtitle">{t('page:workflowList.subtitle')}</p>
         </div>
-        <Button onClick={handleNew}>새 카피라이트 생성</Button>
+        <Button onClick={handleNew}>{t('workflow-list:button.new')}</Button>
       </div>
 
       <Card>
@@ -79,7 +80,7 @@ export function WorkflowListPage() {
               padding: '8px 0',
             }}
           >
-            캠페인 목록을 불러오는 중…
+            {t('workflow-list:loading')}
           </p>
         )}
         {dashboard.isError && (
@@ -91,14 +92,14 @@ export function WorkflowListPage() {
                 marginBottom: 8,
               }}
             >
-              대시보드를 불러오지 못했습니다. 백엔드 연결을 확인해 주세요.
+              {t('workflow-list:loadError')}
             </p>
             <Button
               variant="ghost"
               className="btn-compact"
               onClick={() => dashboard.refetch()}
             >
-              다시 시도
+              {t('common:button.retry')}
             </Button>
           </div>
         )}
@@ -111,9 +112,9 @@ export function WorkflowListPage() {
                 marginBottom: 8,
               }}
             >
-              저장된 캠페인이 없습니다.
+              {t('workflow-list:empty')}
             </p>
-            <Button onClick={handleNew}>새 카피라이트 생성</Button>
+            <Button onClick={handleNew}>{t('workflow-list:button.new')}</Button>
           </div>
         )}
         {campaigns.length > 0 && (
@@ -121,111 +122,121 @@ export function WorkflowListPage() {
             <table className="table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>프로젝트명</th>
-                  <th>국가</th>
-                  <th>단계</th>
-                  <th>상태</th>
-                  <th style={{ textAlign: 'right' }}>Brand Fit</th>
-                  <th style={{ textAlign: 'right' }}>Review Avg</th>
-                  <th style={{ textAlign: 'right' }}>생성일</th>
+                  <th>{t('workflow-list:table.projectName')}</th>
+                  <th>{t('workflow-list:table.country')}</th>
+                  <th>{t('workflow-list:table.step')}</th>
+                  <th>{t('workflow-list:table.status')}</th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('workflow-list:table.brandFit')}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('workflow-list:table.reviewAvg')}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('workflow-list:table.createdAt')}
+                  </th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {campaigns.map((c) => (
-                  <tr key={c.id}>
-                    <td style={{ fontWeight: 500 }}>
-                      <div>{c.title}</div>
-                      {c.summary && (
+                {campaigns.map((c) => {
+                  const stepKey = STEP_I18N_KEY[c.currentStep]
+                  const stepLabel = stepKey ? t(stepKey) : '-'
+                  return (
+                    <tr key={c.id}>
+                      <td style={{ fontWeight: 500 }}>
+                        <div>{c.title}</div>
+                        {c.summary && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: 'var(--neutral-500)',
+                              marginTop: 2,
+                              maxWidth: 360,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {c.summary}
+                          </div>
+                        )}
+                      </td>
+                      <td>
                         <div
                           style={{
-                            fontSize: 12,
-                            color: 'var(--neutral-500)',
-                            marginTop: 2,
-                            maxWidth: 360,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 4,
                           }}
                         >
-                          {c.summary}
+                          {(c.countries ?? []).slice(0, 4).map((cc) => (
+                            <Badge key={cc} tone="neutral">
+                              {cc}
+                            </Badge>
+                          ))}
+                          {c.countries && c.countries.length > 4 && (
+                            <Badge tone="neutral">
+                              +{c.countries.length - 4}
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td>
-                      <div
+                      </td>
+                      <td style={{ fontSize: 12, color: 'var(--neutral-700)' }}>
+                        {c.currentStep}/5 · {stepLabel}
+                      </td>
+                      <td>
+                        <Badge tone={statusTone(c.status)}>
+                          {statusLabel(c.status)}
+                        </Badge>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {c.brandFitScore != null && c.brandFitScore > 0
+                          ? `${c.brandFitScore}%`
+                          : '-'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {c.reviewAvgScore != null && c.reviewAvgScore > 0
+                          ? c.reviewAvgScore
+                          : '-'}
+                      </td>
+                      <td
                         style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 4,
+                          textAlign: 'right',
+                          color: 'var(--neutral-500)',
+                          fontSize: 12,
                         }}
                       >
-                        {(c.countries ?? []).slice(0, 4).map((cc) => (
-                          <Badge key={cc} tone="neutral">
-                            {cc}
-                          </Badge>
-                        ))}
-                        {c.countries && c.countries.length > 4 && (
-                          <Badge tone="neutral">
-                            +{c.countries.length - 4}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--neutral-700)' }}>
-                      {c.currentStep}/5 · {STEP_LABEL[c.currentStep] ?? '-'}
-                    </td>
-                    <td>
-                      <Badge tone={statusTone(c.status)}>
-                        {statusLabel(c.status)}
-                      </Badge>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {c.brandFitScore != null && c.brandFitScore > 0
-                        ? `${c.brandFitScore}%`
-                        : '-'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {c.reviewAvgScore != null && c.reviewAvgScore > 0
-                        ? c.reviewAvgScore
-                        : '-'}
-                    </td>
-                    <td
-                      style={{
-                        textAlign: 'right',
-                        color: 'var(--neutral-500)',
-                        fontSize: 12,
-                      }}
-                    >
-                      {c.date}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 4,
-                          justifyContent: 'flex-end',
-                        }}
-                      >
-                        <Button
-                          variant="ghost"
-                          className="btn-compact"
-                          onClick={() => handleOpen(c)}
+                        {c.date}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 4,
+                            justifyContent: 'flex-end',
+                          }}
                         >
-                          열기
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="btn-compact"
-                          onClick={() => handleDelete(c.id, c.title)}
-                          disabled={deleteCampaign.isPending}
-                        >
-                          삭제
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <Button
+                            variant="ghost"
+                            className="btn-compact"
+                            onClick={() => handleOpen(c)}
+                          >
+                            {t('common:button.open')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="btn-compact"
+                            onClick={() => handleDelete(c.id, c.title)}
+                            disabled={deleteCampaign.isPending}
+                          >
+                            {t('common:button.delete')}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

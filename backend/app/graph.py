@@ -241,7 +241,27 @@ async def enhanced_rag(state: AgentState):
 # ============================================================
 # NODE 3: Synthesizer — combines all intelligence into report
 # ============================================================
-LOCALE_TO_LANGUAGE = {"en": "English", "ko": "Korean", "de": "German"}
+LOCALE_TO_LANGUAGE = {
+    "en": "English",
+    "ko": "Korean (한국어)",
+    "de": "German (Deutsch)",
+    "fr": "French (Français)",
+    "es": "Spanish (Español)",
+    "zh-CN": "Simplified Chinese (简体中文)",
+    "zh": "Simplified Chinese (简体中文)",
+    "ar": "Arabic (العربية)",
+    "th": "Thai (ไทย)",
+}
+
+
+def _resolve_output_language(locale: str | None) -> str:
+    if not locale:
+        return LOCALE_TO_LANGUAGE["ko"]
+    if locale in LOCALE_TO_LANGUAGE:
+        return LOCALE_TO_LANGUAGE[locale]
+    base = locale.split("-")[0]
+    return LOCALE_TO_LANGUAGE.get(base, "English")
+
 
 async def synthesizer(state: AgentState):
     print("--- NODE 3: SYNTHESIZER ---")
@@ -251,7 +271,7 @@ async def synthesizer(state: AgentState):
     matrix = state.get("message_matrix") or {}
     matrix_context = _format_message_matrix(matrix)
     locale = state.get("locale", "ko")
-    output_language = LOCALE_TO_LANGUAGE.get(locale, "Korean")
+    output_language = _resolve_output_language(locale)
 
     # Format web search results
     if web_results:
@@ -383,7 +403,7 @@ This becomes the root sentence of all copy. Example: "I want my time at home to 
 
 CRITICAL RULES:
 1. Base competitive analysis on ACTUAL data from web search results. Cite specific competitors.
-2. ALL text in the report MUST be written in {output_language}. This is the user's chosen display language — do NOT use any other language regardless of the brief's language.
+2. ALL text in the report MUST be written in {output_language}. This is the user's chosen display language — do NOT use any other language regardless of the brief's language. Brand assets (LG, ThinQ, Life's Good, OLED, gram) and technical identifiers stay untranslated.
 3. Every field must serve COPYWRITING — if it doesn't help a copywriter write better copy, rewrite it until it does.
 4. Return ONLY valid JSON. No markdown, no explanation outside JSON."""
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
@@ -13,6 +14,7 @@ import { useDeleteSkill, useSkills } from '@/shared/api/hooks'
 import type { CustomSkillCreate, Skill } from '@/shared/api/types'
 
 export function SkillsPage() {
+  const { t } = useTranslation(['skills', 'common', 'page'])
   const skills = useSkills()
   const deleteSkill = useDeleteSkill()
 
@@ -48,12 +50,12 @@ export function SkillsPage() {
   }, [skills.data])
 
   const handleDelete = async (s: Skill) => {
-    if (!confirm(`"${s.label}" 스킬을 삭제할까요?`)) return
+    if (!confirm(t('skills:confirm.delete', { label: s.label }))) return
     try {
       await deleteSkill.mutateAsync(s.id)
     } catch (err) {
       console.error('[SkillsPage] delete failed', err)
-      alert('삭제에 실패했습니다.')
+      alert(t('skills:error.deleteFailed'))
     }
   }
 
@@ -78,17 +80,16 @@ export function SkillsPage() {
         }}
       >
         <div>
-          <h2 className="page-title">스킬 관리</h2>
-          <p className="page-subtitle">
-            카피 검증/생성/분석에 사용되는 built-in 및 custom 스킬을
-            관리하세요.
-          </p>
+          <h2 className="page-title">{t('page:skills.title')}</h2>
+          <p className="page-subtitle">{t('page:skills.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <Button variant="ghost" onClick={() => setIsWizardOpen(true)}>
-            ✦ AI 초안 생성
+            {t('skills:button.aiDraft')}
           </Button>
-          <Button onClick={() => setIsCreating(true)}>+ 새 스킬</Button>
+          <Button onClick={() => setIsCreating(true)}>
+            {t('skills:button.newSkill')}
+          </Button>
         </div>
       </div>
 
@@ -106,24 +107,26 @@ export function SkillsPage() {
             active={filter === 'all'}
             onClick={() => setFilter('all')}
           >
-            전체 <Badge tone="neutral">{counts.total}</Badge>
+            {t('skills:filter.all')} <Badge tone="neutral">{counts.total}</Badge>
           </FilterChip>
           <FilterChip
             active={filter === 'skillmd'}
             onClick={() => setFilter('skillmd')}
           >
-            built-in <Badge tone="neutral">{counts.skillmd}</Badge>
+            {t('skills:filter.builtin')}{' '}
+            <Badge tone="neutral">{counts.skillmd}</Badge>
           </FilterChip>
           <FilterChip
             active={filter === 'custom'}
             onClick={() => setFilter('custom')}
           >
-            custom <Badge tone="neutral">{counts.custom}</Badge>
+            {t('skills:filter.custom')}{' '}
+            <Badge tone="neutral">{counts.custom}</Badge>
           </FilterChip>
           <div style={{ flex: 1 }} />
           <input
             className="input"
-            placeholder="ID/라벨/설명 검색"
+            placeholder={t('skills:searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ maxWidth: 280 }}
@@ -132,12 +135,12 @@ export function SkillsPage() {
 
         {skills.isLoading && (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            스킬을 불러오는 중…
+            {t('skills:loading')}
           </p>
         )}
         {skills.isError && (
           <p style={{ fontSize: 13, color: 'var(--danger)' }}>
-            스킬 목록을 불러오지 못했습니다.
+            {t('skills:loadError')}
           </p>
         )}
         {!skills.isLoading && !skills.isError && (

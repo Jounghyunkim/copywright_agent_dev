@@ -1,0 +1,18 @@
+{
+  "button": {
+    "new": "새 카피라이트 생성"
+  },
+  "loading": "캠페인 목록을 불러오는 중…",
+  "loadError": "대시보드를 불러오지 못했습니다. 백엔드 연결을 확인해 주세요.",
+  "empty": "저장된 캠페인이 없습니다.",
+  "deleteConfirm": "\"{{title}}\" 캠페인을 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
+  "table": {
+    "projectName": "프로젝트명",
+    "country": "국가",
+    "step": "단계",
+    "status": "상태",
+    "brandFit": "Brand Fit",
+    "reviewAvg": "Review Avg",
+    "createdAt": "생성일"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "lane": {
+    "risk": {
+      "label": "Risk & Compliance",
+      "description": "법무·규제·허위 주장 리스크를 탐지합니다."
+    },
+    "brand": {
+      "label": "Brand Integrity",
+      "description": "LG 브랜드 톤·사전·보이스 정합성을 검증합니다."
+    },
+    "craft": {
+      "label": "Craft Quality",
+      "description": "카피의 명확성·임팩트·세그먼트 적합도를 평가합니다."
+    },
+    "localization": {
+      "label": "Localization",
+      "description": "국가·문화·언어 현지화 품질을 확인합니다."
+    }
+  },
+  "preset": {
+    "light": "Light",
+    "standard": "Standard",
+    "deep": "Deep",
+    "applyTooltip": "이 레인의 {{level}} 프리셋 적용"
+  },
+  "config": {
+    "title": "리뷰 조건 설정",
+    "instruction": "검증 레인을 선택해 적용할 스킬을 구성하세요. 프리셋으로 한 번에 선택할 수도 있습니다.",
+    "selectedCopies_one": "선택된 카피 ({{count}}개)",
+    "selectedCopies_other": "선택된 카피 ({{count}}개)",
+    "clearThisLane": "이 레인 해제",
+    "clearAll": "전체 해제",
+    "skillsLoading": "스킬 목록 로드 중…",
+    "noSkillsInLane": "이 레인에 등록된 스킬이 없습니다.",
+    "selectAtLeastOne": "스킬을 1개 이상 선택해 주세요.",
+    "laneCount": "{{icon}} {{label}} · {{count}}",
+    "runButton": "⑤ 리뷰 시작 ({{count}})",
+    "running": "리뷰 실행 중…"
+  },
+  "result": {
+    "heading": "Review Results",
+    "summary": {
+      "avg": "Avg {{value}}",
+      "critical": "● Critical {{count}}",
+      "warning": "● Warning {{count}}",
+      "review": "Review {{count}}"
+    },
+    "correctedBadge": "보정됨",
+    "reReviewing": "보정된 카피로 스킬 재평가 중…",
+    "before": "Before",
+    "after": "After (보정)",
+    "correctionDone": "보정 완료",
+    "emptyState": "리뷰 결과가 없습니다.",
+    "toggleAll": {
+      "expand": "모두 펼치기",
+      "collapse": "모두 접기"
+    },
+    "summaryChip": {
+      "issues_one": "이슈 {{count}}",
+      "issues_other": "이슈 {{count}}",
+      "suggestions_one": "제안 {{count}}",
+      "suggestions_other": "제안 {{count}}",
+      "selected_one": "선택 {{count}}",
+      "selected_other": "선택 {{count}}"
+    },
+    "severity": {
+      "critical": "CRITICAL",
+      "warning": "WARNING",
+      "suggestion": "SUGGESTION"
+    },
+    "block": {
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "improvements": "Improvements"
+    },
+    "correct": {
+      "selectedCount_one": "{{count}}개 개선안 선택됨",
+      "selectedCount_other": "{{count}}개 개선안 선택됨",
+      "button": "선택한 개선안으로 카피 보정",
+      "correcting": "보정 중…",
+      "reReviewing": "재평가 중…",
+      "failed": "카피 보정에 실패했습니다.",
+      "saveAndFinish": "저장 및 종료"
+    }
+  }
+}

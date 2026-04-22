@@ -1,0 +1,23 @@
+{
+  "heading": "Copy Results ({{countries}}개 국가 · {{copies}}개 카피)",
+  "selectedCount": "선택 {{count}}개",
+  "variantCount_one": "{{count}}개 변형",
+  "variantCount_other": "{{count}}개 변형",
+  "variant": "변형 {{index}}",
+  "selectVariantAria": "변형 {{index}} 선택",
+  "select": "선택",
+  "reviewSelected": "⑤ 선택 카피 검토",
+  "qualityFilter": "Quality Filter",
+  "warningsDetected_one": "{{count}}건 감지",
+  "warningsDetected_other": "{{count}}건 감지",
+  "translating": "한국어 번역 중…",
+  "field": {
+    "headline": "Headline",
+    "subheadline": "Subheadline",
+    "bodyCopy": "Body Copy",
+    "cta": "CTA",
+    "methodology": "Methodology",
+    "culturalNotes": "Cultural Notes",
+    "toneAnalysis": "Tone Analysis"
+  }
+}

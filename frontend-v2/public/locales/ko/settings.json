@@ -1,0 +1,18 @@
+{
+  "tab": {
+    "general": "일반 설정",
+    "admin": "관리자 설정",
+    "stats": "사용 통계",
+    "knowledge": "지식 구축"
+  },
+  "section": "설정",
+  "page": {
+    "title": "일반 설정",
+    "subtitle": "플랫폼 구성 및 연동 상태"
+  },
+  "systemStatus": "시스템 상태",
+  "backendConnection": "백엔드 연결",
+  "externalServices": "외부 서비스",
+  "apiKeysManaged": "API 키는 backend/.env 에서 관리합니다.",
+  "userSection": "사용자"
+}

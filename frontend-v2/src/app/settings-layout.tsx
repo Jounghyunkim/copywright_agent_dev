@@ -1,19 +1,20 @@
 import { CSSProperties } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { useAuthStore } from '@/shared/state/auth-store'
 
 interface TabDef {
   to: string
-  label: string
+  i18nKey: string
   adminOnly?: boolean
 }
 
 const TABS: TabDef[] = [
-  { to: '/settings', label: '일반 설정' },
-  { to: '/admin/users', label: '관리자 설정', adminOnly: true },
-  { to: '/admin/stats', label: '사용 통계', adminOnly: true },
-  { to: '/admin/knowledge', label: '지식 구축', adminOnly: true },
+  { to: '/settings', i18nKey: 'settings:tab.general' },
+  { to: '/admin/users', i18nKey: 'settings:tab.admin', adminOnly: true },
+  { to: '/admin/stats', i18nKey: 'settings:tab.stats', adminOnly: true },
+  { to: '/admin/knowledge', i18nKey: 'settings:tab.knowledge', adminOnly: true },
 ]
 
 /**
@@ -24,22 +25,23 @@ export function SettingsLayout() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = !!user?.roles?.includes('admin')
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin)
+  const { t } = useTranslation()
 
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}
     >
-      <nav aria-label="설정" style={navStyle}>
-        {visibleTabs.map((t) => (
+      <nav aria-label={t('settings:section')} style={navStyle}>
+        {visibleTabs.map((tab) => (
           <NavLink
-            key={t.to}
-            to={t.to}
+            key={tab.to}
+            to={tab.to}
             end
             className={({ isActive }) =>
               `settings-tab${isActive ? ' active' : ''}`
             }
           >
-            {t.label}
+            {t(tab.i18nKey)}
           </NavLink>
         ))}
       </nav>

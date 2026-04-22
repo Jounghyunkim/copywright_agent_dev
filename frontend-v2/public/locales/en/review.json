@@ -1,0 +1,86 @@
+{
+  "lane": {
+    "risk": {
+      "label": "Risk & Compliance",
+      "description": "Detects legal, regulatory, and false-claim risks."
+    },
+    "brand": {
+      "label": "Brand Integrity",
+      "description": "Validates LG brand tone, lexicon, and voice consistency."
+    },
+    "craft": {
+      "label": "Craft Quality",
+      "description": "Evaluates copy clarity, impact, and segment fit."
+    },
+    "localization": {
+      "label": "Localization",
+      "description": "Checks country, cultural, and language localization quality."
+    }
+  },
+  "preset": {
+    "light": "Light",
+    "standard": "Standard",
+    "deep": "Deep",
+    "applyTooltip": "Apply {{level}} preset for this lane"
+  },
+  "config": {
+    "title": "Review Settings",
+    "instruction": "Pick validation lanes to compose the skill set. Presets let you select in one click.",
+    "selectedCopies_one": "Selected copies ({{count}})",
+    "selectedCopies_other": "Selected copies ({{count}})",
+    "clearThisLane": "Clear this lane",
+    "clearAll": "Clear all",
+    "skillsLoading": "Loading skills…",
+    "noSkillsInLane": "No skills registered in this lane.",
+    "selectAtLeastOne": "Select at least one skill.",
+    "laneCount": "{{icon}} {{label}} · {{count}}",
+    "runButton": "⑤ Start review ({{count}})",
+    "running": "Running review…"
+  },
+  "result": {
+    "heading": "Review Results",
+    "summary": {
+      "avg": "Avg {{value}}",
+      "critical": "● Critical {{count}}",
+      "warning": "● Warning {{count}}",
+      "review": "Review {{count}}"
+    },
+    "correctedBadge": "Corrected",
+    "reReviewing": "Re-running skills on corrected copy…",
+    "before": "Before",
+    "after": "After (corrected)",
+    "correctionDone": "Correction complete",
+    "emptyState": "No review results.",
+    "toggleAll": {
+      "expand": "Expand all",
+      "collapse": "Collapse all"
+    },
+    "summaryChip": {
+      "issues_one": "{{count}} issue",
+      "issues_other": "{{count}} issues",
+      "suggestions_one": "{{count}} suggestion",
+      "suggestions_other": "{{count}} suggestions",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
+    },
+    "severity": {
+      "critical": "CRITICAL",
+      "warning": "WARNING",
+      "suggestion": "SUGGESTION"
+    },
+    "block": {
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "improvements": "Improvements"
+    },
+    "correct": {
+      "selectedCount_one": "{{count}} improvement selected",
+      "selectedCount_other": "{{count}} improvements selected",
+      "button": "Apply selected improvements",
+      "correcting": "Correcting…",
+      "reReviewing": "Re-evaluating…",
+      "failed": "Copy correction failed.",
+      "saveAndFinish": "Save & Exit"
+    }
+  }
+}

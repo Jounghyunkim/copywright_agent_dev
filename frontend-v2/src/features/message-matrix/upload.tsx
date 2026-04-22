@@ -1,4 +1,5 @@
 import { CSSProperties, useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/shared/ui/button'
 import {
@@ -29,6 +30,7 @@ interface Props {
  * 상태머신: idle → loading-sheets → (select | parsing) → done | error
  */
 export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
+  const { t } = useTranslation()
   const [file, setFile] = useState<File | null>(null)
   const [sheets, setSheets] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
@@ -59,12 +61,12 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
       })
       const stats = countMatrixStats(res.results)
       setParsedSummary(
-        `${stats.sheetCount}개 시트 · ${stats.uspCount}개 USP 추출`,
+        t('matrix:summary', { sheetCount: stats.sheetCount, uspCount: stats.uspCount }),
       )
       setPhase('done')
       onParsed(res.results)
     } catch (err) {
-      setError(`파싱 실패: ${(err as Error).message}`)
+      setError(t('matrix:error.parsingFailed', { message: (err as Error).message }))
       setPhase('error')
     }
   }
@@ -74,7 +76,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
       if (!selected) return
       const ext = selected.name.split('.').pop()?.toLowerCase()
       if (ext !== 'xlsx' && ext !== 'xls') {
-        setError('.xlsx / .xls 형식만 지원합니다.')
+        setError(t('matrix:error.format'))
         setPhase('error')
         return
       }
@@ -84,7 +86,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
       try {
         const res = await sheetsMutation.mutateAsync(selected)
         if (res.sheets.length === 0) {
-          setError('시트가 비어 있습니다.')
+          setError(t('matrix:error.empty'))
           setPhase('error')
           return
         }
@@ -98,7 +100,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
           setPhase('select')
         }
       } catch (err) {
-        setError(`시트 목록 로드 실패: ${(err as Error).message}`)
+        setError(t('matrix:error.sheetsLoadFailed', { message: (err as Error).message }))
         setPhase('error')
       }
     },
@@ -127,6 +129,30 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
     e.stopPropagation()
   }, [])
 
+  /** 번들된 샘플 xlsx 를 fetch 하여 업로드 흐름에 주입. */
+  const handleLoadSample = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (isDisabled) return
+      try {
+        const res = await fetch('/samples/message-matrix-sample.xlsx')
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const blob = await res.blob()
+        const sampleFile = new File(
+          [blob],
+          'SAMPLE_DUALCOOL_AI_Air_Message_Matrix.xlsx',
+          { type: blob.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+        )
+        handleFileSelect(sampleFile)
+      } catch (err) {
+        console.error('[MessageMatrixUpload] sample load failed', err)
+        setError(t('matrix:error.sampleLoadFailed'))
+        setPhase('error')
+      }
+    },
+    [isDisabled, handleFileSelect, t],
+  )
+
   /* ── Render ── */
 
   if (phase === 'loading-sheets' || phase === 'parsing') {
@@ -134,7 +160,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
       <div style={loadingZone}>
         <span style={spinner} />
         <span style={{ fontSize: 14, color: 'var(--neutral-900)' }}>
-          {phase === 'loading-sheets' ? '시트 목록 로드 중…' : '시트 파싱 중…'}
+          {phase === 'loading-sheets' ? t('matrix:phase.loadingSheets') : t('matrix:phase.parsing')}
         </span>
         <style>{`@keyframes mm-spin { to { transform: rotate(360deg) } }`}</style>
       </div>
@@ -175,10 +201,10 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
               {file?.name}
             </span>
             <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-              ({sheets.length}개 시트)
+              {t('matrix:sheetList.count', { count: sheets.length })}
             </span>
           </div>
-          <button type="button" onClick={reset} style={iconBtn} aria-label="취소">
+          <button type="button" onClick={reset} style={iconBtn} aria-label={t('matrix:button.cancel')}>
             ✕
           </button>
         </div>
@@ -190,7 +216,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
             marginBottom: 8,
           }}
         >
-          파싱할 시트를 선택해 주세요.
+          {t('matrix:sheetList.selectPrompt')}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -223,14 +249,14 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
           }}
         >
           <Button variant="ghost" className="btn-compact" onClick={reset}>
-            취소
+            {t('matrix:button.cancel')}
           </Button>
           <Button
             className="btn-compact"
             onClick={handleConfirmSheets}
             disabled={!selectedSheet}
           >
-            ✓ 파싱 시작
+            {t('matrix:button.startParsing')}
           </Button>
         </div>
       </div>
@@ -265,7 +291,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
             · {selectedSheet} · {parsedSummary}
           </span>
         </div>
-        <button type="button" onClick={reset} style={iconBtn} aria-label="제거">
+        <button type="button" onClick={reset} style={iconBtn} aria-label={t('matrix:button.remove')}>
           ✕
         </button>
       </div>
@@ -281,6 +307,15 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
         onDragOver={handleDragOver}
         onClick={() => !isDisabled && inputRef.current?.click()}
       >
+        <button
+          type="button"
+          onClick={handleLoadSample}
+          disabled={isDisabled}
+          style={sampleButtonStyle(isDisabled)}
+          title={t('matrix:button.sampleTitle')}
+        >
+          ✦ {t('matrix:button.sample')}
+        </button>
         <div
           style={{
             fontSize: 22,
@@ -298,7 +333,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
             margin: 0,
           }}
         >
-          Message Matrix 파일을 드래그하거나 클릭해 업로드
+          {t('matrix:dropzone.prompt')}
         </p>
         <p
           style={{
@@ -307,7 +342,7 @@ export function MessageMatrixUpload({ onParsed, isDisabled = false }: Props) {
             marginTop: 4,
           }}
         >
-          .xlsx / .xls 형식 지원
+          {t('matrix:dropzone.supportedFormats')}
         </p>
         <input
           ref={inputRef}
@@ -342,6 +377,7 @@ const dropZoneStyle = (
   disabled: boolean,
   isError: boolean,
 ): CSSProperties => ({
+  position: 'relative',
   border: `2px dashed ${isError ? 'var(--danger)' : 'var(--color-border)'}`,
   borderRadius: 10,
   padding: '20px',
@@ -350,6 +386,23 @@ const dropZoneStyle = (
   background: 'var(--neutral-100)',
   transition: 'all 0.2s',
   opacity: disabled ? 0.5 : 1,
+})
+
+const sampleButtonStyle = (disabled: boolean): CSSProperties => ({
+  position: 'absolute',
+  top: 10,
+  right: 10,
+  padding: '4px 10px',
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--lg-red-700)',
+  background: 'var(--white)',
+  border: '1px solid var(--lg-red-600)',
+  borderRadius: 999,
+  cursor: disabled ? 'default' : 'pointer',
+  opacity: disabled ? 0.5 : 1,
+  transition: 'all 0.15s',
+  zIndex: 1,
 })
 
 const loadingZone: CSSProperties = {

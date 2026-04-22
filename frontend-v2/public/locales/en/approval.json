@@ -1,0 +1,20 @@
+{
+  "pending": "Pending Approvals",
+  "noPending": "No items are waiting for approval.",
+  "loadFailed": "Failed to load dashboard.",
+  "stage": {
+    "analysis": {
+      "label": "Analysis review",
+      "hint": "Market Analyst Report needs approval or edits"
+    },
+    "strategy": {
+      "label": "Strategy review",
+      "hint": "Copywriting Strategy needs approval or re-extraction"
+    },
+    "copyReview": {
+      "label": "Copy review",
+      "hint": "Select generated copy to run a review"
+    }
+  },
+  "stepLabel": "Step {{current}}/{{total}}"
+}

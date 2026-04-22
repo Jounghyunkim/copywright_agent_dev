@@ -1,0 +1,79 @@
+{
+  "step": {
+    "brief": "Briefing",
+    "analysis": "Analysis",
+    "strategy": "Strategic Message",
+    "generation": "Copy Generation",
+    "review": "Review"
+  },
+  "heading": {
+    "brief": "Briefing",
+    "analysisReport": "Analysis Report",
+    "strategyMessage": "Strategic Message",
+    "copyResults": "Copy Results"
+  },
+  "button": {
+    "backToBrief": "Back to brief",
+    "save": "Save",
+    "saving": "Saving…",
+    "update": "Update",
+    "reset": "Reset"
+  },
+  "loading": {
+    "analyzing": "Analyzing…",
+    "strategyExtraction": "Extracting copywriting strategy…",
+    "copyGeneration": "Generating copy… (a few minutes depending on countries / variants)",
+    "review": "Running skill-based review…"
+  },
+  "error": {
+    "analysisFailed": "Analysis failed: {{error}}"
+  },
+  "confirm": {
+    "goBack": "Going back to {{step}} will reset the current result and all later steps. Continue?",
+    "reset": "Reset the current work in progress?"
+  },
+  "editor": {
+    "tooltip": {
+      "campaignId": "Currently saved campaign ID"
+    },
+    "error": {
+      "projectNameRequired": "A project name is required to save.",
+      "saveFailed": "Save failed. Please check the backend connection."
+    }
+  },
+  "analyzing": {
+    "title": "AI is analyzing your campaign",
+    "subtitle": "Please wait a moment. This usually takes 30 seconds to 1 minute.",
+    "cancel": "Cancel analysis",
+    "visual": {
+      "queryPlanning": {
+        "label": "Planning search queries",
+        "desc": "Analyzing your brief to generate optimal search keywords"
+      },
+      "search": {
+        "label": "Collecting market insights",
+        "desc": "Searching the web and internal knowledge base in parallel"
+      },
+      "synthesis": {
+        "label": "Composing the analysis report",
+        "desc": "Synthesizing the gathered information into insights"
+      }
+    }
+  },
+  "helpItem": "**About '{{title}}'**\n{{text}}",
+  "timeline": {
+    "unsaved": "Unsaved",
+    "milestone": {
+      "brief": "Brief",
+      "analysis": "Analysis Report",
+      "strategy": "Strategic Message",
+      "generation": "Copy Generation",
+      "review": "Review"
+    },
+    "detail": {
+      "notEntered": "Not entered",
+      "copiesForCountries": "{{countries}} countries · {{copies}} copies",
+      "reviews": "{{count}} reviews"
+    }
+  }
+}

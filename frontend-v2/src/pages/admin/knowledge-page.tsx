@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -6,8 +7,15 @@ import { Button } from '@/shared/ui/button'
 import { FieldLabel, TextInput } from '@/shared/ui/field'
 import { apiClient, postFormData } from '@/shared/api/client'
 
-const CATEGORIES = ['저서', '에세이', '인터뷰', '카피샘플', '인사이트'] as const
-type Category = (typeof CATEGORIES)[number]
+// 백엔드 API는 한국어 카테고리 값을 그대로 수신. 값은 고정하고 UI만 로컬라이즈.
+const CATEGORIES = [
+  { value: '저서', labelKey: 'knowledge:category.book' },
+  { value: '에세이', labelKey: 'knowledge:category.essay' },
+  { value: '인터뷰', labelKey: 'knowledge:category.interview' },
+  { value: '카피샘플', labelKey: 'knowledge:category.copySample' },
+  { value: '인사이트', labelKey: 'knowledge:category.insight' },
+] as const
+type Category = (typeof CATEGORIES)[number]['value']
 
 const ACCEPTED_EXT = '.txt,.md,.pdf,.docx'
 
@@ -22,6 +30,7 @@ interface KnowledgeDoc {
 }
 
 export function KnowledgePage() {
+  const { t } = useTranslation(['knowledge', 'common', 'page'])
   const [docs, setDocs] = useState<KnowledgeDoc[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -71,7 +80,7 @@ export function KnowledgePage() {
       await loadDocs()
     } catch (err) {
       console.error('[KnowledgePage] upload failed', err)
-      setUploadError('업로드에 실패했습니다.')
+      setUploadError(t('knowledge:error.uploadFailed'))
     } finally {
       setUploading(false)
     }
@@ -84,7 +93,7 @@ export function KnowledgePage() {
     try {
       await apiClient.post('/admin/knowledge/text', {
         text: textBody,
-        title: textTitle.trim() || '직접 입력',
+        title: textTitle.trim() || t('knowledge:directInput'),
         category: textCat,
       })
       setTextTitle('')
@@ -92,20 +101,20 @@ export function KnowledgePage() {
       await loadDocs()
     } catch (err) {
       console.error('[KnowledgePage] text save failed', err)
-      setTextError('저장에 실패했습니다.')
+      setTextError(t('common:error.saveFailed'))
     } finally {
       setTextSaving(false)
     }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('이 문서를 삭제하면 벡터 인덱스에서도 제거됩니다. 계속하시겠습니까?')) return
+    if (!confirm(t('knowledge:confirm.delete'))) return
     setDeletingId(id)
     try {
       await apiClient.delete(`/admin/knowledge/${id}`)
       await loadDocs()
     } catch {
-      alert('삭제에 실패했습니다.')
+      alert(t('common:error.deleteFailed'))
     } finally {
       setDeletingId(null)
     }
@@ -116,11 +125,8 @@ export function KnowledgePage() {
   return (
     <>
       <div>
-        <h2 className="page-title">지식 구축</h2>
-        <p className="page-subtitle">
-          Copywriter 페르소나 RAG 지식 베이스 관리 — 업로드된 텍스트는 청킹 후 벡터
-          인덱스에 저장되어 카피 생성 시 자동 검색됩니다.
-        </p>
+        <h2 className="page-title">{t('page:knowledge.title')}</h2>
+        <p className="page-subtitle">{t('page:knowledge.subtitle')}</p>
       </div>
 
       {/* Summary */}
@@ -133,24 +139,28 @@ export function KnowledgePage() {
       >
         <Card>
           <p style={{ fontSize: 12, color: 'var(--neutral-500)', marginBottom: 4 }}>
-            등록 문서
+            {t('knowledge:registeredDocs')}
           </p>
-          <p style={{ fontSize: 22, fontWeight: 700 }}>{docs.length}건</p>
+          <p style={{ fontSize: 22, fontWeight: 700 }}>
+            {t('knowledge:summary.docsCount', { count: docs.length })}
+          </p>
         </Card>
         <Card>
           <p style={{ fontSize: 12, color: 'var(--neutral-500)', marginBottom: 4 }}>
-            총 청크 수
+            {t('knowledge:totalChunks')}
           </p>
-          <p style={{ fontSize: 22, fontWeight: 700 }}>{totalChunks}개</p>
+          <p style={{ fontSize: 22, fontWeight: 700 }}>
+            {t('knowledge:summary.chunksCount', { count: totalChunks })}
+          </p>
         </Card>
       </div>
 
       {/* File Upload */}
       <Card className="stack">
-        <h3 style={{ fontSize: 14, fontWeight: 700 }}>파일 업로드</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 700 }}>{t('knowledge:fileUpload')}</h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <FieldLabel>파일 선택 (txt, md, pdf, docx)</FieldLabel>
+            <FieldLabel>{t('knowledge:fileSelect')}</FieldLabel>
             <input
               ref={fileRef}
               type="file"
@@ -160,21 +170,21 @@ export function KnowledgePage() {
             />
           </div>
           <div>
-            <FieldLabel>카테고리</FieldLabel>
+            <FieldLabel>{t('common:category')}</FieldLabel>
             <select
               value={uploadCat}
               onChange={(e) => setUploadCat(e.target.value as Category)}
               style={selectStyle}
             >
               {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+                <option key={c.value} value={c.value}>
+                  {t(c.labelKey)}
                 </option>
               ))}
             </select>
           </div>
           <Button onClick={handleUpload} disabled={uploading}>
-            {uploading ? '업로드 중…' : '업로드'}
+            {uploading ? t('common:button.uploading') : t('common:button.upload')}
           </Button>
         </div>
         {uploadError && (
@@ -184,26 +194,26 @@ export function KnowledgePage() {
 
       {/* Text Input */}
       <Card className="stack">
-        <h3 style={{ fontSize: 14, fontWeight: 700 }}>텍스트 직접 입력</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 700 }}>{t('knowledge:textInput')}</h3>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <FieldLabel>제목</FieldLabel>
+            <FieldLabel>{t('common:title')}</FieldLabel>
             <TextInput
               value={textTitle}
               onChange={(e) => setTextTitle(e.target.value)}
-              placeholder="예: 2024 인터뷰 발췌"
+              placeholder={t('knowledge:titlePlaceholder')}
             />
           </div>
           <div>
-            <FieldLabel>카테고리</FieldLabel>
+            <FieldLabel>{t('common:category')}</FieldLabel>
             <select
               value={textCat}
               onChange={(e) => setTextCat(e.target.value as Category)}
               style={selectStyle}
             >
               {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+                <option key={c.value} value={c.value}>
+                  {t(c.labelKey)}
                 </option>
               ))}
             </select>
@@ -212,19 +222,21 @@ export function KnowledgePage() {
         <textarea
           value={textBody}
           onChange={(e) => setTextBody(e.target.value)}
-          placeholder="에세이, 인터뷰 내용, 인사이트 메모 등을 붙여넣기…"
+          placeholder={t('knowledge:textPlaceholder')}
           rows={6}
           style={textareaStyle}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <span style={{ flex: 1, fontSize: 12, color: 'var(--neutral-500)', alignSelf: 'center' }}>
-            {textBody.length > 0 ? `${textBody.length}자` : ''}
+            {textBody.length > 0
+              ? t('common:charCount', { count: textBody.length })
+              : ''}
           </span>
           <Button
             onClick={handleTextSave}
             disabled={textSaving || !textBody.trim()}
           >
-            {textSaving ? '저장 중…' : '저장'}
+            {textSaving ? t('common:button.saving') : t('common:button.save')}
           </Button>
         </div>
         {textError && (
@@ -235,24 +247,30 @@ export function KnowledgePage() {
       {/* Document List */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          등록된 지식 ({docs.length}건)
+          {t('knowledge:registered', { count: docs.length })}
         </h3>
         {loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>로드 중…</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:loading')}
+          </p>
         ) : docs.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            등록된 문서가 없습니다. 파일 업로드 또는 텍스트 입력으로 지식을 추가하세요.
+            {t('knowledge:noDocs')}
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>제목</th>
-                  <th>카테고리</th>
-                  <th style={{ textAlign: 'right' }}>청크</th>
-                  <th style={{ textAlign: 'right' }}>글자 수</th>
-                  <th>등록일</th>
+                  <th>{t('knowledge:table.title')}</th>
+                  <th>{t('knowledge:table.category')}</th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('knowledge:table.chunks')}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('knowledge:table.chars')}
+                  </th>
+                  <th>{t('knowledge:table.createdAt')}</th>
                   <th />
                 </tr>
               </thead>
@@ -263,7 +281,13 @@ export function KnowledgePage() {
                       {d.filename}
                     </td>
                     <td>
-                      <Badge tone="neutral">{d.category}</Badge>
+                      <Badge tone="neutral">
+                        {t(
+                          CATEGORIES.find((c) => c.value === d.category)
+                            ?.labelKey ?? '',
+                          d.category,
+                        )}
+                      </Badge>
                     </td>
                     <td style={{ textAlign: 'right' }}>{d.chunk_count}</td>
                     <td style={{ textAlign: 'right', color: 'var(--neutral-500)', fontSize: 12 }}>
@@ -279,7 +303,7 @@ export function KnowledgePage() {
                         onClick={() => handleDelete(d.id)}
                         disabled={deletingId === d.id}
                       >
-                        삭제
+                        {t('common:button.delete')}
                       </Button>
                     </td>
                   </tr>

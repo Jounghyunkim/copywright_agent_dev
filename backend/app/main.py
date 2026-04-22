@@ -207,45 +207,52 @@ async def extract_strategic_message(request: StrategicMessageRequest):
         temperature=0.7,
     )
 
-    system_prompt = """You are a senior Brand Strategist at LG Electronics, specializing in strategic message architecture.
+    from .skills.skillmd_runner import _language_name
+    # locale 미송신 시 영어로 폴백 — 한국어를 기본값으로 하면 국제화된 배포에서 역설적 결과를 낳음
+    output_language = _language_name(request.locale or "en")
+
+    system_prompt = f"""{_language_directive(output_language)}
+
+You are a senior Brand Strategist at LG Electronics, specializing in strategic message architecture.
 
 Given a Campaign Brief and its Market Analyst Report, extract and synthesize the **Strategic Message** — the core communication strategy that will guide all downstream copy generation.
 
 Your output must be a JSON object with these exact keys:
 
-{
+{{
   "coreMessage": "The single, overarching strategic message (1-2 sentences) that captures the essence of what this campaign must communicate. It should bridge the brand's value proposition with the consumer's emotional need.",
   "messagePillars": [
-    {
+    {{
       "title": "Pillar name (e.g., 'Emotional Connection', 'Functional Excellence')",
       "description": "How this pillar supports the core message and connects to the target persona's needs"
-    }
+    }}
   ],
   "emotionalHook": "The primary emotional trigger that will capture attention and drive engagement — derived from the Emotional JTBD and Cultural Tension insights",
-  "toneDirection": {
+  "toneDirection": {{
     "primary": "The dominant tone (e.g., 'Warm yet authoritative', 'Aspirational but grounded')",
     "avoid": "Tones or approaches to avoid based on competitive analysis and brand fit",
     "voiceCharacter": "If this brand were a person speaking, describe their character in one sentence"
-  },
+  }},
   "keyPhrases": ["phrase1", "phrase2", "phrase3", "...up to 8 key phrases that should appear in or inspire the final copy"]
-}
+}}
 
 IMPORTANT:
 - The coreMessage must directly stem from the emotionalJTBD and categoryNarrative shift
 - messagePillars should be 2-4 items, each grounded in the analysis report findings
 - keyPhrases should include both recommended keywords and newly synthesized phrases
 - Everything must be aligned with the brand fit assessment and copy implications
-- Write ALL output in {output_language}. This is the user's chosen display language."""
-
-    locale = request.locale or "ko"
-    output_language = {"en": "English", "ko": "Korean", "de": "German"}.get(locale, "Korean")
-    system_prompt = system_prompt.replace("{output_language}", output_language)
+- Every string value in the output JSON (coreMessage, pillar titles/descriptions, emotionalHook, tone fields, keyPhrases) MUST be written in {output_language}, regardless of the language used in the brief or report below."""
 
     try:
         parser = JsonOutputParser()
         messages = [
             SystemMessage(content=system_prompt),
-            HumanMessage(content=f"## Campaign Brief\n```json\n{json.dumps(request.brief, ensure_ascii=False, indent=2)}\n```\n\n## Market Analyst Report\n```json\n{json.dumps(request.analysisReport, ensure_ascii=False, indent=2)}\n```\n\nPlease extract the Strategic Message based on the above inputs."),
+            HumanMessage(content=(
+                f"## Campaign Brief\n```json\n{json.dumps(request.brief, ensure_ascii=False, indent=2)}\n```\n\n"
+                f"## Market Analyst Report\n```json\n{json.dumps(request.analysisReport, ensure_ascii=False, indent=2)}\n```\n\n"
+                f"Extract the Strategic Message from the inputs above. "
+                f"The inputs may be in any language; write every string value in your JSON output in {output_language}."
+            )),
         ]
         response = await llm.ainvoke(messages)
         data = parser.parse(response.content)
@@ -278,6 +285,7 @@ async def generate_copy(request: GenerateCopyRequest):
                 "copyCount": config.copyCount,
             },
             persona_skill=config.writerPersona or None,
+            ui_locale=request.locale or "ko",
         )
 
         print(f"[DeepAgent] Selected skills: {result['selected_skills']}")
@@ -391,13 +399,44 @@ async def list_personas():
     }
 
 
+def _load_locale_guide(basename: str, locale: str) -> str:
+    """로케일별 가이드 파일 로드. `<basename>.<locale>.md` → `<basename>.en.md` → 빈 문자열 순 폴백."""
+    data_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+    )
+    # 우선순위: 정확한 로케일 → 기본(en) → 빈 문자열
+    lang = (locale or "en").split("-")[0]
+    for candidate in (f"{basename}.{lang}.md", f"{basename}.en.md"):
+        path = os.path.join(data_dir, candidate)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    print(f"WARNING: No guide found for {basename} (locale={locale})")
+    return ""
+
+
+def _language_directive(output_lang: str) -> str:
+    """시스템 프롬프트 최상단에 삽입할 언어 지시어. 입력 언어 미러링을 차단."""
+    return (
+        "# OUTPUT LANGUAGE (CRITICAL — DO NOT IGNORE)\n"
+        f"Your entire response MUST be written in {output_lang}.\n"
+        "The inputs (brief, report, guide text) may appear in another language — "
+        f"translate or rewrite everything into {output_lang} in your output.\n"
+        "Brand assets (LG, ThinQ, Life's Good, OLED, gram) and technical identifiers "
+        "stay untranslated.\n"
+        "---\n"
+    )
+
+
 @app.post("/api/v1/campaigns/generate-brief", response_model=GenerateBriefResponse)
 async def generate_brief(request: GenerateBriefRequest):
     from langchain_openai import AzureChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_core.output_parsers import JsonOutputParser
+    from .skills.skillmd_runner import _language_name
 
-    print(f"Generating brief draft for: {request.projectName}")
+    print(f"Generating brief draft for: {request.projectName} (locale={request.locale})")
+    output_lang = _language_name(request.locale or "ko")
 
     llm = AzureChatOpenAI(
         azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
@@ -407,51 +446,60 @@ async def generate_brief(request: GenerateBriefRequest):
         temperature=0.7,
     )
 
-    # Load objective generation guide from file
-    guide_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "brief_objective_gen_guide.md")
-    try:
-        with open(guide_path, "r", encoding="utf-8") as f:
-            objective_guide = f.read()
-    except FileNotFoundError:
-        objective_guide = ""
-        print(f"WARNING: Objective guide not found at {guide_path}")
+    # 로케일별 목표 가이드 로드 (브리프 생성 품질 확보를 위한 도메인 지식)
+    objective_guide = _load_locale_guide(
+        "brief_objective_gen_guide", request.locale or "en"
+    )
 
-    brief_guide = f"""You are a senior Brand Strategist with 15+ years of experience in global campaign planning for LG Electronics.
+    brief_guide = f"""{_language_directive(output_lang)}
+
+You are a senior Brand Strategist with 15+ years of experience in global campaign planning for LG Electronics.
 You are given a Project Name and a Project Context that describes WHY this campaign is needed. Use these two inputs to generate the REMAINING fields of an LG standard campaign brief.
 
 Your output must be deeply informed by the Project Context — the objectives, audience, messaging, and strategy should all directly stem from the stated context and reasons for the campaign.
 
-## Objective 작성 지침 (매우 중요 — 반드시 아래 가이드를 따르세요)
+## Objective Writing Guide (IMPORTANT — follow strictly)
 
 {objective_guide}
 
-## 나머지 항목 작성 지침
+## Guide for the Remaining Fields
 
-나머지 항목들도 Project Context에서 논리적으로 파생되어야 합니다.
+The remaining fields must also be derived logically from the Project Context.
 
-## 출력 형식
+## Output Format
 
-Return ONLY a valid JSON object with these exact keys (all values as strings in Korean):
+Return ONLY a valid JSON object with these exact keys. Every string value
+MUST be written in **{output_lang}**.
 {{
-  "objectiveCommercial": "위 Objective 가이드의 Commercial 지침에 따라 1~2개 항목을 작성. 각 항목은 '~하는 것입니다' 형태의 완결된 문장.",
-  "objectiveBehavior": "위 Objective 가이드의 Behavior 지침에 따라 1~2개 항목을 작성. 타깃의 동기를 반영한 완결된 문장.",
-  "objectiveAttitudinal": "위 Objective 가이드의 Attitudinal 지침에 따라 1~2개 항목을 작성. Context의 고유 키워드를 활용한 완결된 문장.",
-  "audience": "Primary/Secondary 타겟을 Project Context의 제품/시장에 맞춰 구체적으로 정의 — 인구통계, 라이프스타일, 구매 행동, 페인 포인트 포함",
-  "keyMessage": "Project Context의 핵심 가치를 소비자 관점의 Benefit으로 변환한 1-2문장 (기능 나열 아닌 감정적 가치, Life's Good 연결)",
-  "proofPoints": "Key Message 뒷받침 근거 1~3개 — Project Context에서 언급된 기술적 우위, 수상, 실적 등을 구체적 출처와 함께 서술",
-  "mandatories": "Project Context의 시장/채널 특성에 맞는 매체 믹스, 제작물 스펙, 브랜드 가이드라인 준수 사항",
-  "budget": "캠페인 규모에 적합한 총 예산 및 매체별 배분 비중 제안",
-  "marketNeeds": "Project Context에서 파악한 타겟 국가/지역, 언어 variation, 문화적 고려사항, 현지 경쟁 환경",
-  "timing": "Project Context의 런칭/시즌 정보에 맞춘 집행 기간, 페이즈 구분 (티징→런칭→서스테인), 제작 마감일"
+  "objectiveCommercial": "1-2 items per the Commercial guide above; each a complete sentence grounded in the Project Context.",
+  "objectiveBehavior": "1-2 items per the Behavior guide above; each a complete sentence reflecting target motivation.",
+  "objectiveAttitudinal": "1-2 items per the Attitudinal guide above; each a complete sentence that leverages Context-specific keywords.",
+  "audience": "Define Primary/Secondary targets concretely for the product/market in Project Context — include demographics, lifestyle, purchase behavior, pain points.",
+  "keyMessage": "1-2 sentences that translate the Project Context's core value into a consumer benefit (not feature listing; emotional value tied to Life's Good).",
+  "proofPoints": "1-3 supporting evidence items for the Key Message — technical advantages, awards, results from the Project Context with specific sources.",
+  "mandatories": "Media mix, asset specs, and brand guideline requirements appropriate to the market/channel characteristics in Project Context.",
+  "budget": "Suggested total budget and media-mix allocation matching the campaign scale.",
+  "marketNeeds": "Target countries/regions, language variations, cultural considerations, and local competitive landscape inferred from Project Context.",
+  "timing": "Campaign run dates and phase breakdown (Teasing → Launch → Sustain) aligned with Project Context's launch/season info."
 }}
 
-IMPORTANT: Every field must logically connect back to the Project Context. Do not generate generic content — make it specific to THIS project."""
+IMPORTANT:
+- Every field must logically connect back to the Project Context. Do not generate generic content — make it specific to THIS project.
+- Regardless of the language used in the Project Context, Project Name, or guide above, the JSON values MUST be in {output_lang}."""
 
     try:
         parser = JsonOutputParser()
         messages = [
             SystemMessage(content=brief_guide),
-            HumanMessage(content=f"프로젝트명: {request.projectName}\n\nProject Context:\n{request.projectContext}\n\n위 프로젝트의 배경과 맥락을 바탕으로, 나머지 브리프 항목을 JSON으로 작성해 주세요."),
+            HumanMessage(
+                content=(
+                    f"Project Name: {request.projectName}\n\n"
+                    f"Project Context:\n{request.projectContext}\n\n"
+                    f"Based on the project background and context above, write the remaining "
+                    f"brief fields as a JSON object. "
+                    f"Every string value MUST be in {output_lang} regardless of the input language."
+                )
+            ),
         ]
         response = await llm.ainvoke(messages)
         data = parser.parse(response.content)
@@ -798,6 +846,8 @@ async def submit_review(request: ReviewRequest):
                             "analysis_context": request.analysisReport,
                             "strategic_message": request.strategicMessage,
                             "country_code": copy_entry.get("countryCode", ""),
+                            # 리뷰 출력 언어 — 스킬 러너가 LLM 응답 언어를 강제하는 데 사용
+                            "output_locale": request.locale or "ko",
                         }
                         tasks.append(_wrapped(skill_id, skill_type, copy_key, copy_text, context, prompt_template))
                         total_tasks += 1

@@ -1,5 +1,6 @@
 import { CSSProperties, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/shared/ui/button'
 import { apiClient } from '@/shared/api/client'
@@ -9,6 +10,7 @@ import type { LoginResponse, UserInfo } from '@/shared/api/types'
 export function LoginPage() {
   const navigate = useNavigate()
   const setUser = useAuthStore((s) => s.setUser)
+  const { t } = useTranslation()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -34,11 +36,11 @@ export function LoginPage() {
       navigate('/', { replace: true })
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : '로그인에 실패했습니다.'
+        err instanceof Error ? err.message : t('auth:error.loginFailed')
       if (msg.includes('401')) {
-        setError('사번(ID) 또는 비밀번호가 올바르지 않습니다.')
+        setError(t('auth:error.credentialsInvalid'))
       } else if (msg.includes('503')) {
-        setError('인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+        setError(t('auth:error.serverUnavailable'))
       } else {
         setError(msg)
       }
@@ -61,13 +63,13 @@ export function LoginPage() {
 
         <div style={{ display: 'grid', gap: 14 }}>
           <div>
-            <label style={labelStyle}>ID (메일 아이디)</label>
+            <label style={labelStyle}>{t('auth:label.employeeId')}</label>
             <input
               className="input"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="@lge.com 를 제외한 ID 입력"
+              placeholder={t('auth:placeholder.employeeId')}
               autoFocus
               autoComplete="username"
               disabled={loading}
@@ -75,13 +77,13 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>비밀번호</label>
+            <label style={labelStyle}>{t('auth:label.password')}</label>
             <input
               className="input"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="LDAP 비밀번호"
+              placeholder={t('auth:placeholder.ldapPassword')}
               autoComplete="current-password"
               disabled={loading}
             />
@@ -98,12 +100,12 @@ export function LoginPage() {
             disabled={loading || !username.trim() || !password}
             style={{ width: '100%', padding: '12px', fontSize: 15 }}
           >
-            {loading ? '로그인 중…' : '로그인'}
+            {loading ? t('auth:button.signingIn') : t('auth:button.signIn')}
           </Button>
         </div>
 
         <p style={{ fontSize: 11, color: 'var(--neutral-500)', textAlign: 'center', marginTop: 20 }}>
-          LG 사내 LDAP 계정으로 로그인합니다.
+          {t('auth:notice.ldap')}
         </p>
       </form>
     </div>

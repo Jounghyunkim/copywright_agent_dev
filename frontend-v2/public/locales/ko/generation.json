@@ -1,0 +1,47 @@
+{
+  "heading": "카피 생성 조건",
+  "instruction": "타겟 국가/연령/페르소나를 선택하고 카피 변형 수를 지정하세요.",
+  "section": {
+    "targetCountries": "타겟 국가",
+    "targetAgeGroups": "타겟 연령대",
+    "targetPersonas": "타겟 페르소나",
+    "writerPersona": "AI 작가 페르소나 (선택)"
+  },
+  "autoSelect": "Audience 기반 자동 선택",
+  "button": {
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 해제",
+    "deselect": "선택 해제",
+    "generate": "카피 생성 →",
+    "generating": "생성 중…"
+  },
+  "variantCount": "변형 수",
+  "validation": "국가/연령/페르소나를 각각 1개 이상 선택해 주세요.",
+  "writerIntro": {
+    "kicker": "AI 작가 페르소나",
+    "introLabel": "소개",
+    "styleLabel": "문체 특징"
+  },
+  "persona": {
+    "techEnthusiast": {
+      "label": "Tech Enthusiast",
+      "desc": "최신 기술에 민감한 얼리어답터"
+    },
+    "premiumLifestyle": {
+      "label": "Premium Lifestyle",
+      "desc": "프리미엄 라이프스타일 지향"
+    },
+    "valueSeeker": {
+      "label": "Value Seeker",
+      "desc": "가성비를 중시하는 합리적 소비자"
+    },
+    "familyFirst": {
+      "label": "Family First",
+      "desc": "가족 중심의 실용적 소비자"
+    },
+    "ecoConscious": {
+      "label": "Eco Conscious",
+      "desc": "환경과 지속가능성에 관심"
+    }
+  }
+}

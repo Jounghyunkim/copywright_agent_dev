@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
+import i18n from 'i18next'
 
 import { apiClient, readSSE } from '@/shared/api/client'
 import type {
@@ -56,10 +57,16 @@ export function useRunReviewSSE() {
       abortRef.current = new AbortController()
       const results: ReviewResult[] = []
 
+      // 현재 UI 로케일을 자동 주입 — 호출자가 명시하면 그 값을 우선
+      const bodyWithLocale: ReviewRequest = {
+        ...body,
+        locale: body.locale ?? i18n.language ?? 'ko',
+      }
+
       try {
         await readSSE(
           '/api/v1/campaigns/review',
-          body,
+          bodyWithLocale,
           (event) => {
             const type = event.type as string
             if (type === 'review_started') {

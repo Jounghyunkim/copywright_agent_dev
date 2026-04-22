@@ -13,6 +13,30 @@ from .rate_limit import invoke_llm
 _loader = SkillLoader()
 
 
+# 로케일 코드 → LLM에 전달할 언어 이름 (자연어). 사용자가 설정한 UI 언어로
+# strengths/weaknesses/improvements 를 출력하도록 강제한다.
+_LOCALE_LANGUAGE_NAME = {
+    "ko": "Korean (한국어)",
+    "en": "English",
+    "de": "German (Deutsch)",
+    "fr": "French (Français)",
+    "es": "Spanish (Español)",
+    "zh-CN": "Simplified Chinese (简体中文)",
+    "zh": "Simplified Chinese (简体中文)",
+    "ar": "Arabic (العربية)",
+    "th": "Thai (ไทย)",
+}
+
+
+def _language_name(locale: str) -> str:
+    if not locale:
+        return _LOCALE_LANGUAGE_NAME["ko"]
+    if locale in _LOCALE_LANGUAGE_NAME:
+        return _LOCALE_LANGUAGE_NAME[locale]
+    base = locale.split("-")[0]
+    return _LOCALE_LANGUAGE_NAME.get(base, _LOCALE_LANGUAGE_NAME["en"])
+
+
 async def run_skillmd_review(skill_name: str, copy_text: str, context: dict) -> dict:
     """SKILL.md 스킬로 카피 리뷰 실행
 
@@ -46,23 +70,33 @@ async def run_skillmd_review(skill_name: str, copy_text: str, context: dict) -> 
     if context.get("language"):
         context_info += f" ({context['language']})"
 
-    system_prompt = f"""당신은 LG Electronics 광고 카피 품질 검토 전문가입니다.
-아래 스킬 지침에 따라 주어진 카피를 평가하세요.
+    output_lang = _language_name(context.get("output_locale") or "ko")
+
+    system_prompt = f"""You are an LG Electronics advertising copy quality reviewer.
+Evaluate the provided copy according to the skill instructions below.
 
 ## Skill: {skill_name}
 {skill_body}
 {context_info}
 
-## 평가 결과 형식
-반드시 아래 JSON 형식으로만 응답하세요:
+## Output Format (strict)
+Respond ONLY with a single JSON object of this shape:
 {{
   "passed": true/false,
   "score": 0-100,
-  "strengths": ["강점 설명 (한국어)"],
-  "weaknesses": ["약점 설명 (한국어)"],
-  "improvements": ["구체적 수정 제안 (한국어)"]
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "improvements": ["..."]
 }}
-strengths, weaknesses, improvements는 한국어 문자열 배열입니다. 해당 항목이 없으면 빈 배열 []."""
+
+## Output Language (MANDATORY)
+- Write every element of `strengths`, `weaknesses`, `improvements`
+  in **{output_lang}** only.
+- Do NOT mix other languages. If the value would otherwise be in Korean
+  or English, translate it to {output_lang}.
+- Keep brand names (LG, ThinQ, Life's Good, OLED, gram) and technical
+  identifiers untranslated.
+- If an array has no content, return []."""
 
     llm = AzureChatOpenAI(
         azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),

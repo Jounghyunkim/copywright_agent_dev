@@ -1,6 +1,6 @@
 ---
 name: writer-solmi
-description: LG전자 글로벌 헤드 카피라이터 문체
+description: Heritage
 action_tags:
 - generation
 role_tags:

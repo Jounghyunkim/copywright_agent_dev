@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -7,6 +8,43 @@ import type { CopyDiagnostic, CopyItem, CopyResult, SelectedCopy } from '@/share
 
 import { countryMeta } from './constants'
 import { type TranslatedCopy, useTranslateCopy } from './use-translate'
+
+/**
+ * ISO 국가코드 → 기본 언어 코드 매핑.
+ * 해당 국가의 카피가 이미 사용자 UI 언어와 동일한 언어로 생성됐는지 판정할 때 사용.
+ */
+const COUNTRY_TO_LANG: Record<string, string> = {
+  KR: 'ko',
+  US: 'en',
+  GB: 'en',
+  AU: 'en',
+  CA: 'en',
+  IN: 'en',
+  DE: 'de',
+  FR: 'fr',
+  IT: 'it',
+  ES: 'es',
+  MX: 'es',
+  BR: 'pt',
+  JP: 'ja',
+  CN: 'zh',
+  ID: 'id',
+  TH: 'th',
+  SA: 'ar',
+  NL: 'nl',
+  SE: 'sv',
+  PL: 'pl',
+}
+
+function baseLang(locale: string): string {
+  return (locale || '').toLowerCase().split('-')[0]
+}
+
+function countryMatchesLocale(countryCode: string, locale: string): boolean {
+  const countryLang = COUNTRY_TO_LANG[countryCode]
+  if (!countryLang) return false
+  return countryLang === baseLang(locale)
+}
 
 interface Props {
   /** 서버가 반환한 국가별 카피 결과 */
@@ -20,6 +58,8 @@ interface Props {
 }
 
 export function CopyResults({ results, diagnostics, onProceed, readOnly = false }: Props) {
+  const { t, i18n } = useTranslation()
+  const currentLocale = i18n.language || 'ko'
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
 
@@ -30,16 +70,17 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
     setExpanded(new Set(results.map((r) => r.countryCode)))
   }, [results])
 
-  // 비한국어 카피에 대해 자동 번역 트리거
+  // 국가 카피 언어가 현재 UI 언어와 다르면 자동 번역 트리거.
+  // currentLocale 의존성으로 언어 전환 시 재번역이 호출된다.
   useEffect(() => {
     for (const result of results) {
-      if (result.countryCode === 'KR') continue
+      if (countryMatchesLocale(result.countryCode, currentLocale)) continue
       result.copies.forEach((copy, idx) => {
         const key = `${result.countryCode}-${idx}`
         translate(key, copy)
       })
     }
-  }, [results, translate])
+  }, [results, translate, currentLocale])
 
   const toggleCountry = (code: string) => {
     setExpanded((prev) => {
@@ -104,10 +145,12 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
           }}
         >
           <span style={{ color: 'var(--lg-red-600)' }}>✎</span>
-          Copy Results ({results.length}개 국가 · {totalCopies}개 카피)
+          {t('copy-results:heading', { countries: results.length, copies: totalCopies })}
         </h3>
         {!readOnly && selectedKeys.size > 0 && (
-          <Badge tone="primary">선택 {selectedKeys.size}개</Badge>
+          <Badge tone="primary">
+            {t('copy-results:selectedCount', { count: selectedKeys.size })}
+          </Badge>
         )}
       </div>
 
@@ -129,7 +172,7 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                 <Badge tone="primary">{meta.lang}</Badge>
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-                  {result.copies.length}개 변형
+                  {t('copy-results:variantCount', { count: result.copies.length })}
                 </span>
                 <span style={{ color: 'var(--neutral-500)', fontSize: 12 }}>
                   {isOpen ? '▾' : '▸'}
@@ -140,9 +183,9 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                   {result.copies.map((copy, idx) => {
                     const key = `${result.countryCode}-${idx}`
                     const isSelected = selectedKeys.has(key)
-                    const isKr = result.countryCode === 'KR'
-                    const tr = isKr ? undefined : translations.get(key)
-                    const loading = isKr ? false : pending.has(key)
+                    const sameAsUi = countryMatchesLocale(result.countryCode, currentLocale)
+                    const tr = sameAsUi ? undefined : translations.get(key)
+                    const loading = sameAsUi ? false : pending.has(key)
                     const diag = diagnostics?.[countryIdx]?.[idx]
                     return (
                       <div
@@ -150,7 +193,9 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                         style={variantCardStyle(isSelected && !readOnly)}
                       >
                         <div style={variantHeaderStyle}>
-                          <span style={variantNoStyle}>변형 {idx + 1}</span>
+                          <span style={variantNoStyle}>
+                            {t('copy-results:variant', { index: idx + 1 })}
+                          </span>
                           <div style={{ flex: 1 }} />
                           {!readOnly && (
                             <label
@@ -170,9 +215,9 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
                                 onChange={() =>
                                   toggleSelect(result.countryCode, idx)
                                 }
-                                aria-label={`변형 ${idx + 1} 선택`}
+                                aria-label={t('copy-results:selectVariantAria', { index: idx + 1 })}
                               />
-                              선택
+                              {t('copy-results:select')}
                             </label>
                           )}
                         </div>
@@ -207,7 +252,7 @@ export function CopyResults({ results, diagnostics, onProceed, readOnly = false 
             onClick={handleProceed}
             disabled={selectedKeys.size === 0}
           >
-            ⑤ 선택 카피 검토
+            {t('copy-results:reviewSelected')}
           </Button>
         </div>
       )}
@@ -228,6 +273,7 @@ function CopyDetail({
   diagnostic?: CopyDiagnostic
   compact?: boolean
 }) {
+  const { t } = useTranslation()
   if (!copy) return null
   const hasWarnings = diagnostic && diagnostic.warnings.length > 0
   return (
@@ -253,9 +299,9 @@ function CopyDetail({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Badge tone="warning">Quality Filter</Badge>
+            <Badge tone="warning">{t('copy-results:qualityFilter')}</Badge>
             <span style={{ fontWeight: 600, color: '#92400e' }}>
-              {diagnostic!.warnings.length}건 감지
+              {t('copy-results:warningsDetected', { count: diagnostic!.warnings.length })}
             </span>
           </div>
           {diagnostic!.warnings.map((w, i) => (
@@ -265,23 +311,23 @@ function CopyDetail({
           ))}
         </div>
       )}
-      <Field label="Headline" value={copy.headline} large={!compact} translation={translation?.headline} />
-      <Field label="Subheadline" value={copy.subheadline} translation={translation?.subheadline} />
-      <Field label="Body Copy" value={copy.bodyCopy} multiline translation={translation?.bodyCopy} />
-      <Field label="CTA" value={copy.cta} translation={translation?.cta} />
+      <Field label={t('copy-results:field.headline')} value={copy.headline} large={!compact} translation={translation?.headline} />
+      <Field label={t('copy-results:field.subheadline')} value={copy.subheadline} translation={translation?.subheadline} />
+      <Field label={t('copy-results:field.bodyCopy')} value={copy.bodyCopy} multiline translation={translation?.bodyCopy} />
+      <Field label={t('copy-results:field.cta')} value={copy.cta} translation={translation?.cta} />
       {isTranslating && (
         <p style={{ fontSize: 12, color: 'var(--neutral-500)', fontStyle: 'italic' }}>
-          한국어 번역 중…
+          {t('copy-results:translating')}
         </p>
       )}
       {copy.methodology && (
-        <Field label="Methodology" value={copy.methodology} muted />
+        <Field label={t('copy-results:field.methodology')} value={copy.methodology} muted />
       )}
       {copy.culturalNotes && (
-        <Field label="Cultural Notes" value={copy.culturalNotes} muted />
+        <Field label={t('copy-results:field.culturalNotes')} value={copy.culturalNotes} muted />
       )}
       {copy.toneAnalysis && (
-        <Field label="Tone Analysis" value={copy.toneAnalysis} muted />
+        <Field label={t('copy-results:field.toneAnalysis')} value={copy.toneAnalysis} muted />
       )}
     </div>
   )

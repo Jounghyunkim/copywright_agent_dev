@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { apiClient } from '@/shared/api/client'
 import type { CopyItem } from '@/shared/api/types'
@@ -10,13 +11,35 @@ export interface TranslatedCopy {
   cta: string
 }
 
+/** 로케일 코드 → LLM 프롬프트에 전달할 자연어 언어 이름. */
+const LOCALE_NAME: Record<string, string> = {
+  ko: 'Korean (한국어)',
+  en: 'English',
+  de: 'German (Deutsch)',
+  fr: 'French (Français)',
+  es: 'Spanish (Español)',
+  'zh-CN': 'Simplified Chinese (简体中文)',
+  zh: 'Simplified Chinese (简体中文)',
+  ar: 'Arabic (العربية)',
+  th: 'Thai (ไทย)',
+}
+
+function resolveLanguageName(lng: string): string {
+  if (LOCALE_NAME[lng]) return LOCALE_NAME[lng]
+  const base = lng.split('-')[0]
+  return LOCALE_NAME[base] ?? LOCALE_NAME.en
+}
+
 /**
- * 카피를 한국어로 번역하는 훅.
+ * 비-UI언어 카피를 현재 UI 로케일로 번역하는 훅.
  * - /api/v1/campaigns/chat 엔드포인트를 활용
- * - 결과를 copyKey 기반으로 캐시
- * - KR 국가는 번역 생략
+ * - 결과를 `${copyKey}::${locale}` 기반으로 캐시 (언어 전환 시 재번역)
+ * - 카피 언어와 UI 언어가 동일할 것으로 추정되면 번역 생략 (countryCode로 판정)
  */
 export function useTranslateCopy() {
+  const { i18n } = useTranslation()
+  const currentLocale = i18n.language || 'ko'
+
   const [translations, setTranslations] = useState<
     Map<string, TranslatedCopy>
   >(new Map())
@@ -25,9 +48,10 @@ export function useTranslateCopy() {
 
   const translate = useCallback(
     async (copyKey: string, copy: CopyItem) => {
-      // 이미 번역됨 또는 요청 중이면 스킵
-      if (requestedRef.current.has(copyKey)) return
-      requestedRef.current.add(copyKey)
+      // 언어가 바뀐 경우 재요청될 수 있도록 로케일을 키에 포함
+      const requestKey = `${copyKey}::${currentLocale}`
+      if (requestedRef.current.has(requestKey)) return
+      requestedRef.current.add(requestKey)
 
       setPending((prev) => new Set(prev).add(copyKey))
 
@@ -40,6 +64,8 @@ export function useTranslateCopy() {
         .filter(Boolean)
         .join('\n')
 
+      const targetLanguage = resolveLanguageName(currentLocale)
+
       try {
         const res = await apiClient.post<{ reply: string }>(
           '/api/v1/campaigns/chat',
@@ -47,9 +73,15 @@ export function useTranslateCopy() {
             messages: [
               {
                 role: 'user',
-                content: `다음 마케팅 카피를 한국어로 번역해 주세요. 의미와 뉘앙스를 살려 자연스럽게 번역하되, 각 필드(Headline, Subheadline, Body Copy, CTA)를 그대로 유지하여 동일한 형식으로 출력해 주세요. 설명 없이 번역 결과만 출력하세요.\n\n${text}`,
+                content:
+                  `Translate the following marketing copy into **${targetLanguage}**. ` +
+                  `Preserve meaning and nuance naturally. Keep each field label ` +
+                  `(Headline, Subheadline, Body Copy, CTA) in the same format. ` +
+                  `Keep brand assets (LG, ThinQ, Life's Good, OLED, gram) untranslated. ` +
+                  `Respond with ONLY the translated lines, no explanation.\n\n${text}`,
               },
             ],
+            locale: currentLocale,
           },
         )
 
@@ -59,7 +91,7 @@ export function useTranslateCopy() {
         setTranslations((prev) => new Map(prev).set(copyKey, parsed))
       } catch (err) {
         console.error('[useTranslateCopy] failed', err)
-        requestedRef.current.delete(copyKey)
+        requestedRef.current.delete(requestKey)
       } finally {
         setPending((prev) => {
           const next = new Set(prev)
@@ -68,7 +100,7 @@ export function useTranslateCopy() {
         })
       }
     },
-    [],
+    [currentLocale],
   )
 
   return { translations, pending, translate }

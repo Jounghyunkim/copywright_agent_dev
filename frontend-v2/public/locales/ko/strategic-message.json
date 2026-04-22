@@ -1,0 +1,11 @@
+{
+  "trigger": {
+    "extracting": "Copywriting Strategy를 추출 중입니다…",
+    "heading": "다음 단계: Copywriting Strategy 추출",
+    "description": "승인된 Market Analyst Report를 바탕으로 Core Message, Message Pillars, Emotional Hook, Tone Direction, Key Phrases 를 도출합니다.",
+    "start": "전략 추출 시작 →"
+  },
+  "view": {
+    "approve": "④ 카피 후보 생성"
+  }
+}

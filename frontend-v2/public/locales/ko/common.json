@@ -1,0 +1,72 @@
+{
+  "button": {
+    "save": "저장",
+    "saving": "저장 중…",
+    "saveAndExit": "저장 및 종료",
+    "update": "업데이트",
+    "delete": "삭제",
+    "remove": "제거",
+    "add": "추가",
+    "confirm": "확인",
+    "cancel": "취소",
+    "close": "닫기",
+    "retry": "다시 시도",
+    "reset": "초기화",
+    "edit": "편집",
+    "detail": "상세",
+    "logout": "로그아웃",
+    "open": "열기",
+    "send": "전송",
+    "upload": "업로드",
+    "uploading": "업로드 중…",
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 해제",
+    "clearCache": "캐시 초기화",
+    "previousStep": "← 이전 단계",
+    "nextStep": "다음 단계",
+    "clearAll": "전체 해제"
+  },
+  "link": {
+    "viewAll": "전체 보기 →"
+  },
+  "status": {
+    "completed": "완료",
+    "inProgress": "진행 중",
+    "failed": "실패",
+    "stepOfTotal": "{{current}}/{{total}}"
+  },
+  "loading": "로드 중…",
+  "searching": "검색 중…",
+  "processing": "처리 중…",
+  "translating": "한국어 번역 중…",
+  "noData": "데이터가 없습니다.",
+  "noResults": "검색 결과가 없습니다.",
+  "charCount": "{{count}}자",
+  "authenticating": "인증 확인 중…",
+  "category": "카테고리",
+  "title": "제목",
+  "password": "비밀번호",
+  "admin": "관리자",
+  "tooltip": {
+    "settingsMenu": "설정 메뉴",
+    "sidebarExpand": "사이드바 펼치기",
+    "sidebarCollapse": "사이드바 접기",
+    "guide": "가이드 보기",
+    "help": "클릭하면 AI 어시스턴트가 설명합니다",
+    "expandCollapse": "펼치기 / 접기",
+    "attachFiles": "파일 첨부 (문서: txt·md·csv·json·pdf·docx·xlsx / 이미지: png·jpg·gif·webp)",
+    "fileTruncated": "일부만 전달됨 (내용이 길어 잘림)",
+    "dragToResize": "드래그하여 너비 조정"
+  },
+  "toast": {
+    "serverOffline": {
+      "title": "서버 연결 끊김",
+      "description": "백엔드(:5000) 응답이 없습니다. 데이터가 자동 갱신되지 않을 수 있습니다."
+    }
+  },
+  "error": {
+    "saveFailed": "저장에 실패했습니다.",
+    "deleteFailed": "삭제에 실패했습니다.",
+    "loadFailed": "불러오지 못했습니다."
+  }
+}

@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Modal } from '@/shared/ui/modal'
 import { Button } from '@/shared/ui/button'
@@ -32,6 +33,7 @@ export function SkillEditorModal({
   initialDraft,
   onSaved,
 }: Props) {
+  const { t } = useTranslation(['skills', 'common'])
   const isEdit = !!skill
   const createSkill = useCreateSkill()
   const updateSkill = useUpdateSkill()
@@ -108,9 +110,7 @@ export function SkillEditorModal({
   const handleSubmit = async () => {
     const schema = parseSchema()
     if (schema === 'error') {
-      setJsonError(
-        'Output Schema가 올바른 JSON 객체가 아닙니다.',
-      )
+      setJsonError(t('skills:editor.error.invalidSchema'))
       return
     }
     setJsonError(null)
@@ -142,7 +142,7 @@ export function SkillEditorModal({
       onClose()
     } catch (err) {
       console.error('[SkillEditorModal] save failed', err)
-      alert('저장에 실패했습니다. ID가 중복되지 않는지 확인해 주세요.')
+      alert(t('skills:editor.error.saveFailed'))
     }
   }
 
@@ -150,13 +150,13 @@ export function SkillEditorModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? '스킬 편집' : '새 스킬'}
+      title={isEdit ? t('skills:editor.titleEdit') : t('skills:editor.titleNew')}
       width={680}
     >
       <div style={{ display: 'grid', gap: 12 }}>
         <div>
           <FieldLabel>
-            ID{' '}
+            {t('skills:editor.idLabel')}{' '}
             <span style={{ color: 'var(--lg-red-600)' }}>*</span>{' '}
             <span
               style={{
@@ -165,7 +165,7 @@ export function SkillEditorModal({
                 color: 'var(--neutral-500)',
               }}
             >
-              (kebab-case, 3자 이상, 저장 후 변경 불가)
+              {t('skills:editor.idHint')}
             </span>
           </FieldLabel>
           <input
@@ -180,7 +180,7 @@ export function SkillEditorModal({
                   .replace(/-+/g, '-'),
               )
             }
-            placeholder="promo-legal-check"
+            placeholder={t('skills:editor.idPlaceholder')}
             style={{
               fontFamily: 'JetBrains Mono, monospace',
             }}
@@ -189,32 +189,34 @@ export function SkillEditorModal({
 
         <div>
           <FieldLabel>
-            라벨 <span style={{ color: 'var(--lg-red-600)' }}>*</span>
+            {t('skills:editor.labelLabel')}{' '}
+            <span style={{ color: 'var(--lg-red-600)' }}>*</span>
           </FieldLabel>
           <input
             className="input"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="예: 프로모션 법률 검증"
+            placeholder={t('skills:editor.labelPlaceholder')}
           />
         </div>
 
         <div>
           <FieldLabel>
-            설명 <span style={{ color: 'var(--lg-red-600)' }}>*</span>
+            {t('skills:editor.descriptionLabel')}{' '}
+            <span style={{ color: 'var(--lg-red-600)' }}>*</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="이 스킬이 무엇을 하는지 간결히 설명"
+            placeholder={t('skills:editor.descriptionPlaceholder')}
             rows={3}
             style={{ minHeight: 80 }}
           />
         </div>
 
         <div>
-          <FieldLabel>카테고리</FieldLabel>
+          <FieldLabel>{t('skills:editor.categoryLabel')}</FieldLabel>
           <select
             className="select"
             value={category}
@@ -230,14 +232,16 @@ export function SkillEditorModal({
 
         <div>
           <FieldLabel>
-            Prompt Template{' '}
+            {t('skills:editor.promptLabel')}{' '}
             <span style={{ color: 'var(--lg-red-600)' }}>*</span>
           </FieldLabel>
           <textarea
             className="textarea"
             value={promptTemplate}
             onChange={(e) => setPromptTemplate(e.target.value)}
-            placeholder="LLM에 전달될 프롬프트 템플릿. {{copy}} 등 변수 사용 가능."
+            placeholder={t('skills:editor.promptPlaceholder', {
+              copy: '{{copy}}',
+            })}
             style={{
               minHeight: 160,
               fontFamily: 'JetBrains Mono, monospace',
@@ -247,7 +251,7 @@ export function SkillEditorModal({
         </div>
 
         <div>
-          <FieldLabel>Output Schema (JSON, 선택)</FieldLabel>
+          <FieldLabel>{t('skills:editor.outputSchemaLabel')}</FieldLabel>
           <textarea
             className="textarea"
             value={outputSchemaText}
@@ -286,17 +290,21 @@ export function SkillEditorModal({
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            <span>활성화</span>
+            <span>{t('skills:editor.activateLabel')}</span>
           </label>
         )}
       </div>
 
       <div style={footerRow}>
         <Button variant="ghost" onClick={onClose}>
-          취소
+          {t('common:button.cancel')}
         </Button>
         <Button onClick={handleSubmit} disabled={!canSubmit || busy}>
-          {busy ? '저장 중…' : isEdit ? '업데이트' : '저장'}
+          {busy
+            ? t('common:button.saving')
+            : isEdit
+              ? t('common:button.update')
+              : t('common:button.save')}
         </Button>
       </div>
     </Modal>

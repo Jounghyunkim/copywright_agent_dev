@@ -1,0 +1,47 @@
+{
+  "heading": "Generation Settings",
+  "instruction": "Choose target countries, age groups, and personas, then set the number of copy variants.",
+  "section": {
+    "targetCountries": "Target Countries",
+    "targetAgeGroups": "Target Age Groups",
+    "targetPersonas": "Target Personas",
+    "writerPersona": "AI Writer Persona (optional)"
+  },
+  "autoSelect": "Auto-selected from audience",
+  "button": {
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "deselect": "Clear",
+    "generate": "Generate copy →",
+    "generating": "Generating…"
+  },
+  "variantCount": "Variants",
+  "validation": "Select at least one country, age group, and persona.",
+  "writerIntro": {
+    "kicker": "AI Writer Persona",
+    "introLabel": "About",
+    "styleLabel": "Style traits"
+  },
+  "persona": {
+    "techEnthusiast": {
+      "label": "Tech Enthusiast",
+      "desc": "Early adopter attuned to the latest technology"
+    },
+    "premiumLifestyle": {
+      "label": "Premium Lifestyle",
+      "desc": "Oriented toward premium lifestyle"
+    },
+    "valueSeeker": {
+      "label": "Value Seeker",
+      "desc": "Rational shopper focused on value for money"
+    },
+    "familyFirst": {
+      "label": "Family First",
+      "desc": "Practical, family-centered buyer"
+    },
+    "ecoConscious": {
+      "label": "Eco Conscious",
+      "desc": "Cares about environment and sustainability"
+    }
+  }
+}

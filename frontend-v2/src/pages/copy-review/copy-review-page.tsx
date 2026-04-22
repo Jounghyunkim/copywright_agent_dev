@@ -1,5 +1,6 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -31,18 +32,18 @@ import type {
   SelectedCopy,
 } from '@/shared/api/types'
 
-const STEPS = [
-  { step: 1, label: '카피 입력' },
-  { step: 2, label: '검토' },
+const STEPS: { step: 1 | 2; i18nKey: string }[] = [
+  { step: 1, i18nKey: 'copy-review:step.input' },
+  { step: 2, i18nKey: 'copy-review:step.review' },
 ]
 
 type CampaignIntent = 'branding' | 'promotion' | 'performance' | 'launch'
 
-const INTENT_OPTIONS: { value: CampaignIntent; label: string; hint: string }[] = [
-  { value: 'branding', label: '브랜딩', hint: '브랜드 인지도·선호도 강화' },
-  { value: 'promotion', label: '프로모션', hint: '세일·이벤트·할인 소구' },
-  { value: 'performance', label: '퍼포먼스', hint: '전환율·퍼포먼스 최적화' },
-  { value: 'launch', label: '신제품 론칭', hint: '신제품 출시·론칭 커뮤니케이션' },
+const INTENT_OPTIONS: { value: CampaignIntent; i18nKey: string }[] = [
+  { value: 'branding', i18nKey: 'copy-review:intent.branding' },
+  { value: 'promotion', i18nKey: 'copy-review:intent.promotion' },
+  { value: 'performance', i18nKey: 'copy-review:intent.performance' },
+  { value: 'launch', i18nKey: 'copy-review:intent.launch' },
 ]
 
 interface ReviewContext {
@@ -85,53 +86,65 @@ function newEntry(): CopyEntry {
   return { ...EMPTY_ENTRY, id: `entry-${++entrySeq}` }
 }
 
-const INTENT_TO_OBJECTIVES: Record<
+// 객체별 i18n 키. 빈 문자열은 해당 카테고리가 비어있음을 의미.
+const INTENT_TO_OBJECTIVE_KEYS: Record<
   CampaignIntent,
   { commercial: string; behavior: string; attitudinal: string }
 > = {
   branding: {
     commercial: '',
-    behavior: '브랜드 검색·재방문 유도',
-    attitudinal: '브랜드 인지도·호감도 강화',
+    behavior: 'copy-review:brief.objective.brandingBehavior',
+    attitudinal: 'copy-review:brief.objective.brandingAttitudinal',
   },
   promotion: {
-    commercial: '프로모션 매출/참여 증대',
-    behavior: '세일 기간 내 구매 전환',
+    commercial: 'copy-review:brief.objective.promotionCommercial',
+    behavior: 'copy-review:brief.objective.promotionBehavior',
     attitudinal: '',
   },
   performance: {
-    commercial: '전환율·ROAS 개선',
-    behavior: '클릭·가입·구매 전환',
+    commercial: 'copy-review:brief.objective.performanceCommercial',
+    behavior: 'copy-review:brief.objective.performanceBehavior',
     attitudinal: '',
   },
   launch: {
-    commercial: '신제품 초기 매출 확보',
-    behavior: '신제품 체험·사전예약',
-    attitudinal: '신제품 인지·기대감 형성',
+    commercial: 'copy-review:brief.objective.launchCommercial',
+    behavior: 'copy-review:brief.objective.launchBehavior',
+    attitudinal: 'copy-review:brief.objective.launchAttitudinal',
   },
 }
 
+type TFn = (key: string, opts?: Record<string, unknown>) => string
+
 /** ReviewContext + 첫 카피로 brief를 생성. intent/productCategory/originalCopy는 별도 필드로 주입. */
-function buildReviewBrief(copies: CopyResult[], ctx: ReviewContext) {
+function buildReviewBrief(copies: CopyResult[], ctx: ReviewContext, t: TFn) {
   const first = copies[0]?.copies?.[0]
-  const objectives = INTENT_TO_OBJECTIVES[ctx.campaignIntent]
+  const keys = INTENT_TO_OBJECTIVE_KEYS[ctx.campaignIntent]
   const contextLines: string[] = []
-  if (ctx.productCategory) contextLines.push(`제품군: ${ctx.productCategory}`)
-  if (ctx.originalCopy) contextLines.push(`원본/마스터 카피:\n${ctx.originalCopy}`)
-  if (first?.bodyCopy) contextLines.push(`대표 카피 본문:\n${first.bodyCopy}`)
+  if (ctx.productCategory)
+    contextLines.push(
+      t('copy-review:brief.context.productCategoryLine', { value: ctx.productCategory }),
+    )
+  if (ctx.originalCopy)
+    contextLines.push(
+      t('copy-review:brief.context.originalCopyLine', { value: ctx.originalCopy }),
+    )
+  if (first?.bodyCopy)
+    contextLines.push(
+      t('copy-review:brief.context.representativeCopyLine', { value: first.bodyCopy }),
+    )
   if (contextLines.length === 0) {
-    contextLines.push('사용자가 직접 입력한 카피에 대한 스킬 기반 검토')
+    contextLines.push(t('copy-review:brief.context.defaultLine'))
   }
   return {
     projectName:
       ctx.productCategory
-        ? `${ctx.productCategory} 카피 검토`
-        : first?.headline || '카피라이트 검토',
+        ? `${ctx.productCategory} — Copy Review`
+        : first?.headline || 'Copy Review',
     date: new Date().toISOString().slice(0, 10),
     projectContext: contextLines.join('\n\n'),
-    objectiveCommercial: objectives.commercial,
-    objectiveBehavior: objectives.behavior,
-    objectiveAttitudinal: objectives.attitudinal,
+    objectiveCommercial: keys.commercial ? t(keys.commercial) : '',
+    objectiveBehavior: keys.behavior ? t(keys.behavior) : '',
+    objectiveAttitudinal: keys.attitudinal ? t(keys.attitudinal) : '',
     audience: '',
     keyMessage: '',
     proofPoints: '',
@@ -171,6 +184,7 @@ const REVIEW_ONLY_STRATEGY = {
 export function CopyReviewPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { t } = useTranslation()
 
   /* ── URL ?campaignId=xxx → 기존 저장 캠페인 로드 ── */
   const urlCampaignId = searchParams.get('campaignId')
@@ -309,7 +323,7 @@ export function CopyReviewPage() {
   const handleRunReview = async (enabledSkillIds: string[]) => {
     if (localSelectedCopies.length === 0 || enabledSkillIds.length === 0) return
     const results = await runReview.run({
-      brief: buildReviewBrief(localCopyResults, reviewContext),
+      brief: buildReviewBrief(localCopyResults, reviewContext, t),
       analysisReport: REVIEW_ONLY_ANALYSIS as never,
       strategicMessage: REVIEW_ONLY_STRATEGY as never,
       selectedCopies: localSelectedCopies,
@@ -328,7 +342,7 @@ export function CopyReviewPage() {
     const copy = localSelectedCopies.find((c) => c.key === copyKey)
     if (!copy) return []
     return await runReview.run({
-      brief: buildReviewBrief(localCopyResults, reviewContext),
+      brief: buildReviewBrief(localCopyResults, reviewContext, t),
       analysisReport: REVIEW_ONLY_ANALYSIS as never,
       strategicMessage: REVIEW_ONLY_STRATEGY as never,
       selectedCopies: [
@@ -365,7 +379,7 @@ export function CopyReviewPage() {
   const handleBackToInput = () => {
     if (
       !confirm(
-        '입력 단계로 돌아가면 현재 리뷰 결과가 초기화됩니다. 계속하시겠습니까?',
+        t('copy-review:review.backConfirm'),
       )
     )
       return
@@ -402,7 +416,7 @@ export function CopyReviewPage() {
   const handleSaveAndFinish = async () => {
     setReviewCompleted(true)
     const body = {
-      brief: buildReviewBrief(localCopyResults, reviewContext),
+      brief: buildReviewBrief(localCopyResults, reviewContext, t),
       copyResults: localCopyResults,
       reviewSummary,
       reviewResults: localReviewResults,
@@ -417,7 +431,7 @@ export function CopyReviewPage() {
       }
     } catch (err) {
       console.error('[CopyReviewPage] save failed', err)
-      alert('저장에 실패했습니다.')
+      alert(t('copy-review:review.saveFailed'))
     }
     navigate('/')
   }
@@ -433,7 +447,7 @@ export function CopyReviewPage() {
           <Card style={{ padding: '1.2rem' }}>
             <div style={{ marginBottom: 12 }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>
-                캠페인 컨텍스트
+                {t('copy-review:context.heading')}
               </h3>
               <p
                 style={{
@@ -442,16 +456,16 @@ export function CopyReviewPage() {
                   margin: '4px 0 0 0',
                 }}
               >
-                검토 품질을 높이기 위한 공통 맥락. 모든 카피에 함께 반영됩니다.
+                {t('copy-review:context.help')}
               </p>
             </div>
             <div style={{ display: 'grid', gap: 12 }}>
               <div>
                 <FieldLabel>
-                  캠페인 목적{' '}
+                  {t('copy-review:context.intent.label')}{' '}
                   <HelpTip
-                    label="캠페인 목적"
-                    text="이 검토의 목적을 선택하세요. 목적에 따라 리뷰 스킬이 카피를 평가하는 기준(소구 방향, 톤, KPI)이 달라집니다."
+                    label={t('copy-review:context.intent.label')}
+                    text={t('copy-review:context.intent.help')}
                     chatRef={chatRef}
                   />
                 </FieldLabel>
@@ -492,7 +506,7 @@ export function CopyReviewPage() {
                             margin: 0,
                           }}
                         >
-                          {opt.label}
+                          {t(`${opt.i18nKey}.label`)}
                         </p>
                         <p
                           style={{
@@ -501,7 +515,7 @@ export function CopyReviewPage() {
                             margin: '2px 0 0 0',
                           }}
                         >
-                          {opt.hint}
+                          {t(`${opt.i18nKey}.hint`)}
                         </p>
                       </button>
                     )
@@ -510,10 +524,10 @@ export function CopyReviewPage() {
               </div>
               <div>
                 <FieldLabel>
-                  제품군 / 카테고리
+                  {t('copy-review:context.productCategory.label')}
                   <HelpTip
-                    label="제품군"
-                    text="예: TV, 냉장고, 스마트폰, 에어컨 등. 제품군에 따라 규제·문화·클레임 검증 기준이 달라집니다."
+                    label={t('copy-review:context.productCategory.label')}
+                    text={t('copy-review:context.productCategory.help')}
                     chatRef={chatRef}
                   />
                 </FieldLabel>
@@ -525,15 +539,15 @@ export function CopyReviewPage() {
                       productCategory: e.target.value,
                     }))
                   }
-                  placeholder="예: OLED TV, 무선 이어폰"
+                  placeholder={t('copy-review:context.productCategory.placeholder')}
                 />
               </div>
               <div>
                 <FieldLabel>
-                  원본/마스터 카피 (선택)
+                  {t('copy-review:context.originalCopy.label')}
                   <HelpTip
-                    label="원본 카피"
-                    text="현지화 전 영문 마스터 카피 등 기준이 되는 원문이 있다면 입력하세요. 언어 재창작·현지화 검증 스킬이 참조합니다."
+                    label={t('copy-review:context.originalCopy.label')}
+                    text={t('copy-review:context.originalCopy.help')}
                     chatRef={chatRef}
                   />
                 </FieldLabel>
@@ -545,7 +559,7 @@ export function CopyReviewPage() {
                       originalCopy: e.target.value,
                     }))
                   }
-                  placeholder="Global master copy or reference version"
+                  placeholder={t('copy-review:context.originalCopy.placeholder')}
                   style={{ minHeight: 70 }}
                 />
               </div>
@@ -562,16 +576,16 @@ export function CopyReviewPage() {
                   marginBottom: 12,
                 }}
               >
-                <h3 style={{ fontSize: 14, fontWeight: 700 }}>카피 #{idx + 1}</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 700 }}>{t('copy-review:entry.heading', { index: idx + 1 })}</h3>
                 {entries.length > 1 && (
                   <Button variant="ghost" className="btn-compact" onClick={() => removeEntry(entry.id)}>
-                    삭제
+                    {t('copy-review:entry.delete')}
                   </Button>
                 )}
               </div>
               <div style={{ display: 'grid', gap: 10 }}>
                 <div>
-                  <FieldLabel>국가 <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="국가" text="카피가 게재될 대상 국가를 선택하세요. 국가에 따라 언어와 문화적 맥락이 달라집니다." chatRef={chatRef} /></FieldLabel>
+                  <FieldLabel>{t('copy-review:field.country.label')} <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label={t('copy-review:field.country.label')} text={t('copy-review:field.country.help')} chatRef={chatRef} /></FieldLabel>
                   <select className="select" value={entry.countryCode} onChange={(e) => updateEntry(entry.id, { countryCode: e.target.value })}>
                     {COUNTRIES.map((c) => (
                       <option key={c.code} value={c.code}>{c.code} · {c.label} ({c.lang})</option>
@@ -580,40 +594,40 @@ export function CopyReviewPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
-                    <FieldLabel>Headline <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Headline" text="광고의 첫 인상을 결정하는 메인 문구입니다. 짧고 강렬하게 핵심 메시지를 전달하세요." chatRef={chatRef} /></FieldLabel>
-                    <TextInput value={entry.headline} onChange={(e) => updateEntry(entry.id, { headline: e.target.value })} placeholder="메인 헤드라인" />
+                    <FieldLabel>{t('copy-review:field.headline.label')} <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label={t('copy-review:field.headline.label')} text={t('copy-review:field.headline.help')} chatRef={chatRef} /></FieldLabel>
+                    <TextInput value={entry.headline} onChange={(e) => updateEntry(entry.id, { headline: e.target.value })} placeholder={t('copy-review:field.headline.placeholder')} />
                   </div>
                   <div>
-                    <FieldLabel>Subheadline <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Subheadline" text="헤드라인을 보충하는 보조 문구입니다. 추가 설명이나 맥락을 제공합니다." chatRef={chatRef} /></FieldLabel>
-                    <TextInput value={entry.subheadline} onChange={(e) => updateEntry(entry.id, { subheadline: e.target.value })} placeholder="보조 헤드라인" />
+                    <FieldLabel>{t('copy-review:field.subheadline.label')} <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label={t('copy-review:field.subheadline.label')} text={t('copy-review:field.subheadline.help')} chatRef={chatRef} /></FieldLabel>
+                    <TextInput value={entry.subheadline} onChange={(e) => updateEntry(entry.id, { subheadline: e.target.value })} placeholder={t('copy-review:field.subheadline.placeholder')} />
                   </div>
                 </div>
                 <div>
-                  <FieldLabel>Body Copy <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="Body Copy" text="제품이나 캠페인의 상세 내용을 전달하는 본문입니다. 타겟 고객의 관심을 끄는 핵심 정보를 담으세요." chatRef={chatRef} /></FieldLabel>
-                  <TextArea value={entry.bodyCopy} onChange={(e) => updateEntry(entry.id, { bodyCopy: e.target.value })} placeholder="본문 카피" style={{ minHeight: 100 }} />
+                  <FieldLabel>{t('copy-review:field.bodyCopy.label')} <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label={t('copy-review:field.bodyCopy.label')} text={t('copy-review:field.bodyCopy.help')} chatRef={chatRef} /></FieldLabel>
+                  <TextArea value={entry.bodyCopy} onChange={(e) => updateEntry(entry.id, { bodyCopy: e.target.value })} placeholder={t('copy-review:field.bodyCopy.placeholder')} style={{ minHeight: 100 }} />
                 </div>
                 <div>
-                  <FieldLabel>CTA <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label="CTA" text="사용자의 행동을 유도하는 문구입니다. 예: '지금 구매하기', 'Learn More' 등" chatRef={chatRef} /></FieldLabel>
-                  <TextInput value={entry.cta} onChange={(e) => updateEntry(entry.id, { cta: e.target.value })} placeholder="Call to Action" />
+                  <FieldLabel>{t('copy-review:field.cta.label')} <span style={{ color: 'var(--lg-red-600)' }}>*</span><HelpTip label={t('copy-review:field.cta.label')} text={t('copy-review:field.cta.help')} chatRef={chatRef} /></FieldLabel>
+                  <TextInput value={entry.cta} onChange={(e) => updateEntry(entry.id, { cta: e.target.value })} placeholder={t('copy-review:field.cta.placeholder')} />
                 </div>
                 <details style={{ marginTop: 4 }}>
                   <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--neutral-500)', fontWeight: 600 }}>
-                    선택 항목 (Methodology / Cultural Notes / Tone Analysis)
+                    {t('copy-review:field.optionalSection')}
                   </summary>
                   <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-                    <div><FieldLabel>Methodology<HelpTip label="Methodology" text="카피를 작성할 때 사용한 방법론이나 전략입니다. 예: AIDA, PAS, 스토리텔링 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.methodology} onChange={(e) => updateEntry(entry.id, { methodology: e.target.value })} placeholder="카피 작성 방법론 (선택)" /></div>
-                    <div><FieldLabel>Cultural Notes<HelpTip label="Cultural Notes" text="해당 국가나 문화권에서 특별히 고려한 사항입니다. 현지 관습, 금기, 언어적 뉘앙스 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.culturalNotes} onChange={(e) => updateEntry(entry.id, { culturalNotes: e.target.value })} placeholder="문화적 고려사항 (선택)" /></div>
-                    <div><FieldLabel>Tone Analysis<HelpTip label="Tone Analysis" text="카피의 전체적인 톤과 분위기를 설명합니다. 예: 격식체, 유머러스, 감성적, 전문적 등" chatRef={chatRef} /></FieldLabel><TextInput value={entry.toneAnalysis} onChange={(e) => updateEntry(entry.id, { toneAnalysis: e.target.value })} placeholder="톤 분석 (선택)" /></div>
+                    <div><FieldLabel>{t('copy-review:field.methodology.label')}<HelpTip label={t('copy-review:field.methodology.label')} text={t('copy-review:field.methodology.help')} chatRef={chatRef} /></FieldLabel><TextInput value={entry.methodology} onChange={(e) => updateEntry(entry.id, { methodology: e.target.value })} placeholder={t('copy-review:field.methodology.placeholder')} /></div>
+                    <div><FieldLabel>{t('copy-review:field.culturalNotes.label')}<HelpTip label={t('copy-review:field.culturalNotes.label')} text={t('copy-review:field.culturalNotes.help')} chatRef={chatRef} /></FieldLabel><TextInput value={entry.culturalNotes} onChange={(e) => updateEntry(entry.id, { culturalNotes: e.target.value })} placeholder={t('copy-review:field.culturalNotes.placeholder')} /></div>
+                    <div><FieldLabel>{t('copy-review:field.toneAnalysis.label')}<HelpTip label={t('copy-review:field.toneAnalysis.label')} text={t('copy-review:field.toneAnalysis.help')} chatRef={chatRef} /></FieldLabel><TextInput value={entry.toneAnalysis} onChange={(e) => updateEntry(entry.id, { toneAnalysis: e.target.value })} placeholder={t('copy-review:field.toneAnalysis.placeholder')} /></div>
                   </div>
                 </details>
               </div>
             </Card>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Button variant="ghost" onClick={addEntry}>+ 카피 추가</Button>
+            <Button variant="ghost" onClick={addEntry}>{t('copy-review:entry.addCopy')}</Button>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Badge tone="neutral">{entries.length}개 카피</Badge>
-              <Button onClick={handleConfirm} disabled={!allValid}>입력 완료</Button>
+              <Badge tone="neutral">{t('copy-review:entry.count', { count: entries.length })}</Badge>
+              <Button onClick={handleConfirm} disabled={!allValid}>{t('copy-review:entry.inputDone')}</Button>
             </div>
           </div>
         </>
@@ -639,7 +653,7 @@ export function CopyReviewPage() {
             <Card>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <div style={spinnerStyle} />
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-900)' }}>스킬 기반 리뷰 실행 중…</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-900)' }}>{t('copy-review:review.running')}</p>
               </div>
               {runReview.progressMessages.length > 0 && (
                 <div style={logBoxStyle}>
@@ -666,7 +680,7 @@ export function CopyReviewPage() {
               onClick={handleBackToInput}
               disabled={runReview.isPending}
             >
-              ← 이전 단계
+              {t('common:button.previousStep')}
             </Button>
           </div>
         </>
@@ -680,11 +694,8 @@ export function CopyReviewPage() {
     <div style={pageWrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
-          <h2 className="page-title">카피라이트 검토</h2>
-          <p className="page-subtitle">
-            왼쪽에서 카피를 입력 · 리뷰 결과를 확인하고, 오른쪽 채팅으로
-            AI 어시스턴트와 대화하세요.
-          </p>
+          <h2 className="page-title">{t('page:copyReview.title')}</h2>
+          <p className="page-subtitle">{t('copy-review:page.subtitle')}</p>
         </div>
       </div>
 
@@ -693,9 +704,16 @@ export function CopyReviewPage() {
           <span key={s.step} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <StepIndicator
               step={s.step}
-              label={s.label}
+              label={t(s.i18nKey)}
               active={(s.step === 1 && phase === 'input') || (s.step === 2 && phase === 'review' && !reviewCompleted)}
               done={(s.step === 1 && phase === 'review') || (s.step === 2 && reviewCompleted)}
+              onClick={() => {
+                if (s.step === 1 && phase === 'review') {
+                  handleBackToInput()
+                } else if (s.step === 2 && phase === 'input' && localCopyResults.length > 0) {
+                  setPhase('review')
+                }
+              }}
             />
             {idx < STEPS.length - 1 && <span style={{ color: 'var(--neutral-500)' }}>&rarr;</span>}
           </span>
@@ -712,7 +730,7 @@ export function CopyReviewPage() {
           right={
             <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--neutral-700)', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--color-border)' }}>
-                AI 어시스턴트
+                {t('chat:panelTitle')}
               </h4>
               <div style={{ flex: 1, minHeight: 0 }}><ChatPanel ref={chatRef} /></div>
             </Card>
@@ -727,15 +745,16 @@ export function CopyReviewPage() {
 /* ── HelpTip ── */
 
 function HelpTip({ label, text, chatRef }: { label: string; text: string; chatRef: React.RefObject<ChatPanelHandle | null> }) {
+  const { t } = useTranslation()
   const handleClick = () => {
     chatRef.current?.addAssistantMessage(
-      `**${label} 항목 안내**\n${text}`,
+      t('copy-review:helpChatMessage', { label, text }),
     )
   }
   return (
     <span
       onClick={handleClick}
-      title="클릭하면 AI 어시스턴트가 설명합니다"
+      title={t('copy-review:helpTooltip')}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

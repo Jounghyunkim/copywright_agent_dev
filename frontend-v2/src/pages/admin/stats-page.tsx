@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Area,
   AreaChart,
@@ -50,11 +51,11 @@ interface DepartmentStatsEntry {
   active_days_avg: number
 }
 
-const PERIOD_OPTIONS: { label: string; value: number }[] = [
-  { label: '7일', value: 7 },
-  { label: '14일', value: 14 },
-  { label: '30일', value: 30 },
-  { label: '90일', value: 90 },
+const PERIOD_OPTIONS: { labelKey: string; value: number }[] = [
+  { labelKey: 'stats:period.7d', value: 7 },
+  { labelKey: 'stats:period.14d', value: 14 },
+  { labelKey: 'stats:period.30d', value: 30 },
+  { labelKey: 'stats:period.90d', value: 90 },
 ]
 
 type UserSortKey = 'active_days' | 'login_count' | 'last_login' | 'user_id'
@@ -86,6 +87,7 @@ function formatDateTime(iso: string | null): string {
 }
 
 export function StatsPage() {
+  const { t } = useTranslation(['stats', 'admin', 'common', 'page'])
   const [days, setDays] = useState(30)
   const [summary, setSummary] = useState<StatsSummary | null>(null)
   const [dau, setDau] = useState<DauEntry[]>([])
@@ -120,7 +122,7 @@ export function StatsPage() {
       .catch((err) => {
         if (cancelled) return
         console.error('[StatsPage] load failed', err)
-        setError('통계 데이터를 불러오지 못했습니다.')
+        setError(t('stats:error.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -128,7 +130,7 @@ export function StatsPage() {
     return () => {
       cancelled = true
     }
-  }, [days])
+  }, [days, t])
 
   const sortedUsers = useMemo(() => {
     const arr = [...users]
@@ -168,11 +170,13 @@ export function StatsPage() {
         }}
       >
         <div>
-          <h2 className="page-title">사용 통계</h2>
-          <p className="page-subtitle">DAU / MAU, 조직별 / 개인별 활동 대시보드</p>
+          <h2 className="page-title">{t('page:stats.title')}</h2>
+          <p className="page-subtitle">{t('page:stats.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>기간:</span>
+          <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
+            {t('stats:period.label')}
+          </span>
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -189,7 +193,7 @@ export function StatsPage() {
                 color: days === opt.value ? '#fff' : 'var(--neutral-700)',
               }}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
@@ -209,12 +213,24 @@ export function StatsPage() {
           gap: 12,
         }}
       >
-        <SummaryCard label="오늘 DAU" value={summary?.dau_today ?? (loading ? '…' : 0)} />
-        <SummaryCard label="이번 달 MAU" value={summary?.mau_this_month ?? (loading ? '…' : 0)} />
-        <SummaryCard label="누적 사용자" value={summary?.total_unique_users ?? (loading ? '…' : 0)} />
-        <SummaryCard label="누적 로그인" value={summary?.total_logins ?? (loading ? '…' : 0)} />
         <SummaryCard
-          label="로그인 성공률"
+          label={t('stats:kpi.dauToday')}
+          value={summary?.dau_today ?? (loading ? '…' : 0)}
+        />
+        <SummaryCard
+          label={t('stats:kpi.mauThisMonth')}
+          value={summary?.mau_this_month ?? (loading ? '…' : 0)}
+        />
+        <SummaryCard
+          label={t('stats:kpi.totalUsers')}
+          value={summary?.total_unique_users ?? (loading ? '…' : 0)}
+        />
+        <SummaryCard
+          label={t('stats:kpi.totalLogins')}
+          value={summary?.total_logins ?? (loading ? '…' : 0)}
+        />
+        <SummaryCard
+          label={t('stats:kpi.loginSuccessRate')}
           value={summary ? `${summary.login_success_rate}%` : loading ? '…' : '0%'}
         />
       </div>
@@ -222,10 +238,12 @@ export function StatsPage() {
       {/* DAU chart */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-          DAU 추이 (최근 {days}일)
+          {t('stats:dauTrend', { days })}
         </h3>
         {dau.length === 0 && !loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>데이터가 없습니다.</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:noData')}
+          </p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={dau} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
@@ -253,9 +271,13 @@ export function StatsPage() {
 
       {/* MAU chart */}
       <Card>
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>MAU 추이 (최근 12개월)</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+          {t('stats:mauTrend')}
+        </h3>
         {mau.length === 0 && !loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>데이터가 없습니다.</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:noData')}
+          </p>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={mau} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
@@ -272,19 +294,27 @@ export function StatsPage() {
       {/* Department table */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          조직별 활동 (최근 {days}일)
+          {t('stats:deptActivity', { days })}
         </h3>
         {departments.length === 0 && !loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>데이터가 없습니다.</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:noData')}
+          </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>조직</th>
-                  <th style={{ textAlign: 'right' }}>사용자 수</th>
-                  <th style={{ textAlign: 'right' }}>로그인 횟수</th>
-                  <th style={{ textAlign: 'right' }}>평균 활동일</th>
+                  <th>{t('stats:table.department')}</th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('stats:table.uniqueUsers')}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('stats:table.loginCount')}
+                  </th>
+                  <th style={{ textAlign: 'right' }}>
+                    {t('stats:table.activeDaysAvg')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -305,29 +335,34 @@ export function StatsPage() {
       {/* User table */}
       <Card>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          개인별 활동 (최근 {days}일, {users.length}명)
+          {t('stats:userActivity', { days, count: users.length })}
         </h3>
         {users.length === 0 && !loading ? (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>데이터가 없습니다.</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
+            {t('common:noData')}
+          </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <SortTh label={`ID${sortIcon('user_id')}`} onClick={() => toggleSort('user_id')} />
-                  <th>조직</th>
                   <SortTh
-                    label={`활동일${sortIcon('active_days')}`}
+                    label={`${t('admin:table.id')}${sortIcon('user_id')}`}
+                    onClick={() => toggleSort('user_id')}
+                  />
+                  <th>{t('stats:table.department')}</th>
+                  <SortTh
+                    label={`${t('stats:table.activeDays')}${sortIcon('active_days')}`}
                     onClick={() => toggleSort('active_days')}
                     align="right"
                   />
                   <SortTh
-                    label={`로그인${sortIcon('login_count')}`}
+                    label={`${t('stats:table.logins')}${sortIcon('login_count')}`}
                     onClick={() => toggleSort('login_count')}
                     align="right"
                   />
                   <SortTh
-                    label={`최근 접속${sortIcon('last_login')}`}
+                    label={`${t('stats:table.lastLogin')}${sortIcon('last_login')}`}
                     onClick={() => toggleSort('last_login')}
                     align="right"
                   />

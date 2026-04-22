@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -12,6 +13,7 @@ export function HomePage() {
   const navigate = useNavigate()
   const dashboard = useDashboard()
   const reset = useWorkflowStore((s) => s.reset)
+  const { t } = useTranslation()
 
   const stats = dashboard.data?.stats
   const recent = (dashboard.data?.campaigns ?? []).slice(0, 5)
@@ -31,33 +33,32 @@ export function HomePage() {
         }}
       >
         <div>
-          <h2 className="page-title">홈</h2>
+          <h2 className="page-title">{t('page:home.title')}</h2>
           <p className="page-subtitle">
-            LG 브랜드 캠페인을 위한 AI 카피라이팅 플랫폼
+            {t('page:home.subtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Button variant="secondary" onClick={handleNew}>+ 새 카피라이트 생성</Button>
-          <Button onClick={() => navigate('/copy-review')}>카피라이트 검토</Button>
+          <Button variant="secondary" onClick={handleNew}>{t('home:button.newCampaign')}</Button>
+          <Button onClick={() => navigate('/copy-review')}>{t('home:button.reviewCopy')}</Button>
         </div>
       </div>
 
       {/* Dashboard stats */}
       <div className="grid-3">
         <StatCard
-          label="저장된 캠페인"
+          label={t('home:kpi.savedCampaigns')}
           value={stats?.totalProjects ?? 0}
-          unit="건"
           loading={dashboard.isLoading}
         />
         <StatCard
-          label="평균 Brand Fit"
+          label={t('home:kpi.avgBrandFit')}
           value={stats?.avgBrandScore ?? 0}
           unit="%"
           loading={dashboard.isLoading}
         />
         <StatCard
-          label="평균 Review 점수"
+          label={t('home:kpi.avgReviewScore')}
           value={stats?.avgReviewScore ?? 0}
           loading={dashboard.isLoading}
         />
@@ -76,25 +77,25 @@ export function HomePage() {
             marginBottom: 12,
           }}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 700 }}>최근 캠페인</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700 }}>{t('home:recentCampaigns')}</h3>
           <Link
             to="/workflow-list"
             style={{ fontSize: 12, color: 'var(--lg-red-600)', fontWeight: 600 }}
           >
-            전체 보기 →
+            {t('common:link.viewAll')}
           </Link>
         </div>
         {dashboard.isLoading && (
-          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>로드 중…</p>
+          <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>{t('common:loading')}</p>
         )}
         {dashboard.isError && (
           <p style={{ fontSize: 13, color: 'var(--danger)' }}>
-            대시보드를 불러오지 못했습니다.
+            {t('common:error.loadFailed')}
           </p>
         )}
         {!dashboard.isLoading && !dashboard.isError && recent.length === 0 && (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            저장된 캠페인이 없습니다. 새 워크플로우를 시작해 보세요.
+            {t('home:noCampaigns')}
           </p>
         )}
         {recent.length > 0 && (
@@ -148,7 +149,9 @@ export function HomePage() {
                   )}
                 </div>
                 <Badge tone={c.status === 'completed' ? 'success' : 'warning'}>
-                  {c.status === 'completed' ? '완료' : `${c.currentStep}/5`}
+                  {c.status === 'completed'
+                    ? t('common:status.completed')
+                    : t('common:status.stepOfTotal', { current: c.currentStep, total: 5 })}
                 </Badge>
                 <span
                   style={{ fontSize: 12, color: 'var(--neutral-500)' }}

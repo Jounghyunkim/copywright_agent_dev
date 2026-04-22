@@ -1,0 +1,79 @@
+{
+  "step": {
+    "brief": "브리핑",
+    "analysis": "분석",
+    "strategy": "전략 메시지",
+    "generation": "카피 생성",
+    "review": "검토"
+  },
+  "heading": {
+    "brief": "브리핑",
+    "analysisReport": "분석 리포트",
+    "strategyMessage": "전략 메시지",
+    "copyResults": "카피 생성 결과"
+  },
+  "button": {
+    "backToBrief": "브리프로 돌아가기",
+    "save": "저장",
+    "saving": "저장 중…",
+    "update": "업데이트",
+    "reset": "초기화"
+  },
+  "loading": {
+    "analyzing": "분석 중…",
+    "strategyExtraction": "Copywriting Strategy 추출 중…",
+    "copyGeneration": "카피 생성 중… (국가/변형 수에 따라 수 분 소요)",
+    "review": "스킬 기반 리뷰 실행 중…"
+  },
+  "error": {
+    "analysisFailed": "분석에 실패했습니다: {{error}}"
+  },
+  "confirm": {
+    "goBack": "{{step}}(으)로 돌아가면 현재 결과와 이후 단계가 초기화됩니다. 계속하시겠습니까?",
+    "reset": "진행 중인 내용을 초기화하시겠습니까?"
+  },
+  "editor": {
+    "tooltip": {
+      "campaignId": "현재 저장된 캠페인 ID"
+    },
+    "error": {
+      "projectNameRequired": "저장하려면 프로젝트명이 필요합니다.",
+      "saveFailed": "저장에 실패했습니다. 백엔드 연결을 확인해 주세요."
+    }
+  },
+  "analyzing": {
+    "title": "AI가 캠페인을 분석하고 있습니다",
+    "subtitle": "잠시만 기다려 주세요. 보통 30초~1분 정도 소요됩니다.",
+    "cancel": "분석 취소",
+    "visual": {
+      "queryPlanning": {
+        "label": "검색 전략 수립",
+        "desc": "브리프를 분석하여 최적의 검색 키워드를 생성합니다"
+      },
+      "search": {
+        "label": "시장 정보 수집",
+        "desc": "웹 검색과 내부 지식 베이스를 동시에 탐색합니다"
+      },
+      "synthesis": {
+        "label": "분석 리포트 작성",
+        "desc": "수집된 정보를 종합하여 인사이트를 도출합니다"
+      }
+    }
+  },
+  "helpItem": "**{{title}} 항목 안내**\n{{text}}",
+  "timeline": {
+    "unsaved": "미저장",
+    "milestone": {
+      "brief": "브리프 작성",
+      "analysis": "분석 리포트",
+      "strategy": "전략 메시지",
+      "generation": "카피 생성",
+      "review": "리뷰"
+    },
+    "detail": {
+      "notEntered": "미입력",
+      "copiesForCountries": "{{countries}}개 국가 · {{copies}}개 카피",
+      "reviews": "{{count}}건 리뷰"
+    }
+  }
+}

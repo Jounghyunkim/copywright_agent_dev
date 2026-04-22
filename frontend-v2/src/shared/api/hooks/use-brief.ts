@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
+import i18n from 'i18next'
 
 import { apiClient, readSSE } from '@/shared/api/client'
 import type {
@@ -12,7 +13,10 @@ import type {
 export function useGenerateBrief() {
   return useMutation({
     mutationFn: (body: GenerateBriefRequest) =>
-      apiClient.post<GenerateBriefResponse>('/api/v1/campaigns/generate-brief', body),
+      apiClient.post<GenerateBriefResponse>('/api/v1/campaigns/generate-brief', {
+        ...body,
+        locale: body.locale ?? i18n.language ?? 'ko',
+      }),
   })
 }
 
@@ -49,10 +53,15 @@ export function useAnalyzeSSE() {
     abortRef.current = new AbortController()
     let result: AnalysisReport | null = null
 
+    const bodyWithLocale: AnalyzeRequest = {
+      ...body,
+      locale: body.locale ?? i18n.language ?? 'ko',
+    }
+
     try {
       await readSSE(
         '/api/v1/campaigns/analyze',
-        body,
+        bodyWithLocale,
         (event) => {
           const type = event.type as string
           if (type === 'progress') {

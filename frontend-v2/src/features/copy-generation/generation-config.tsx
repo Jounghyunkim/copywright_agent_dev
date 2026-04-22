@@ -1,5 +1,6 @@
 import { CSSProperties, useMemo, useState } from 'react'
 import Markdown from 'react-markdown'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -27,6 +28,7 @@ export function GenerationConfig({
   onSubmit,
   isGenerating = false,
 }: Props) {
+  const { t } = useTranslation()
   const audience = useWorkflowStore((s) => s.brief.audience)
   const inferred = useMemo(() => inferFromAudience(audience), [audience])
 
@@ -76,17 +78,19 @@ export function GenerationConfig({
     <Card className="stack" style={{ padding: '1.2rem' }}>
       <div>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
-          카피 생성 조건
+          {t('generation:heading')}
         </h3>
         <p style={{ fontSize: 13, color: 'var(--neutral-700)' }}>
-          타겟 국가/연령/페르소나를 선택하고 카피 변형 수를 지정하세요.
+          {t('generation:instruction')}
         </p>
       </div>
 
       {/* Countries */}
-      <SectionTitle title="타겟 국가">
+      <SectionTitle title={t('generation:section.targetCountries')}>
         <button type="button" style={linkBtn} onClick={toggleAllCountries}>
-          {countries.length === COUNTRIES.length ? '전체 해제' : '전체 선택'}
+          {countries.length === COUNTRIES.length
+            ? t('generation:button.deselectAll')
+            : t('generation:button.selectAll')}
         </button>
       </SectionTitle>
       <div
@@ -123,9 +127,9 @@ export function GenerationConfig({
       </div>
 
       {/* Age Groups */}
-      <SectionTitle title="타겟 연령대">
+      <SectionTitle title={t('generation:section.targetAgeGroups')}>
         {inferred.ageGroups.length > 0 && (
-          <Badge tone="primary">Audience 기반 자동 선택</Badge>
+          <Badge tone="primary">{t('generation:autoSelect')}</Badge>
         )}
       </SectionTitle>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -141,9 +145,9 @@ export function GenerationConfig({
       </div>
 
       {/* Personas */}
-      <SectionTitle title="타겟 페르소나">
+      <SectionTitle title={t('generation:section.targetPersonas')}>
         {inferred.personas.length > 0 && (
-          <Badge tone="primary">Audience 기반 자동 선택</Badge>
+          <Badge tone="primary">{t('generation:autoSelect')}</Badge>
         )}
       </SectionTitle>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -165,7 +169,7 @@ export function GenerationConfig({
                   margin: 0,
                 }}
               >
-                {p.label}
+                {t(`generation:persona.${p.i18nKey}.label`, { defaultValue: p.label })}
               </p>
               <p
                 style={{
@@ -174,7 +178,7 @@ export function GenerationConfig({
                   margin: '2px 0 0 0',
                 }}
               >
-                {p.desc}
+                {t(`generation:persona.${p.i18nKey}.desc`, { defaultValue: p.desc })}
               </p>
             </div>
           </div>
@@ -184,14 +188,14 @@ export function GenerationConfig({
       {/* Writer Persona (optional) */}
       {writerPersonas.length > 0 && (
         <>
-          <SectionTitle title="AI 작가 페르소나 (선택)">
+          <SectionTitle title={t('generation:section.writerPersona')}>
             {writerPersona && (
               <button
                 type="button"
                 style={linkBtn}
                 onClick={() => setWriterPersona(undefined)}
               >
-                선택 해제
+                {t('generation:button.deselect')}
               </button>
             )}
           </SectionTitle>
@@ -271,7 +275,7 @@ export function GenerationConfig({
             whiteSpace: 'nowrap',
           }}
         >
-          변형 수
+          {t('generation:variantCount')}
         </label>
         <input
           type="number"
@@ -295,7 +299,7 @@ export function GenerationConfig({
         />
         <div style={{ flex: 1 }} />
         <Button onClick={handleSubmit} disabled={!canSubmit}>
-          {isGenerating ? '생성 중…' : `카피 생성 →`}
+          {isGenerating ? t('generation:button.generating') : t('generation:button.generate')}
         </Button>
       </div>
 
@@ -308,7 +312,7 @@ export function GenerationConfig({
             margin: 0,
           }}
         >
-          국가/연령/페르소나를 각각 1개 이상 선택해 주세요.
+          {t('generation:validation')}
         </p>
       )}
     </Card>
@@ -442,13 +446,14 @@ const writerPersonaCard = (selected: boolean): CSSProperties => ({
 /* ── Writer Intro Card (선택된 작가 소개/문체) ── */
 
 function WriterIntroCard({ persona }: { persona: AIPersona }) {
+  const { t } = useTranslation()
   const color = persona.color || '#6366f1'
   return (
     <div style={writerIntroWrap(color)}>
       <div style={writerIntroHeader}>
         <span style={writerIntroIcon(color)}>✍️</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={writerIntroKicker}>AI 작가 페르소나</p>
+          <p style={writerIntroKicker}>{t('generation:writerIntro.kicker')}</p>
           <p style={writerIntroName}>{persona.name}</p>
         </div>
         {typeof persona.temperature === 'number' && (
@@ -466,16 +471,16 @@ function WriterIntroCard({ persona }: { persona: AIPersona }) {
             marginTop: 8,
           }}
         >
-          {persona.tags.map((t) => (
-            <span key={t} style={writerIntroTag}>
-              #{t}
+          {persona.tags.map((tag) => (
+            <span key={tag} style={writerIntroTag}>
+              #{tag}
             </span>
           ))}
         </div>
       )}
       {persona.description && (
         <div style={writerIntroSection}>
-          <p style={writerIntroSectionLabel}>소개</p>
+          <p style={writerIntroSectionLabel}>{t('generation:writerIntro.introLabel')}</p>
           <div className="chat-markdown" style={{ fontSize: 13 }}>
             <Markdown>{persona.description}</Markdown>
           </div>
@@ -483,7 +488,7 @@ function WriterIntroCard({ persona }: { persona: AIPersona }) {
       )}
       {persona.style_highlights && persona.style_highlights.length > 0 && (
         <div style={writerIntroSection}>
-          <p style={writerIntroSectionLabel}>문체 특징</p>
+          <p style={writerIntroSectionLabel}>{t('generation:writerIntro.styleLabel')}</p>
           <ul
             style={{
               margin: 0,

@@ -1,0 +1,19 @@
+{
+  "sectionHelp": {
+    "Research Summary & AI Direction": "캠페인 브리프를 요약하고, AI가 분석한 핵심 과제와 크리에이티브 방향을 제시합니다.\n- Objective: 캠페인의 목표\n- Core Challenge: 해결해야 할 핵심 과제\n- AI Direction: AI가 추천하는 전략 방향",
+    "Deep-dive Persona": "타겟 고객의 심층 프로필입니다. 이름, 신념, 불만, 구매 동기 등을 통해 카피가 누구에게 말하는지 명확히 합니다.\n감정 트리거 키워드는 카피에서 활용할 수 있는 핵심 어휘입니다.",
+    "Brand Fit Score": "브랜드와 캠페인의 적합도를 0~100% 점수로 평가합니다.\n- Functional: 기능적 적합성\n- Emotional: 감성적 적합성\n- Cultural: 문화적 적합성",
+    "Market Opportunity & Risk": "시장 내 기회 요소와 위험 요소를 분석한 결과입니다.\n- Opportunity Gap: 경쟁사가 놓치고 있는 기회 영역\n- Risk: 주의해야 할 위험 키워드나 트렌드",
+    "Competitive Keywords": "경쟁사가 이미 선점한 키워드 목록입니다. 카피에서 이 단어들을 그대로 사용하면 차별화가 어려우므로, 피하거나 재정의해야 합니다.",
+    "Untapped Keywords": "아직 어떤 경쟁사도 선점하지 않은 감각적·감성적 키워드 영역입니다. 이 키워드들을 활용하면 독자적인 브랜드 언어를 구축할 수 있습니다.",
+    "Category Narrative Shift": "해당 카테고리의 기존 이야기 방식(Old Narrative)에서 새로운 이야기 방식(New Narrative)으로의 전환을 보여줍니다.\n카피는 이 새로운 내러티브 위에서 작성되어야 합니다.",
+    "Emotional Job To Be Done": "고객이 이 제품을 통해 실제로 해결하고 싶은 감정적 과업입니다.\n이 문장이 모든 카피의 출발점이 됩니다. \"나는 ___하고 싶다\" 형태로 표현됩니다.",
+    "Cultural Tension Map": "타겟 시장에서 존재하는 문화적 긴장 요소들입니다. 이 긴장을 이해하고 활용하면 공감을 이끌어내는 카피를 작성할 수 있습니다.",
+    "Copy Implications & Guardrails": "카피 작성 시 반드시 따라야 할 가이드라인입니다.\n- DO: 카피에 포함해야 할 요소\n- DON'T: 카피에서 피해야 할 요소",
+    "Recommended Keywords": "AI가 분석 결과를 종합하여 추천하는 카피용 핵심 키워드입니다. 이 단어들을 카피에 자연스럽게 녹여 사용하면 효과적입니다."
+  },
+  "button": {
+    "approve": "③ 전략 메시지 생성"
+  },
+  "helpTooltip": "클릭하면 AI 어시스턴트가 설명합니다"
+}

@@ -1,0 +1,30 @@
+{
+  "currentAdmins": "Current administrators ({{count}})",
+  "noAdmins": "No administrators registered.",
+  "userSearchLdap": "User search (LDAP)",
+  "ldapPasswordRequired": "Enter your password to search LDAP.",
+  "searchPlaceholder": "Search by name or ID (2+ chars)",
+  "noResults": "No results found.",
+  "changesNextLogin": "Admin add/remove takes effect at next sign-in.",
+  "table": {
+    "name": "Name",
+    "id": "ID",
+    "department": "Organization",
+    "addedAt": "Added on",
+    "addedBy": "Added by"
+  },
+  "button": {
+    "redoPassword": "Re-enter password"
+  },
+  "confirm": {
+    "removeSelf": "Remove yourself ({{name}}) from administrators?\nAdmin rights are revoked at next sign-in.",
+    "removeOther": "Remove {{name}} ({{id}}) from administrators?"
+  },
+  "error": {
+    "searchFailed": "Search failed.",
+    "alreadyAdmin": "This user is already an administrator.",
+    "addFailed": "Failed to add administrator.",
+    "removeFailed": "Failed to remove administrator.",
+    "lastAdmin": "Cannot remove the last administrator."
+  }
+}

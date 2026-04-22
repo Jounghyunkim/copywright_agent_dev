@@ -1,0 +1,18 @@
+{
+  "button": {
+    "new": "New campaign"
+  },
+  "loading": "Loading campaigns…",
+  "loadError": "Failed to load dashboard. Please check backend connectivity.",
+  "empty": "No saved campaigns.",
+  "deleteConfirm": "Delete campaign \"{{title}}\"? This cannot be undone.",
+  "table": {
+    "projectName": "Project",
+    "country": "Country",
+    "step": "Step",
+    "status": "Status",
+    "brandFit": "Brand Fit",
+    "reviewAvg": "Review Avg",
+    "createdAt": "Created"
+  }
+}

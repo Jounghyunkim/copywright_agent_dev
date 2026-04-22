@@ -1,0 +1,18 @@
+{
+  "panelTitle": "AI Assistant",
+  "greeting": "Hello, **{{userName}}**! I'm the Copywriting Assistant.\nIf you have a question or need help at any step, feel free to ask.",
+  "greetingAnon": "Hello! I'm the Copywriting Assistant.\nIf you have a question or need help at any step, feel free to ask.",
+  "messagePlaceholder": "Type a message",
+  "send": "Send",
+  "fileOnly": "(attachments only)",
+  "processing": "Processing files…",
+  "thinking": "Thinking…",
+  "removeFileAria": "Remove {{filename}}",
+  "truncatedFileTooltip": "Partial content only (truncated due to length)",
+  "error": {
+    "fileSizeExceeded": "{{filename}} (size exceeded)",
+    "attachFailed": "Cannot attach: {{files}}. Max 5MB per file.",
+    "fileProcessFailed": "Failed to process the file. Please try again.",
+    "responseFailed": "Failed to fetch response. Please check the backend connection."
+  }
+}

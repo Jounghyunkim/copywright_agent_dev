@@ -1,5 +1,6 @@
 import { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
@@ -38,17 +39,18 @@ import type {
   SelectedCopy,
 } from '@/shared/api/types'
 
-const STEPS = [
-  { step: 1, label: '브리핑' },
-  { step: 2, label: '분석' },
-  { step: 3, label: '전략 메시지' },
-  { step: 4, label: '카피 생성' },
-  { step: 5, label: '검토' },
+const STEPS: { step: 1 | 2 | 3 | 4 | 5; i18nKey: string }[] = [
+  { step: 1, i18nKey: 'workflow:step.brief' },
+  { step: 2, i18nKey: 'workflow:step.analysis' },
+  { step: 3, i18nKey: 'workflow:step.strategy' },
+  { step: 4, i18nKey: 'workflow:step.generation' },
+  { step: 5, i18nKey: 'workflow:step.review' },
 ]
 
 export function EditorPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { t } = useTranslation()
   const [reviewCompleted, setReviewCompleted] = useState(false)
   const [previewBrief, setPreviewBrief] = useState<CampaignBrief | null>(null)
   const leftPaneRef = useRef<HTMLDivElement>(null)
@@ -66,7 +68,7 @@ export function EditorPage() {
 
   /** 가이드 (?) 클릭 → 채팅에 어시스턴트 메시지로 표시 */
   const handleGuideRequest = useCallback((title: string, guide: string) => {
-    chatRef.current?.addAssistantMessage(`📋 **${title}** 작성 가이드\n\n${guide}`)
+    chatRef.current?.addAssistantMessage(`📋 ${t('workflow:helpItem', { title, text: guide })}`)
   }, [])
 
 
@@ -156,17 +158,14 @@ export function EditorPage() {
 
   /** 이전 단계로 돌아가기 — 해당 단계 이후의 모든 결과를 초기화 */
   const handleGoBack = (targetStep: number) => {
-    const stepLabels: Record<number, string> = {
-      1: '브리핑',
-      2: '분석',
-      3: '전략 메시지',
-      4: '카피 생성',
+    const stepLabelMap: Record<number, string> = {
+      1: t('workflow:step.brief'),
+      2: t('workflow:step.analysis'),
+      3: t('workflow:step.strategy'),
+      4: t('workflow:step.generation'),
     }
-    if (
-      !confirm(
-        `${stepLabels[targetStep] ?? targetStep + '단계'}(으)로 돌아가면 현재 결과와 이후 단계가 초기화됩니다. 계속하시겠습니까?`,
-      )
-    )
+    const stepLabel = stepLabelMap[targetStep] ?? `Step ${targetStep}`
+    if (!confirm(t('workflow:confirm.goBack', { step: stepLabel })))
       return
 
     // 완료된 캠페인을 재편집 모드로 되돌림 (스테퍼가 모두 done으로 고정되지 않도록)
@@ -197,10 +196,10 @@ export function EditorPage() {
   const handleExtractStrategy = async () => {
     if (!analysisReport) return
     try {
+      // locale 을 명시하지 않으면 훅이 i18n.language 기반으로 자동 주입 (use-strategic-message.ts:17)
       const res = await strategic.mutateAsync({
         brief,
         analysisReport,
-        locale: 'ko',
       })
       if (res.status === 'success' && res.data) {
         setStrategicMessage(res.data)
@@ -332,7 +331,7 @@ export function EditorPage() {
 
   const handleSave = async () => {
     if (!brief.projectName.trim()) {
-      alert('저장하려면 프로젝트명이 필요합니다.')
+      alert(t('workflow:editor.error.projectNameRequired'))
       return
     }
     try {
@@ -348,7 +347,7 @@ export function EditorPage() {
       }
     } catch (err) {
       console.error('[EditorPage] save failed', err)
-      alert('저장에 실패했습니다. 백엔드 연결을 확인해 주세요.')
+      alert(t('workflow:editor.error.saveFailed'))
     }
   }
 
@@ -379,7 +378,7 @@ export function EditorPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* Step 1: 브리핑 */}
       <div data-step="1" />
-      <CollapsibleStep step={1} label="브리핑" currentStep={currentStep}>
+      <CollapsibleStep step={1} label={t('workflow:heading.brief')} currentStep={currentStep}>
         {previewBrief ? (
           <BriefPreviewPanel
             brief={previewBrief}
@@ -414,15 +413,15 @@ export function EditorPage() {
       {!analysisReport && analyze.isError && (
         <Card>
           <p style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 8 }}>
-            분석에 실패했습니다: {analyze.error}
+            {t('workflow:error.analysisFailed', { error: analyze.error })}
           </p>
           <ProgressLog messages={analyze.progressMessages} maxHeight={120} />
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <Button variant="ghost" onClick={() => setCurrentStep(1)}>
-              브리프로 돌아가기
+              {t('workflow:button.backToBrief')}
             </Button>
             <Button onClick={() => handleBriefSubmit(brief)}>
-              다시 시도
+              {t('common:button.retry')}
             </Button>
           </div>
         </Card>
@@ -431,12 +430,12 @@ export function EditorPage() {
       {/* 분석 리포트 */}
       {analysisReport && (
         <>
-          <CollapsibleStep step={2} label="분석 리포트" currentStep={currentStep}>
+          <CollapsibleStep step={2} label={t('workflow:heading.analysisReport')} currentStep={currentStep}>
             <AnalysisReport
               report={analysisReport}
               onApprove={handleApproveAnalysis}
               onHelpRequest={(title, text) => {
-                chatRef.current?.addAssistantMessage(`**${title} 항목 안내**\n${text}`)
+                chatRef.current?.addAssistantMessage(t('workflow:helpItem', { title, text }))
               }}
               isApproved={analysisApproved}
             />
@@ -448,7 +447,7 @@ export function EditorPage() {
                 className="btn-compact"
                 onClick={() => handleGoBack(1)}
               >
-                ← 이전 단계
+                {t("common:button.previousStep")}
               </Button>
             </div>
           )}
@@ -458,12 +457,12 @@ export function EditorPage() {
       {/* Step 3: 전략 메시지 */}
       <div data-step="3" />
       {analysisApproved && currentStep >= 3 && strategic.isPending && (
-        <LoadingCard text="Copywriting Strategy 추출 중…" />
+        <LoadingCard text={t('workflow:loading.strategyExtraction')} />
       )}
 
       {analysisApproved && currentStep >= 3 && strategicMessage && (
         <>
-          <CollapsibleStep step={3} label="전략 메시지" currentStep={currentStep}>
+          <CollapsibleStep step={3} label={t('workflow:heading.strategyMessage')} currentStep={currentStep}>
             <StrategicMessageView
               data={strategicMessage}
               isApproved={strategicMessageApproved}
@@ -477,7 +476,7 @@ export function EditorPage() {
                 className="btn-compact"
                 onClick={handleModifyStrategy}
               >
-                ← 이전 단계
+                {t("common:button.previousStep")}
               </Button>
             </div>
           )}
@@ -497,7 +496,7 @@ export function EditorPage() {
             />
             <div style={backBtnRow}>
               <Button variant="ghost" className="btn-compact" onClick={() => handleGoBack(3)}>
-                ← 이전 단계
+                {t("common:button.previousStep")}
               </Button>
             </div>
           </>
@@ -506,12 +505,12 @@ export function EditorPage() {
       {currentStep >= 4 &&
         strategicMessageApproved &&
         generateCopy.isPending && (
-          <LoadingCard text="카피 생성 중… (국가/변형 수에 따라 수 분 소요)" />
+          <LoadingCard text={t('workflow:loading.copyGeneration')} />
         )}
 
       {currentStep >= 4 && copyResults && (
         <>
-          <CollapsibleStep step={4} label="카피 생성 결과" currentStep={currentStep}>
+          <CollapsibleStep step={4} label={t('workflow:heading.copyResults')} currentStep={currentStep}>
             <CopyResults
               results={copyResults}
               diagnostics={copyDiagnostics}
@@ -526,7 +525,7 @@ export function EditorPage() {
                 className="btn-compact"
                 onClick={() => handleGoBack(3)}
               >
-                ← 이전 단계
+                {t("common:button.previousStep")}
               </Button>
             </div>
           )}
@@ -558,7 +557,7 @@ export function EditorPage() {
             />
             <div style={backBtnRow}>
               <Button variant="ghost" className="btn-compact" onClick={() => handleGoBack(4)}>
-                ← 이전 단계
+                {t("common:button.previousStep")}
               </Button>
             </div>
           </>
@@ -569,7 +568,7 @@ export function EditorPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <Spinner />
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-900)' }}>
-              스킬 기반 리뷰 실행 중…
+              {t('workflow:loading.review')}
             </p>
           </div>
           <ProgressLog messages={runReview.progressMessages} />
@@ -591,7 +590,7 @@ export function EditorPage() {
           />
           <div style={backBtnRow}>
             <Button variant="ghost" className="btn-compact" onClick={() => handleGoBack(4)}>
-              ← 이전 단계
+              {t("common:button.previousStep")}
             </Button>
           </div>
         </>
@@ -611,7 +610,7 @@ export function EditorPage() {
           justifyContent: 'space-between',
         }}
       >
-        <h2 className="page-title" style={{ margin: 0 }}>카피라이트 생성</h2>
+        <h2 className="page-title" style={{ margin: 0 }}>{t('page:editor.title')}</h2>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {campaignId && (
             <span
@@ -620,7 +619,7 @@ export function EditorPage() {
                 color: 'var(--neutral-500)',
                 fontFamily: 'JetBrains Mono, monospace',
               }}
-              title="현재 저장된 캠페인 ID"
+              title={t('workflow:editor.tooltip.campaignId')}
             >
               {campaignId.slice(0, 8)}
             </span>
@@ -632,23 +631,23 @@ export function EditorPage() {
             disabled={saveCampaign.isPending || updateCampaign.isPending}
           >
             {saveCampaign.isPending || updateCampaign.isPending
-              ? '저장 중…'
+              ? t('workflow:button.saving')
               : campaignId
-                ? '업데이트'
-                : '저장'}
+                ? t('workflow:button.update')
+                : t('workflow:button.save')}
           </Button>
           <Button
             variant="ghost"
             className="btn-compact"
             onClick={() => {
-              if (confirm('진행 중인 내용을 초기화하시겠습니까?')) {
+              if (confirm(t('workflow:confirm.reset'))) {
                 reset()
                 setSearchParams({}, { replace: true })
                 navigate(0)
               }
             }}
           >
-            초기화
+            {t('workflow:button.reset')}
           </Button>
         </div>
       </div>
@@ -672,7 +671,7 @@ export function EditorPage() {
             >
               <StepIndicator
                 step={s.step}
-                label={s.label}
+                label={t(s.i18nKey)}
                 active={!isFullyCompleted && currentStep === s.step}
                 done={isFullyCompleted || currentStep > s.step}
                 onClick={() => scrollToStepTop(s.step)}
@@ -717,7 +716,7 @@ export function EditorPage() {
                   borderBottom: '1px solid var(--color-border)',
                 }}
               >
-                AI 어시스턴트
+                {t('chat:panelTitle')}
               </h4>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <ChatPanel ref={chatRef} />
@@ -830,10 +829,10 @@ function CollapsibleStep({
   )
 }
 
-const ANALYZE_VISUAL_STEPS = [
-  { keywords: ['query', 'plann'], label: '검색 전략 수립', desc: '브리프를 분석하여 최적의 검색 키워드를 생성합니다' },
-  { keywords: ['search', 'web', 'rag', 'retriev'], label: '시장 정보 수집', desc: '웹 검색과 내부 지식 베이스를 동시에 탐색합니다' },
-  { keywords: ['synth', 'generat', 'report', 'complet'], label: '분석 리포트 작성', desc: '수집된 정보를 종합하여 인사이트를 도출합니다' },
+const ANALYZE_VISUAL_STEPS: { keywords: string[]; i18nKey: string }[] = [
+  { keywords: ['query', 'plann'], i18nKey: 'queryPlanning' },
+  { keywords: ['search', 'web', 'rag', 'retriev'], i18nKey: 'search' },
+  { keywords: ['synth', 'generat', 'report', 'complet'], i18nKey: 'synthesis' },
 ]
 
 function resolveVisualStep(messages: string[]): number {
@@ -848,6 +847,7 @@ function resolveVisualStep(messages: string[]): number {
 }
 
 function AnalyzingCard({ messages, onCancel }: { messages: string[]; onCancel: () => void }) {
+  const { t } = useTranslation()
   const visualIdx = resolveVisualStep(messages)
 
   return (
@@ -857,10 +857,10 @@ function AnalyzingCard({ messages, onCancel }: { messages: string[]; onCancel: (
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Spinner />
           <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--neutral-900)', margin: '16px 0 6px' }}>
-            AI가 캠페인을 분석하고 있습니다
+            {t('workflow:analyzing.title')}
           </h3>
           <p style={{ fontSize: 13, color: 'var(--neutral-500)', margin: 0 }}>
-            잠시만 기다려 주세요. 보통 30초~1분 정도 소요됩니다.
+            {t('workflow:analyzing.subtitle')}
           </p>
         </div>
 
@@ -911,7 +911,7 @@ function AnalyzingCard({ messages, onCancel }: { messages: string[]; onCancel: (
                     color: active ? 'var(--lg-red-600)' : done ? 'var(--success)' : 'var(--neutral-500)',
                     transition: 'color 0.3s',
                   }}>
-                    {s.label}
+                    {t(`workflow:analyzing.visual.${s.i18nKey}.label`)}
                     {active && <span style={{ fontWeight: 500 }}> …</span>}
                   </p>
                   <p style={{
@@ -920,7 +920,7 @@ function AnalyzingCard({ messages, onCancel }: { messages: string[]; onCancel: (
                     margin: '3px 0 0',
                     transition: 'color 0.3s',
                   }}>
-                    {s.desc}
+                    {t(`workflow:analyzing.visual.${s.i18nKey}.desc`)}
                   </p>
                 </div>
               </div>
@@ -930,7 +930,7 @@ function AnalyzingCard({ messages, onCancel }: { messages: string[]; onCancel: (
 
         {/* Cancel */}
         <div style={{ textAlign: 'center' }}>
-          <Button variant="ghost" onClick={onCancel}>분석 취소</Button>
+          <Button variant="ghost" onClick={onCancel}>{t('workflow:analyzing.cancel')}</Button>
         </div>
       </div>
     </div>

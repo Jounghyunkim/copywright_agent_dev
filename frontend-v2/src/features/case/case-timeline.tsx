@@ -1,4 +1,5 @@
 import { CSSProperties, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -16,6 +17,7 @@ interface Milestone {
  * 좌우 공간을 적게 차지하는 Card — Editor 우측 상단/Right stage에 배치하기 좋음.
  */
 export function CaseTimeline({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation(['workflow'])
   const currentStep = useWorkflowStore((s) => s.currentStep)
   const brief = useWorkflowStore((s) => s.brief)
   const analysisReport = useWorkflowStore((s) => s.analysisReport)
@@ -33,7 +35,7 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
 
     list.push({
       step: 1,
-      label: '브리프 작성',
+      label: t('workflow:timeline.milestone.brief'),
       status: brief.projectName.trim()
         ? currentStep > 1
           ? 'done'
@@ -41,12 +43,12 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
         : currentStep === 1
           ? 'active'
           : 'pending',
-      detail: brief.projectName.trim() || '미입력',
+      detail: brief.projectName.trim() || t('workflow:timeline.detail.notEntered'),
     })
 
     list.push({
       step: 2,
-      label: '분석 리포트',
+      label: t('workflow:timeline.milestone.analysis'),
       status: analysisApproved
         ? 'done'
         : analysisReport
@@ -61,7 +63,7 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
 
     list.push({
       step: 3,
-      label: '전략 메시지',
+      label: t('workflow:timeline.milestone.strategy'),
       status: strategicMessageApproved
         ? 'done'
         : strategicMessage
@@ -80,7 +82,7 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
     )
     list.push({
       step: 4,
-      label: '카피 생성',
+      label: t('workflow:timeline.milestone.generation'),
       status:
         totalCopies > 0
           ? currentStep > 4
@@ -91,13 +93,16 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
             : 'pending',
       detail:
         totalCopies > 0
-          ? `${copyResults?.length ?? 0}개 국가 · ${totalCopies}개 카피`
+          ? t('workflow:timeline.detail.copiesForCountries', {
+              countries: copyResults?.length ?? 0,
+              copies: totalCopies,
+            })
           : undefined,
     })
 
     list.push({
       step: 5,
-      label: '리뷰',
+      label: t('workflow:timeline.milestone.review'),
       status:
         reviewResults && reviewResults.length > 0
           ? 'done'
@@ -106,12 +111,13 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
             : 'pending',
       detail:
         reviewResults && reviewResults.length > 0
-          ? `${reviewResults.length}건 리뷰`
+          ? t('workflow:timeline.detail.reviews', { count: reviewResults.length })
           : undefined,
     })
 
     return list
   }, [
+    t,
     brief,
     currentStep,
     analysisReport,
@@ -155,7 +161,7 @@ export function CaseTimeline({ compact = false }: { compact?: boolean }) {
             {campaignId.slice(0, 8)}
           </span>
         ) : (
-          <Badge tone="warning">미저장</Badge>
+          <Badge tone="warning">{t('workflow:timeline.unsaved')}</Badge>
         )}
       </div>
 

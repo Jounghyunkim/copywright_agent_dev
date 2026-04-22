@@ -7,6 +7,7 @@ import {
   forwardRef,
 } from 'react'
 import Markdown from 'react-markdown'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/shared/ui/button'
 import { useChat } from '@/shared/api/hooks'
@@ -62,6 +63,7 @@ function formatBytes(n: number): string {
  * 파일 첨부 시 /api/v1/chat/extract-text 로 텍스트 추출 후 메시지에 동봉.
  */
 export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) {
+  const { t } = useTranslation()
   const rawName = useAuthStore((s) => s.user?.display_name)
   const userName = rawName?.split('/')[0]?.trim() || rawName
 
@@ -69,8 +71,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
     {
       role: 'assistant',
       content: userName
-        ? `안녕하세요, **${userName}**님! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.`
-        : '안녕하세요! Copywriting Assistant입니다.\n각 단계에서 질문이 있거나, 도움이 필요하면 편하게 말씀해 주세요.',
+        ? t('chat:greeting', { userName })
+        : t('chat:greetingAnon'),
     },
   ])
   const [input, setInput] = useState('')
@@ -113,7 +115,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
     const rejects: string[] = []
     for (const f of picked) {
       if (f.size > MAX_FILE_BYTES) {
-        rejects.push(`${f.name} (용량 초과)`)
+        rejects.push(t('chat:error.fileSizeExceeded', { filename: f.name }))
         continue
       }
       if (existingNames.has(f.name)) continue
@@ -121,7 +123,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
       existingNames.add(f.name)
     }
     if (rejects.length > 0) {
-      setAttachError(`첨부 불가: ${rejects.join(', ')}. 파일당 최대 5MB.`)
+      setAttachError(t('chat:error.attachFailed', { files: rejects.join(', ') }))
     }
     if (accepted.length > 0) {
       setPendingFiles((prev) => [...prev, ...accepted])
@@ -187,7 +189,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
         }
       } catch (err) {
         console.error('[ChatPanel] file extract failed', err)
-        setAttachError('파일을 처리하지 못했습니다. 다시 시도해 주세요.')
+        setAttachError(t('chat:error.fileProcessFailed'))
         setUploading(false)
         return
       }
@@ -196,7 +198,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
 
     const userMessage: ChatMessage = {
       role: 'user',
-      content: text || '(첨부 파일만 전송)',
+      content: text || t('chat:fileOnly'),
       attachments,
     }
     const nextMessages: ChatMessage[] = [...messages, userMessage]
@@ -227,7 +229,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
         {
           role: 'assistant',
           content:
-            '응답을 가져오지 못했습니다. 백엔드 연결을 확인해 주세요.',
+            t('chat:error.responseFailed'),
         },
       ])
     }
@@ -246,7 +248,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
           <div style={{ ...bubbleWrap, justifyContent: 'flex-start' }}>
             <div style={{ ...bubble, background: 'var(--neutral-100)' }}>
               <span style={{ color: 'var(--neutral-500)', fontSize: 13 }}>
-                {uploading ? '파일 처리 중…' : '생각 중…'}
+                {uploading ? t('chat:processing') : t('chat:thinking')}
               </span>
             </div>
           </div>
@@ -280,7 +282,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
           type="button"
           onClick={handlePickFiles}
           disabled={uploading || chat.isPending}
-          title="파일 첨부 (문서: txt·md·csv·json·pdf·docx·xlsx / 이미지: png·jpg·gif·webp)"
+          title={t('common:tooltip.attachFiles')}
           style={attachBtn}
         >
           📎
@@ -294,12 +296,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
               handleSend()
             }
           }}
-          placeholder="메시지를 입력하세요"
+          placeholder={t('chat:messagePlaceholder')}
           rows={1}
           style={textarea}
         />
         <Button onClick={handleSend} disabled={!canSend}>
-          전송
+          {t('chat:send')}
         </Button>
       </div>
     </div>
@@ -307,6 +309,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle>(function ChatPanel(_, ref) 
 })
 
 function PendingChip({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const { t } = useTranslation()
   const [preview, setPreview] = useState<string | null>(null)
   const isImg = isImageFile(file)
 
@@ -341,7 +344,7 @@ function PendingChip({ file, onRemove }: { file: File; onRemove: () => void }) {
         type="button"
         onClick={onRemove}
         style={chipRemove}
-        aria-label={`${file.name} 제거`}
+        aria-label={t('chat:removeFileAria', { filename: file.name })}
       >
         ×
       </button>
@@ -350,6 +353,7 @@ function PendingChip({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 function Bubble({ message }: { message: ChatMessage }) {
+  const { t } = useTranslation()
   const isUser = message.role === 'user'
   const imageAtts = message.attachments?.filter((a) => a.kind === 'image') ?? []
   const textAtts = message.attachments?.filter((a) => a.kind !== 'image') ?? []
@@ -411,7 +415,7 @@ function Bubble({ message }: { message: ChatMessage }) {
                       padding: '2px 8px',
                       borderRadius: 10,
                     }}
-                    title={a.truncated ? '일부만 전달됨 (내용이 길어 잘림)' : undefined}
+                    title={a.truncated ? t('chat:truncatedFileTooltip') : undefined}
                   >
                     📎 {a.filename}
                     {a.truncated ? ' ✂' : ''}

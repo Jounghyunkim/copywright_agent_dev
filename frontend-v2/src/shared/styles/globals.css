@@ -16,6 +16,20 @@ body,
   color: var(--color-text);
 }
 
+/* ── 언어별 폰트 스택 분기 — i18n 확장 대비 ── */
+html[lang^="zh"] body, html[lang^="zh"] #root {
+  font-family: 'Noto Sans SC', 'Noto Sans TC', 'Inter', 'Noto Sans KR', sans-serif;
+}
+html[lang="ar"] body, html[lang="ar"] #root {
+  font-family: 'Noto Sans Arabic', 'Inter', 'Noto Sans KR', sans-serif;
+}
+html[lang="th"] body, html[lang="th"] #root {
+  font-family: 'Noto Sans Thai', 'Inter', 'Noto Sans KR', sans-serif;
+  line-break: auto;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
 a {
   color: inherit;
   text-decoration: none;

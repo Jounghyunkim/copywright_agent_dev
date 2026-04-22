@@ -1,0 +1,15 @@
+{
+  "title": "홈",
+  "subtitle": "LG 브랜드 캠페인을 위한 AI 카피라이팅 플랫폼",
+  "button": {
+    "newCampaign": "+ 새 카피라이트 생성",
+    "reviewCopy": "카피라이트 검토"
+  },
+  "kpi": {
+    "savedCampaigns": "저장된 캠페인",
+    "avgBrandFit": "평균 Brand Fit",
+    "avgReviewScore": "평균 Review 점수"
+  },
+  "recentCampaigns": "최근 캠페인",
+  "noCampaigns": "저장된 캠페인이 없습니다. 새 워크플로우를 시작해 보세요."
+}

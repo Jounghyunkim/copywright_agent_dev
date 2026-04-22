@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Modal } from '@/shared/ui/modal'
 import { Badge } from '@/shared/ui/badge'
@@ -13,6 +14,7 @@ interface Props {
 
 /** 스킬 상세 보기 (읽기 전용). */
 export function SkillDetailModal({ skill, onClose, onEdit }: Props) {
+  const { t } = useTranslation(['skills', 'common'])
   if (!skill) return null
 
   return (
@@ -25,7 +27,9 @@ export function SkillDetailModal({ skill, onClose, onEdit }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <Badge tone={skill.type === 'skillmd' ? 'neutral' : 'primary'}>
-            {skill.type === 'skillmd' ? 'built-in' : 'custom'}
+            {skill.type === 'skillmd'
+              ? t('skills:card.typeBuiltin')
+              : t('skills:card.typeCustom')}
           </Badge>
           <Badge tone="neutral">{skill.category}</Badge>
           {skill.risk_level && (
@@ -38,28 +42,38 @@ export function SkillDetailModal({ skill, onClose, onEdit }: Props) {
                     : 'neutral'
               }
             >
-              risk: {skill.risk_level}
+              {t('skills:detail.riskLabel', { level: skill.risk_level })}
             </Badge>
           )}
-          {skill.is_active === false && <Badge tone="danger">inactive</Badge>}
+          {skill.is_active === false && (
+            <Badge tone="danger">{t('skills:card.inactive')}</Badge>
+          )}
         </div>
 
-        <Field label="ID" value={skill.id} mono />
-        <Field label="Description" value={skill.description} multiline />
+        <Field label={t('skills:detail.idLabel')} value={skill.id} mono />
+        <Field
+          label={t('skills:detail.descriptionLabel')}
+          value={skill.description}
+          multiline
+        />
 
         {!!skill.action_tags?.length && (
-          <Field label="Action Tags" tags={skill.action_tags} />
+          <Field label={t('skills:detail.actionTags')} tags={skill.action_tags} />
         )}
         {!!skill.role_tags?.length && (
-          <Field label="Role Tags" tags={skill.role_tags} />
+          <Field label={t('skills:detail.roleTags')} tags={skill.role_tags} />
         )}
         {!!skill.reference_docs?.length && (
-          <Field label="Reference Docs" tags={skill.reference_docs} mono />
+          <Field
+            label={t('skills:detail.referenceDocs')}
+            tags={skill.reference_docs}
+            mono
+          />
         )}
 
         {skill.prompt_template && (
           <Field
-            label="Prompt Template"
+            label={t('skills:detail.promptTemplate')}
             value={skill.prompt_template}
             multiline
             mono
@@ -68,7 +82,7 @@ export function SkillDetailModal({ skill, onClose, onEdit }: Props) {
 
         {skill.output_schema && (
           <Field
-            label="Output Schema"
+            label={t('skills:detail.outputSchema')}
             value={JSON.stringify(skill.output_schema, null, 2)}
             multiline
             mono
@@ -94,10 +108,10 @@ export function SkillDetailModal({ skill, onClose, onEdit }: Props) {
               onClose()
             }}
           >
-            편집
+            {t('common:button.edit')}
           </Button>
         )}
-        <Button onClick={onClose}>닫기</Button>
+        <Button onClick={onClose}>{t('common:button.close')}</Button>
       </div>
     </Modal>
   )

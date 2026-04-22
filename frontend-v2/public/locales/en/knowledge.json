@@ -1,0 +1,36 @@
+{
+  "category": {
+    "book": "Book",
+    "essay": "Essay",
+    "interview": "Interview",
+    "copySample": "Copy sample",
+    "insight": "Insight"
+  },
+  "directInput": "Manual entry",
+  "registeredDocs": "Registered documents",
+  "totalChunks": "Total chunks",
+  "fileUpload": "File upload",
+  "fileSelect": "Choose files (txt, md, pdf, docx)",
+  "textInput": "Text input",
+  "titlePlaceholder": "e.g., 2024 interview excerpt",
+  "textPlaceholder": "Paste essays, interview excerpts, insight notes…",
+  "registered": "Registered knowledge ({{count}})",
+  "noDocs": "No documents registered. Upload a file or enter text to add knowledge.",
+  "summary": {
+    "docsCount": "{{count}} docs",
+    "chunksCount": "{{count}} chunks"
+  },
+  "table": {
+    "title": "Title",
+    "category": "Category",
+    "chunks": "Chunks",
+    "chars": "Characters",
+    "createdAt": "Registered"
+  },
+  "confirm": {
+    "delete": "Deleting this document also removes it from the vector index. Continue?"
+  },
+  "error": {
+    "uploadFailed": "Upload failed."
+  }
+}

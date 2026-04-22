@@ -1,0 +1,15 @@
+{
+  "title": "Home",
+  "subtitle": "AI copywriting platform for LG brand campaigns",
+  "button": {
+    "newCampaign": "+ New campaign",
+    "reviewCopy": "Copy Review"
+  },
+  "kpi": {
+    "savedCampaigns": "Saved campaigns",
+    "avgBrandFit": "Avg Brand Fit",
+    "avgReviewScore": "Avg Review Score"
+  },
+  "recentCampaigns": "Recent campaigns",
+  "noCampaigns": "No saved campaigns. Start a new workflow."
+}

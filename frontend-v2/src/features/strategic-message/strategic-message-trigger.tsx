@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 
@@ -17,6 +19,7 @@ export function StrategicMessageTrigger({
   isError,
   errorMessage,
 }: Props) {
+  const { t } = useTranslation()
   if (isPending) {
     return (
       <Card>
@@ -32,7 +35,7 @@ export function StrategicMessageTrigger({
             }}
           />
           <p style={{ fontSize: 14, color: 'var(--neutral-700)' }}>
-            Copywriting Strategy를 추출 중입니다…
+            {t('strategic-message:trigger.extracting')}
           </p>
         </div>
         <style>{`@keyframes sm-spin { to { transform: rotate(360deg) } }`}</style>
@@ -43,11 +46,10 @@ export function StrategicMessageTrigger({
   return (
     <Card className="stack">
       <h3 style={{ fontSize: 14, fontWeight: 700 }}>
-        다음 단계: Copywriting Strategy 추출
+        {t('strategic-message:trigger.heading')}
       </h3>
       <p style={{ fontSize: 13, color: 'var(--neutral-700)', lineHeight: 1.6 }}>
-        승인된 Market Analyst Report를 바탕으로 Core Message, Message Pillars,
-        Emotional Hook, Tone Direction, Key Phrases 를 도출합니다.
+        {t('strategic-message:trigger.description')}
       </p>
       {isError && errorMessage && (
         <p
@@ -60,7 +62,7 @@ export function StrategicMessageTrigger({
         </p>
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button onClick={onExtract}>전략 추출 시작 →</Button>
+        <Button onClick={onExtract}>{t('strategic-message:trigger.start')}</Button>
       </div>
     </Card>
   )

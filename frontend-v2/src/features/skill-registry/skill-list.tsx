@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -20,13 +21,14 @@ export function SkillList({
   onView,
   isDeleting,
 }: Props) {
+  const { t } = useTranslation(['skills', 'common'])
   const grouped = groupByCategory(skills)
   const categories = Object.keys(grouped).sort()
 
   if (skills.length === 0) {
     return (
       <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-        등록된 스킬이 없습니다.
+        {t('skills:empty')}
       </p>
     )
   }
@@ -85,6 +87,7 @@ function SkillCard({
   onView: () => void
   isDeleting?: boolean
 }) {
+  const { t } = useTranslation(['skills', 'common'])
   const isBuiltin = s.type === 'skillmd'
   return (
     <div style={cardStyle}>
@@ -163,12 +166,12 @@ function SkillCard({
         }}
       >
         <Button variant="ghost" className="btn-compact" onClick={onView}>
-          상세
+          {t('common:button.detail')}
         </Button>
         {s.editable && (
           <>
             <Button variant="ghost" className="btn-compact" onClick={onEdit}>
-              편집
+              {t('common:button.edit')}
             </Button>
             <Button
               variant="ghost"
@@ -176,7 +179,7 @@ function SkillCard({
               onClick={onDelete}
               disabled={isDeleting}
             >
-              삭제
+              {t('common:button.delete')}
             </Button>
           </>
         )}

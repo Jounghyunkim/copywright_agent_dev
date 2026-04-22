@@ -1,4 +1,5 @@
 import { CSSProperties, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Modal } from '@/shared/ui/modal'
 import { Button } from '@/shared/ui/button'
@@ -15,11 +16,17 @@ export function PreviewModal({
   brief: CampaignBrief
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(briefToMarkdown(brief))
+      await navigator.clipboard.writeText(
+        briefToMarkdown(brief, {
+          notWritten: `_(${t('brief:form.notWritten')})_`,
+          createdLabel: t('brief:form.createdDate', { date: '' }).replace(/:\s*$/, '').trim(),
+        }),
+      )
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -28,7 +35,7 @@ export function PreviewModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="브리프 미리보기" width={720}>
+    <Modal open={open} onClose={onClose} title={t('brief:previewModal.title')} width={720}>
       <div
         style={{
           maxHeight: '60vh',
@@ -49,10 +56,10 @@ export function PreviewModal({
         }}
       >
         <Button variant="ghost" onClick={handleCopy} type="button">
-          {copied ? '✓ 복사됨' : 'Markdown 복사'}
+          {copied ? t('brief:previewModal.copied') : t('brief:previewModal.copy')}
         </Button>
         <Button onClick={onClose} type="button">
-          닫기
+          {t('brief:previewModal.close')}
         </Button>
       </div>
     </Modal>
@@ -62,11 +69,13 @@ export function PreviewModal({
 /* ── Preview body (simple markdown-like layout) ── */
 
 function Preview({ brief: b }: { brief: CampaignBrief }) {
+  const { t } = useTranslation()
+  const notWritten = t('brief:form.notWritten')
   const Val = ({ v }: { v: string }) =>
     v ? (
       <p style={s.body}>{v}</p>
     ) : (
-      <p style={s.empty}>미작성</p>
+      <p style={s.empty}>{notWritten}</p>
     )
 
   return (
@@ -75,7 +84,7 @@ function Preview({ brief: b }: { brief: CampaignBrief }) {
         {b.projectName || 'Untitled Project'}
         <span style={s.badge}>BRIEF</span>
       </p>
-      <p style={s.meta}>생성일: {b.date.replace(/-/g, '.')}</p>
+      <p style={s.meta}>{t('brief:form.createdDate', { date: b.date.replace(/-/g, '.') })}</p>
 
       <p style={s.h2}>1. Project Context</p>
       <Val v={b.projectContext} />

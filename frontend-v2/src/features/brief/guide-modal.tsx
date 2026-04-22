@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 import { Modal } from '@/shared/ui/modal'
 import type { BriefSection } from './sections'
 
@@ -8,11 +10,12 @@ export function GuideModal({
   section: BriefSection | null
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <Modal
       open={!!section}
       onClose={onClose}
-      title={section?.title ?? ''}
+      title={section ? t(section.titleKey) : ''}
       width={560}
     >
       <p
@@ -23,7 +26,7 @@ export function GuideModal({
           whiteSpace: 'pre-wrap',
         }}
       >
-        {section?.guide}
+        {section?.guideKey ? t(section.guideKey) : ''}
       </p>
     </Modal>
   )

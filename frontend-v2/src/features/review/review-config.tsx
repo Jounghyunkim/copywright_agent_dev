@@ -1,4 +1,5 @@
 import { CSSProperties, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -19,34 +20,12 @@ interface Props {
 
 type PresetLevel = 'light' | 'standard' | 'deep'
 
-const LANE_META: Record<
-  Lane,
-  { label: string; color: string; icon: string; description: string }
-> = {
-  risk: {
-    label: 'Risk & Compliance',
-    color: '#dc2626',
-    icon: '⚠️',
-    description: '법무·규제·허위 주장 리스크를 탐지합니다.',
-  },
-  brand: {
-    label: 'Brand Integrity',
-    color: '#a50034',
-    icon: '🎯',
-    description: 'LG 브랜드 톤·사전·보이스 정합성을 검증합니다.',
-  },
-  craft: {
-    label: 'Craft Quality',
-    color: '#0ea5e9',
-    icon: '✨',
-    description: '카피의 명확성·임팩트·세그먼트 적합도를 평가합니다.',
-  },
-  localization: {
-    label: 'Localization',
-    color: '#059669',
-    icon: '🌐',
-    description: '국가·문화·언어 현지화 품질을 확인합니다.',
-  },
+/** 레인별 스타일 메타만 정의. 라벨/설명은 i18n(review:lane.*)로 관리. */
+const LANE_STYLE: Record<Lane, { color: string; icon: string }> = {
+  risk: { color: '#dc2626', icon: '⚠️' },
+  brand: { color: '#a50034', icon: '🎯' },
+  craft: { color: '#0ea5e9', icon: '✨' },
+  localization: { color: '#059669', icon: '🌐' },
 }
 
 const LANE_ORDER: Lane[] = ['risk', 'brand', 'craft', 'localization']
@@ -65,6 +44,7 @@ export function ReviewConfig({
   onRunReview,
   recommendedSkillIds,
 }: Props) {
+  const { t } = useTranslation()
   const [enabled, setEnabled] = useState<string[]>(recommendedSkillIds ?? [])
   const [activeLane, setActiveLane] = useState<Lane>('risk')
 
@@ -125,23 +105,24 @@ export function ReviewConfig({
     laneSkills[lane].filter((s) => enabledSet.has(s.id)).length
 
   const activeSkills = laneSkills[activeLane]
-  const activeMeta = LANE_META[activeLane]
+  const activeStyle = LANE_STYLE[activeLane]
 
   return (
     <Card className="stack" style={{ padding: '1.2rem' }}>
       <div>
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
-          리뷰 조건 설정
+          {t('review:config.title')}
         </h3>
         <p style={{ fontSize: 13, color: 'var(--neutral-700)' }}>
-          검증 레인을 선택해 적용할 스킬을 구성하세요. 프리셋으로 한 번에
-          선택할 수도 있습니다.
+          {t('review:config.instruction')}
         </p>
       </div>
 
       {/* Selected copies summary */}
       <div>
-        <p style={sectionTitle}>선택된 카피 ({selectedCopies.length}개)</p>
+        <p style={sectionTitle}>
+          {t('review:config.selectedCopies', { count: selectedCopies.length })}
+        </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {selectedCopies.map((c) => (
             <Badge key={c.key} tone="primary">
@@ -154,7 +135,7 @@ export function ReviewConfig({
       {/* Lane tabs */}
       <div style={{ borderBottom: '1px solid var(--color-border)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {LANE_ORDER.map((lane) => {
-          const meta = LANE_META[lane]
+          const style = LANE_STYLE[lane]
           const count = countPerLane(lane)
           const isActive = activeLane === lane
           return (
@@ -162,12 +143,12 @@ export function ReviewConfig({
               key={lane}
               type="button"
               onClick={() => setActiveLane(lane)}
-              style={laneTab(isActive, meta.color)}
+              style={laneTab(isActive, style.color)}
             >
-              <span aria-hidden>{meta.icon}</span>
-              <span>{meta.label}</span>
+              <span aria-hidden>{style.icon}</span>
+              <span>{t(`review:lane.${lane}.label`)}</span>
               {count > 0 && (
-                <span style={laneTabCount(meta.color)}>{count}</span>
+                <span style={laneTabCount(style.color)}>{count}</span>
               )}
             </button>
           )
@@ -187,24 +168,27 @@ export function ReviewConfig({
           }}
         >
           <p style={{ fontSize: 12, color: 'var(--neutral-500)', margin: 0 }}>
-            {activeMeta.description}
+            {t(`review:lane.${activeLane}.description`)}
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <PresetBtn
-              label="Light"
+              label={t('review:preset.light')}
+              title={t('review:preset.applyTooltip', { level: t('review:preset.light') })}
               onClick={() => applyPreset(activeLane, 'light')}
-              color={activeMeta.color}
+              color={activeStyle.color}
             />
             <PresetBtn
-              label="Standard"
+              label={t('review:preset.standard')}
+              title={t('review:preset.applyTooltip', { level: t('review:preset.standard') })}
               onClick={() => applyPreset(activeLane, 'standard')}
-              color={activeMeta.color}
+              color={activeStyle.color}
               emphasized
             />
             <PresetBtn
-              label="Deep"
+              label={t('review:preset.deep')}
+              title={t('review:preset.applyTooltip', { level: t('review:preset.deep') })}
               onClick={() => applyPreset(activeLane, 'deep')}
-              color={activeMeta.color}
+              color={activeStyle.color}
             />
             {countPerLane(activeLane) > 0 && (
               <button
@@ -212,7 +196,7 @@ export function ReviewConfig({
                 style={linkBtn}
                 onClick={() => clearLane(activeLane)}
               >
-                이 레인 해제
+                {t('review:config.clearThisLane')}
               </button>
             )}
           </div>
@@ -220,12 +204,12 @@ export function ReviewConfig({
 
         {isLoadingSkills && (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            스킬 목록 로드 중…
+            {t('review:config.skillsLoading')}
           </p>
         )}
         {!isLoadingSkills && activeSkills.length === 0 && (
           <p style={{ fontSize: 13, color: 'var(--neutral-500)' }}>
-            이 레인에 등록된 스킬이 없습니다.
+            {t('review:config.noSkillsInLane')}
           </p>
         )}
         {activeSkills.length > 0 && (
@@ -242,9 +226,9 @@ export function ReviewConfig({
                 <div
                   key={s.id}
                   onClick={() => toggle(s.id)}
-                  style={skillCard(checked, activeMeta.color)}
+                  style={skillCard(checked, activeStyle.color)}
                 >
-                  <div style={checkBox(checked, activeMeta.color)}>
+                  <div style={checkBox(checked, activeStyle.color)}>
                     {checked ? '✓' : ''}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -252,7 +236,7 @@ export function ReviewConfig({
                       style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: checked ? activeMeta.color : 'var(--neutral-900)',
+                        color: checked ? activeStyle.color : 'var(--neutral-900)',
                         margin: 0,
                       }}
                     >
@@ -298,23 +282,23 @@ export function ReviewConfig({
           {LANE_ORDER.map((lane) => {
             const cnt = countPerLane(lane)
             if (cnt === 0) return null
-            const meta = LANE_META[lane]
+            const style = LANE_STYLE[lane]
             return (
-              <span key={lane} style={laneChip(meta.color)}>
-                {meta.icon} {meta.label} · {cnt}
+              <span key={lane} style={laneChip(style.color)}>
+                {style.icon} {t(`review:lane.${lane}.label`)} · {cnt}
               </span>
             )
           })}
           {enabled.length === 0 && (
             <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-              스킬을 1개 이상 선택해 주세요.
+              {t('review:config.selectAtLeastOne')}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {enabled.length > 0 && (
             <button type="button" style={linkBtn} onClick={clearAll}>
-              전체 해제
+              {t('review:config.clearAll')}
             </button>
           )}
           <Button
@@ -323,7 +307,9 @@ export function ReviewConfig({
               enabled.length === 0 || isReviewing || selectedCopies.length === 0
             }
           >
-            {isReviewing ? '리뷰 실행 중…' : `⑤ 리뷰 시작 (${enabled.length})`}
+            {isReviewing
+              ? t('review:config.running')
+              : t('review:config.runButton', { count: enabled.length })}
           </Button>
         </div>
       </div>
@@ -335,11 +321,13 @@ export function ReviewConfig({
 
 function PresetBtn({
   label,
+  title,
   onClick,
   color,
   emphasized,
 }: {
   label: string
+  title?: string
   onClick: () => void
   color: string
   emphasized?: boolean
@@ -348,6 +336,7 @@ function PresetBtn({
     <button
       type="button"
       onClick={onClick}
+      title={title}
       style={{
         fontSize: 11,
         fontWeight: 700,
@@ -359,7 +348,6 @@ function PresetBtn({
         cursor: 'pointer',
         letterSpacing: 0.3,
       }}
-      title={`이 레인의 ${label} 프리셋 적용`}
     >
       {label}
     </button>

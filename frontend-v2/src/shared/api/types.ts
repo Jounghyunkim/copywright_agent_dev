@@ -84,7 +84,7 @@ export interface AnalysisReport {
 
 export interface AnalyzeRequest extends CampaignBrief {
   message_matrix?: Record<string, unknown> | null
-  locale?: 'ko' | 'en' | 'de'
+  locale?: string
 }
 
 export interface AnalysisResponse {
@@ -98,6 +98,8 @@ export interface AnalysisResponse {
 export interface GenerateBriefRequest {
   projectName: string
   projectContext: string
+  /** UI locale — AI 자동 생성 결과를 이 언어로 출력 */
+  locale?: string
 }
 
 export interface GenerateBriefResponse {
@@ -118,7 +120,7 @@ export interface StrategicMessageData {
 export interface StrategicMessageRequest {
   brief: CampaignBrief
   analysisReport: AnalysisReport
-  locale?: 'ko' | 'en' | 'de'
+  locale?: string
 }
 
 export interface StrategicMessageResponse {
@@ -165,6 +167,8 @@ export interface GenerateCopyRequest {
   analysisReport: AnalysisReport
   strategicMessage: StrategicMessageData
   config: GenerationConfig
+  /** UI locale — 카피 본문은 타겟 국가 언어 유지, methodology/culturalNotes/toneAnalysis 메타 주석만 UI 언어로 */
+  locale?: string
 }
 
 export interface GenerateCopyResponse {
@@ -227,6 +231,8 @@ export interface ReviewRequest {
   strategicMessage: StrategicMessageData
   selectedCopies: SelectedCopy[]
   enabledSkills: string[]
+  /** UI locale — review 결과(strengths/weaknesses/improvements)를 이 언어로 출력하도록 LLM에 요청 */
+  locale?: string
 }
 
 export type ReviewSeverity = 'critical' | 'warning' | 'suggestion'

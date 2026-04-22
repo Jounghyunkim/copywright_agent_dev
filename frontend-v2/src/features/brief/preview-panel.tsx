@@ -6,6 +6,7 @@
  */
 
 import { CSSProperties, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -24,6 +25,7 @@ interface Props {
 type TabId = 'matrix' | 'research'
 
 export function BriefPreviewPanel({ brief, matrixData, onBack }: Props) {
+  const { t } = useTranslation()
   const hasMatrix = !!matrixData && Object.keys(matrixData).length > 0
   const tabs: { id: TabId; label: string }[] = [
     ...(hasMatrix ? [{ id: 'matrix' as const, label: 'Message Matrix' }] : []),
@@ -39,7 +41,7 @@ export function BriefPreviewPanel({ brief, matrixData, onBack }: Props) {
           Research Preview
         </h3>
         <Button variant="ghost" className="btn-compact" onClick={onBack}>
-          ← 돌아가기
+          {t('brief:form.button.back')}
         </Button>
       </div>
 
@@ -182,8 +184,10 @@ function MatrixPreviewContent({ matrixData }: { matrixData: Record<string, Messa
 /* ── Campaign Research 탭 ── */
 
 function BriefPreview({ brief: b }: { brief: CampaignBrief }) {
+  const { t } = useTranslation()
+  const notWritten = t('brief:form.notWritten')
   const Val = ({ v }: { v: string }) =>
-    v ? <p style={s.body}>{v}</p> : <p style={s.empty}>미작성</p>
+    v ? <p style={s.body}>{v}</p> : <p style={s.empty}>{notWritten}</p>
 
   return (
     <div>
@@ -191,7 +195,7 @@ function BriefPreview({ brief: b }: { brief: CampaignBrief }) {
         {b.projectName || 'Untitled Project'}
         <Badge tone="primary" style={{ marginLeft: 8, fontSize: '0.72rem' }}>BRIEF</Badge>
       </p>
-      <p style={s.meta}>생성일: {b.date.replace(/-/g, '.')}</p>
+      <p style={s.meta}>{t('brief:form.createdDate', { date: b.date.replace(/-/g, '.') })}</p>
 
       <p style={s.h2}>1. Project Context</p>
       <Val v={b.projectContext} />

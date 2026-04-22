@@ -1,0 +1,36 @@
+{
+  "category": {
+    "book": "저서",
+    "essay": "에세이",
+    "interview": "인터뷰",
+    "copySample": "카피샘플",
+    "insight": "인사이트"
+  },
+  "directInput": "직접 입력",
+  "registeredDocs": "등록 문서",
+  "totalChunks": "총 청크 수",
+  "fileUpload": "파일 업로드",
+  "fileSelect": "파일 선택 (txt, md, pdf, docx)",
+  "textInput": "텍스트 직접 입력",
+  "titlePlaceholder": "예: 2024 인터뷰 발췌",
+  "textPlaceholder": "에세이, 인터뷰 내용, 인사이트 메모 등을 붙여넣기…",
+  "registered": "등록된 지식 ({{count}}건)",
+  "noDocs": "등록된 문서가 없습니다. 파일 업로드 또는 텍스트 입력으로 지식을 추가하세요.",
+  "summary": {
+    "docsCount": "{{count}}건",
+    "chunksCount": "{{count}}개"
+  },
+  "table": {
+    "title": "제목",
+    "category": "카테고리",
+    "chunks": "청크",
+    "chars": "글자 수",
+    "createdAt": "등록일"
+  },
+  "confirm": {
+    "delete": "이 문서를 삭제하면 벡터 인덱스에서도 제거됩니다. 계속하시겠습니까?"
+  },
+  "error": {
+    "uploadFailed": "업로드에 실패했습니다."
+  }
+}

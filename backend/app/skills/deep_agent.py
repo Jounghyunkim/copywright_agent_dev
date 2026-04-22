@@ -197,6 +197,7 @@ class DeepAgentExecutor:
         config: dict,
         persona_skill: str | None = None,
         culture_skill: str | None = None,
+        ui_locale: str = "ko",
     ) -> dict:
         """DeepAgent 기반 카피 생성
 
@@ -298,8 +299,8 @@ CRITICAL RULES:
 - Never include demographic descriptors (age ranges, income levels, social class) in customer-facing copy
 - Use target segment info only to guide tone, appeal points, and creative strategy
 - Each country MUST have exactly {copy_count} copy variants
-- headline, subheadline, bodyCopy, cta MUST be in the LOCAL LANGUAGE
-- methodology, culturalNotes, toneAnalysis are always in Korean
+- **headline, subheadline, bodyCopy, cta MUST be in the TARGET COUNTRY'S LOCAL LANGUAGE** (never translate these to the UI language).
+- **methodology, culturalNotes, toneAnalysis MUST be in __META_LANG__** — this is the user's UI language, NOT the target country language. Keep brand assets (LG, ThinQ, Life's Good, OLED, gram) untranslated.
 
 ## Output Format
 Return a JSON array:
@@ -312,13 +313,17 @@ Return a JSON array:
         "subheadline": "LOCAL LANGUAGE subheadline",
         "bodyCopy": "LOCAL LANGUAGE body (2-3 sentences)",
         "cta": "LOCAL LANGUAGE CTA",
-        "methodology": "Korean: creative approach explanation",
-        "culturalNotes": "Korean: cultural adaptation notes",
-        "toneAnalysis": "Korean: tone description"
+        "methodology": "__META_LANG__: creative approach explanation",
+        "culturalNotes": "__META_LANG__: cultural adaptation notes",
+        "toneAnalysis": "__META_LANG__: tone description"
       }}
     ]
   }}
 ]"""
+        # Meta language substitution — __META_LANG__ 플레이스홀더를 실제 언어명으로 치환
+        from .skillmd_runner import _language_name as _lang_name
+        meta_language = _lang_name(ui_locale)
+        system_prompt = system_prompt.replace("__META_LANG__", meta_language)
 
         # 6) LLM 호출
         llm = _get_llm(temperature=0.7)

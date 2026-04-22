@@ -1,0 +1,122 @@
+{
+  "page": {
+    "title": "카피라이트 검토",
+    "subtitle": "왼쪽에서 카피를 입력 · 리뷰 결과를 확인하고, 오른쪽 채팅으로 AI 어시스턴트와 대화하세요."
+  },
+  "step": {
+    "input": "카피 입력",
+    "review": "검토"
+  },
+  "intent": {
+    "branding": {
+      "label": "브랜딩",
+      "hint": "브랜드 인지도·선호도 강화"
+    },
+    "promotion": {
+      "label": "프로모션",
+      "hint": "세일·이벤트·할인 소구"
+    },
+    "performance": {
+      "label": "퍼포먼스",
+      "hint": "전환율·퍼포먼스 최적화"
+    },
+    "launch": {
+      "label": "신제품 론칭",
+      "hint": "신제품 출시·론칭 커뮤니케이션"
+    }
+  },
+  "context": {
+    "heading": "캠페인 컨텍스트",
+    "help": "검토 품질을 높이기 위한 공통 맥락. 모든 카피에 함께 반영됩니다.",
+    "intent": {
+      "label": "캠페인 목적",
+      "help": "이 검토의 목적을 선택하세요. 목적에 따라 리뷰 스킬이 카피를 평가하는 기준(소구 방향, 톤, KPI)이 달라집니다."
+    },
+    "productCategory": {
+      "label": "제품군 / 카테고리",
+      "help": "예: TV, 냉장고, 스마트폰, 에어컨 등. 제품군에 따라 규제·문화·클레임 검증 기준이 달라집니다.",
+      "placeholder": "예: OLED TV, 무선 이어폰"
+    },
+    "originalCopy": {
+      "label": "원본/마스터 카피 (선택)",
+      "help": "현지화 전 영문 마스터 카피 등 기준이 되는 원문이 있다면 입력하세요. 언어 재창작·현지화 검증 스킬이 참조합니다.",
+      "placeholder": "Global master copy or reference version"
+    }
+  },
+  "entry": {
+    "heading": "카피 #{{index}}",
+    "delete": "삭제",
+    "addCopy": "+ 카피 추가",
+    "count_one": "{{count}}개 카피",
+    "count_other": "{{count}}개 카피",
+    "inputDone": "입력 완료"
+  },
+  "field": {
+    "country": {
+      "label": "국가",
+      "help": "카피가 게재될 대상 국가를 선택하세요. 국가에 따라 언어와 문화적 맥락이 달라집니다."
+    },
+    "headline": {
+      "label": "Headline",
+      "help": "광고의 첫 인상을 결정하는 메인 문구입니다. 짧고 강렬하게 핵심 메시지를 전달하세요.",
+      "placeholder": "메인 헤드라인"
+    },
+    "subheadline": {
+      "label": "Subheadline",
+      "help": "헤드라인을 보충하는 보조 문구입니다. 추가 설명이나 맥락을 제공합니다.",
+      "placeholder": "보조 헤드라인"
+    },
+    "bodyCopy": {
+      "label": "Body Copy",
+      "help": "제품이나 캠페인의 상세 내용을 전달하는 본문입니다. 타겟 고객의 관심을 끄는 핵심 정보를 담으세요.",
+      "placeholder": "본문 카피"
+    },
+    "cta": {
+      "label": "CTA",
+      "help": "사용자의 행동을 유도하는 문구입니다. 예: '지금 구매하기', 'Learn More' 등",
+      "placeholder": "Call to Action"
+    },
+    "optionalSection": "선택 항목 (Methodology / Cultural Notes / Tone Analysis)",
+    "methodology": {
+      "label": "Methodology",
+      "help": "카피를 작성할 때 사용한 방법론이나 전략입니다. 예: AIDA, PAS, 스토리텔링 등",
+      "placeholder": "카피 작성 방법론 (선택)"
+    },
+    "culturalNotes": {
+      "label": "Cultural Notes",
+      "help": "해당 국가나 문화권에서 특별히 고려한 사항입니다. 현지 관습, 금기, 언어적 뉘앙스 등",
+      "placeholder": "문화적 고려사항 (선택)"
+    },
+    "toneAnalysis": {
+      "label": "Tone Analysis",
+      "help": "카피의 전체적인 톤과 분위기를 설명합니다. 예: 격식체, 유머러스, 감성적, 전문적 등",
+      "placeholder": "톤 분석 (선택)"
+    }
+  },
+  "review": {
+    "running": "스킬 기반 리뷰 실행 중…",
+    "backConfirm": "입력 단계로 돌아가면 현재 리뷰 결과가 초기화됩니다. 계속하시겠습니까?",
+    "saveFailed": "저장에 실패했습니다."
+  },
+  "helpTooltip": "클릭하면 AI 어시스턴트가 설명합니다",
+  "helpChatMessage": "**{{label}} 항목 안내**\n{{text}}",
+  "brief": {
+    "context": {
+      "productCategoryLine": "제품군: {{value}}",
+      "originalCopyLine": "원본/마스터 카피:\n{{value}}",
+      "representativeCopyLine": "대표 카피 본문:\n{{value}}",
+      "defaultLine": "사용자가 직접 입력한 카피에 대한 스킬 기반 검토"
+    },
+    "objective": {
+      "brandingBehavior": "브랜드 검색·재방문 유도",
+      "brandingAttitudinal": "브랜드 인지도·호감도 강화",
+      "promotionCommercial": "프로모션 매출/참여 증대",
+      "promotionBehavior": "세일 기간 내 구매 전환",
+      "performanceCommercial": "전환율·ROAS 개선",
+      "performanceBehavior": "클릭·가입·구매 전환",
+      "launchCommercial": "신제품 초기 매출 확보",
+      "launchBehavior": "신제품 체험·사전예약",
+      "launchAttitudinal": "신제품 인지·기대감 형성"
+    }
+  }
+}

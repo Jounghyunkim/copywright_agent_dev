@@ -1,0 +1,32 @@
+{
+  "period": {
+    "label": "기간:",
+    "7d": "7일",
+    "14d": "14일",
+    "30d": "30일",
+    "90d": "90일"
+  },
+  "kpi": {
+    "dauToday": "오늘 DAU",
+    "mauThisMonth": "이번 달 MAU",
+    "totalUsers": "누적 사용자",
+    "totalLogins": "누적 로그인",
+    "loginSuccessRate": "로그인 성공률"
+  },
+  "dauTrend": "DAU 추이 (최근 {{days}}일)",
+  "mauTrend": "MAU 추이 (최근 12개월)",
+  "deptActivity": "조직별 활동 (최근 {{days}}일)",
+  "userActivity": "개인별 활동 (최근 {{days}}일, {{count}}명)",
+  "table": {
+    "department": "조직",
+    "uniqueUsers": "사용자 수",
+    "loginCount": "로그인 횟수",
+    "activeDaysAvg": "평균 활동일",
+    "activeDays": "활동일",
+    "logins": "로그인",
+    "lastLogin": "최근 접속"
+  },
+  "error": {
+    "loadFailed": "통계 데이터를 불러오지 못했습니다."
+  }
+}

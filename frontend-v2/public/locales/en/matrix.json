@@ -1,0 +1,30 @@
+{
+  "dropzone": {
+    "prompt": "Drag a Message Matrix file or click to upload",
+    "supportedFormats": "Supports .xlsx / .xls"
+  },
+  "phase": {
+    "loadingSheets": "Loading sheet list…",
+    "parsing": "Parsing sheets…"
+  },
+  "sheetList": {
+    "count_one": "({{count}} sheet)",
+    "count_other": "({{count}} sheets)",
+    "selectPrompt": "Select the sheets to parse."
+  },
+  "button": {
+    "cancel": "Cancel",
+    "startParsing": "✓ Start parsing",
+    "remove": "Remove",
+    "sample": "Sample file",
+    "sampleTitle": "Load the bundled DUALCOOL AI Air sample matrix"
+  },
+  "error": {
+    "format": "Only .xlsx / .xls are supported.",
+    "empty": "The sheet is empty.",
+    "sheetsLoadFailed": "Failed to load sheets: {{message}}",
+    "parsingFailed": "Parsing failed: {{message}}",
+    "sampleLoadFailed": "Failed to load the sample file."
+  },
+  "summary": "Extracted from {{sheetCount}} sheets · {{uspCount}} USPs"
+}

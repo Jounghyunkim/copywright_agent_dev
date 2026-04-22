@@ -1,4 +1,5 @@
 import { CSSProperties, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
@@ -61,6 +62,7 @@ export function BriefingForm({
   isAnalyzing = false,
   isDisabled = false,
 }: Props) {
+  const { t } = useTranslation()
   const [brief, setBrief] = useState<CampaignBrief>(
     () => initialBrief ?? INITIAL_BRIEF,
   )
@@ -87,15 +89,15 @@ export function BriefingForm({
     const name = brief.projectName.trim()
     const context = brief.projectContext.trim()
     if (!name || !context) {
-      alert('프로젝트명과 Project Context를 먼저 입력해 주세요.')
+      alert(t('brief:form.error.nameAndContextRequired'))
       return
     }
     if (name.length < 3 || new Set(name.replace(/\s/g, '')).size <= 1) {
-      alert('프로젝트명은 3자 이상, 의미 있는 문자열이어야 합니다.')
+      alert(t('brief:form.error.projectNameShort'))
       return
     }
     if (context.length < 20 || context.split(/\s+/).filter(Boolean).length < 5) {
-      alert('Project Context는 20자 이상, 5단어 이상이어야 합니다.')
+      alert(t('brief:form.error.contextShort'))
       return
     }
     try {
@@ -120,7 +122,7 @@ export function BriefingForm({
       }
     } catch (err) {
       console.error('[BriefingForm] auto-generate failed', err)
-      alert('AI 자동생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      alert(t('brief:form.error.autogenFailed'))
     }
   }
 
@@ -178,11 +180,11 @@ export function BriefingForm({
             LG Campaign Research
           </h3>
           <p style={{ fontSize: 12, color: 'var(--neutral-700)' }}>
-            캠페인 브리프 9개 항목을 입력하거나 AI로 자동생성하세요.
+            {t('brief:form.instruction')}
           </p>
         </div>
         <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-          생성일: {brief.date.replace(/-/g, '.')}
+          {t('brief:form.createdDate', { date: brief.date.replace(/-/g, '.') })}
         </span>
       </div>
 
@@ -198,7 +200,7 @@ export function BriefingForm({
             marginBottom: 6,
           }}
         >
-          Message Matrix (선택)
+          {t('brief:form.messageMatrix.label')}
         </p>
         <p
           style={{
@@ -207,8 +209,7 @@ export function BriefingForm({
             marginBottom: 8,
           }}
         >
-          .xlsx 파일을 업로드하면 프로젝트명·컨텍스트를 자동으로 채우고
-          분석 단계에서 USP 정보를 함께 활용합니다.
+          {t('brief:form.messageMatrix.help')}
         </p>
         <MessageMatrixUpload
           onParsed={handleMatrixParsed}
@@ -252,24 +253,27 @@ export function BriefingForm({
                       letterSpacing: 0.3,
                     }}
                   >
-                    {section.title}
+                    {t(section.titleKey)}
                     {required && (
                       <span style={{ color: 'var(--lg-red-600)', marginLeft: 2 }}>*</span>
                     )}
                   </p>
-                  {section.guide && (
+                  {section.guideKey && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         if (onGuideRequest) {
-                          onGuideRequest(section.title, section.guide!)
+                          onGuideRequest(
+                            t(section.titleKey),
+                            t(section.guideKey!),
+                          )
                         } else {
                           setGuideSection(section)
                         }
                       }}
                       style={guideBtn}
-                      title="가이드 보기"
+                      title={t('brief:form.button.viewGuide')}
                     >
                       ?
                     </button>
@@ -287,7 +291,7 @@ export function BriefingForm({
                     color: 'var(--neutral-500)',
                     fontSize: 12,
                   }}
-                  aria-label={isCollapsed ? '펼치기' : '접기'}
+                  aria-label={t('brief:form.button.expandCollapse')}
                 >
                   {isCollapsed ? '▸' : '▾'}
                 </button>
@@ -316,8 +320,8 @@ export function BriefingForm({
                   style={autoGenBtn(generateBrief.isPending)}
                 >
                   {generateBrief.isPending
-                    ? '✦ AI 자동생성 중…'
-                    : '✦ AI 자동생성 (9개 항목)'}
+                    ? `✦ ${t('brief:form.button.generating')}`
+                    : `✦ ${t('brief:form.button.autoGenerate')}`}
                 </button>
               )}
             </div>
@@ -339,14 +343,14 @@ export function BriefingForm({
           onClick={() => onPreview?.(brief)}
           type="button"
         >
-          미리보기
+          {t('brief:form.button.preview')}
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={isDisabled || isAnalyzing}
           type="button"
         >
-          {isAnalyzing ? '분석 중…' : '② 분석 시작'}
+          {isAnalyzing ? t('workflow:loading.analyzing') : t('brief:form.button.run')}
         </Button>
       </div>
 
@@ -373,6 +377,8 @@ function FieldRow({
   invalid: boolean
   disabled: boolean
 }) {
+  const { t } = useTranslation()
+  const placeholder = t(field.placeholderKey)
   const commonStyle: CSSProperties = {
     width: '100%',
     padding: '8px 12px',
@@ -392,9 +398,9 @@ function FieldRow({
 
   return (
     <div>
-      {field.label && (
+      {field.labelKey && (
         <FieldLabel>
-          {field.label}
+          {t(field.labelKey)}
           {field.required && (
             <span style={{ color: 'var(--lg-red-600)', marginLeft: 2 }}>*</span>
           )}
@@ -403,7 +409,7 @@ function FieldRow({
       {field.type === 'textarea' ? (
         <textarea
           value={value}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           style={commonStyle}
@@ -413,7 +419,7 @@ function FieldRow({
         <input
           type="text"
           value={value}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           style={commonStyle}

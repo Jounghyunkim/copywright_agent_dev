@@ -1,0 +1,18 @@
+{
+  "tab": {
+    "general": "General Settings",
+    "admin": "Admin Settings",
+    "stats": "Usage Stats",
+    "knowledge": "Knowledge Base"
+  },
+  "section": "Settings",
+  "page": {
+    "title": "General Settings",
+    "subtitle": "Platform configuration and integration status"
+  },
+  "systemStatus": "System Status",
+  "backendConnection": "Backend Connection",
+  "externalServices": "External Services",
+  "apiKeysManaged": "API keys are managed in backend/.env.",
+  "userSection": "User"
+}

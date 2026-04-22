@@ -1,0 +1,30 @@
+{
+  "currentAdmins": "현재 관리자 ({{count}}명)",
+  "noAdmins": "등록된 관리자가 없습니다.",
+  "userSearchLdap": "사용자 검색 (LDAP)",
+  "ldapPasswordRequired": "LDAP 검색을 위해 본인 비밀번호를 입력해 주세요.",
+  "searchPlaceholder": "이름 또는 ID로 검색 (2글자 이상)",
+  "noResults": "검색 결과가 없습니다.",
+  "changesNextLogin": "관리자 추가/제거는 다음 로그인부터 반영됩니다.",
+  "table": {
+    "name": "이름",
+    "id": "ID",
+    "department": "조직",
+    "addedAt": "추가일",
+    "addedBy": "추가자"
+  },
+  "button": {
+    "redoPassword": "비밀번호 재입력"
+  },
+  "confirm": {
+    "removeSelf": "자신({{name}})을 관리자에서 제거하시겠습니까?\n다음 로그인부터 관리자 권한이 해제됩니다.",
+    "removeOther": "{{name}}({{id}})을 관리자에서 제거하시겠습니까?"
+  },
+  "error": {
+    "searchFailed": "검색에 실패했습니다.",
+    "alreadyAdmin": "이미 관리자로 등록된 사용자입니다.",
+    "addFailed": "관리자 추가에 실패했습니다.",
+    "removeFailed": "관리자 제거에 실패했습니다.",
+    "lastAdmin": "마지막 관리자는 제거할 수 없습니다."
+  }
+}
